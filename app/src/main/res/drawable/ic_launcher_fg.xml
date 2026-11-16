@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scontrino bianco con righe e spunta -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M36,28h36v50l-6,-4 -6,4 -6,-4 -6,4 -6,-4 -6,4z" />
+    <path android:fillColor="#0EA5E9" android:pathData="M42,38h24v3h-24z" />
+    <path android:fillColor="#0EA5E9" android:pathData="M42,46h24v3h-24z" />
+    <path android:fillColor="#0EA5E9" android:pathData="M42,54h14v3h-14z" />
+    <path android:fillColor="#16A34A"
+        android:pathData="M58,62l4,4 8,-9 2.5,2.2 -10.5,11.8 -6.5,-6.5z" />
+</vector>

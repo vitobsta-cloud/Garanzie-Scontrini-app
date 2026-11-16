@@ -1,0 +1,72 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "it.trsoftware.garanzie"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "it.trsoftware.garanzie"
+        minSdk 29
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        // Chiave fissa inclusa nel progetto: ogni APK compilato da GitHub si installa
+        // sopra il precedente senza dover disinstallare l'app.
+        fissa {
+            storeFile file("garanzie.keystore")
+            storePassword "garanzie"
+            keyAlias "garanzie"
+            keyPassword "garanzie"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.fissa
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.fissa
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/INDEX.LIST",
+                "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA"
+            ]
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.core:core:1.13.1"
+    implementation "androidx.webkit:webkit:1.12.1"
+    // Collegamento SMB al NAS QNAP
+    implementation("com.hierynomus:smbj:0.13.0") {
+        exclude group: "org.bouncycastle"
+    }
+    implementation "org.bouncycastle:bcprov-jdk18on:1.78.1"
+    // OCR sul telefono (Google ML Kit, modello incluso nell'app, funziona offline)
+    implementation "com.google.mlkit:text-recognition:16.0.1"
+}

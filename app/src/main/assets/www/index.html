@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TR/software — Garanzie &amp; Scontrini</title>
+<style>
+:root{
+  --bg:#eef1f5; --card:#fff; --text:#1d2530; --muted:#6b7480; --line:#dde2e8;
+  --accent:#0EA5E9; --accent-soft:rgba(56,189,248,.16);
+  --ok:#16a34a; --ok-soft:#e7f6ec; --warn:#d97706; --warn-soft:#fdf1e2; --bad:#dc2626; --bad-soft:#fde8e8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px 9px;display:flex;align-items:center;gap:10px}
+header .ttl{flex:1;min-width:0}
+header h1{margin:0;font-size:16.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header h1 b{color:var(--accent)}
+header p{margin:1px 0 0;color:var(--muted);font-size:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:#c3c9d1;flex:none}
+.dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+main{padding:14px 14px 96px;max-width:760px;margin:0 auto}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav button span{font-size:20px;line-height:1}
+nav button.active{color:var(--accent);font-weight:600}
+nav .badge{position:absolute;top:4px;left:calc(50% + 6px);background:var(--warn);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;min-width:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:16px}
+.muted{color:var(--muted);font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row > *{flex:1;min-width:130px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--text);outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:64px;resize:vertical}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--text);border-radius:9px;padding:10px 14px;font:inherit;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--bad);border-color:#f3c4c4}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.55}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btns .btn{flex:1}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.thumb{position:relative;width:84px;height:84px;border-radius:8px;border:1px solid var(--line);overflow:hidden;background:#fafafa;display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--muted);text-align:center;padding:2px;word-break:break-all}
+.thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.thumb button{position:absolute;top:2px;right:2px;border:0;border-radius:50%;width:22px;height:22px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;line-height:22px;padding:0;z-index:2}
+.items{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+.items td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.items td.num{text-align:right}
+.items input{padding:6px;font-size:13.5px}
+.entry{display:flex;gap:12px;align-items:center;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.entry .ico{width:46px;height:46px;flex:none;border-radius:9px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:21px}
+.entry .txt{flex:1;min-width:0}
+.entry .t1{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry .t2{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.none{background:#eef0f3;color:var(--muted)}
+.pill.up{background:var(--accent-soft);color:#0369a1}
+.stats{display:flex;gap:8px;margin-bottom:12px}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;font-size:12.5px}
+.stat b{display:block;font-size:22px}
+.stat.warn b{color:var(--warn)} .stat.bad b{color:var(--bad)} .stat.ok b{color:var(--ok)}
+.status{margin-top:10px;font-size:13.5px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1d2530;color:#fff;padding:10px 16px;border-radius:9px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:20}
+#toast.show{opacity:1} #toast.err{background:var(--bad)}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:flex;align-items:center;justify-content:center}
+.viewer img{max-width:100%;max-height:100%}
+.viewer button{position:absolute;top:14px;right:14px}
+.hidden{display:none!important}
+.banner{border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;display:flex;gap:10px;align-items:center}
+.banner.warn{background:var(--warn-soft);border:1px solid #f4d6ab;color:#7a4a05}
+.banner.info{background:var(--accent-soft);border:1px solid #bfe6f8;color:#075985}
+.banner > div{flex:1}
+details{margin-top:8px} summary{color:var(--muted);font-size:13px}
+pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px;padding:8px;max-height:260px;overflow:auto}
+</style>
+</head>
+<body>
+<header>
+  <div class="ttl">
+    <h1>🧾 TR/software — <b>Garanzie &amp; Scontrini</b></h1>
+    <p id="nasLine">NAS non configurato</p>
+  </div>
+  <div class="dot" id="nasDot" title="Stato NAS"></div>
+</header>
+<main id="view"></main>
+<nav id="nav">
+  <button data-v="acquisisci"><span>📷</span>Acquisisci</button>
+  <button data-v="archivio"><span>🔍</span>Cerca</button>
+  <button data-v="scadenze"><span>⏰</span>Scadenze<i class="badge hidden" id="badgeScad"></i></button>
+  <button data-v="impostazioni"><span>⚙️</span>Impostazioni</button>
+</nav>
+<div id="toast"></div>
+<input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="fileInput" accept="image/*,application/pdf" multiple class="hidden">
+
+<script>
+"use strict";
+/* =========================================================
+   Ponte Android
+   ========================================================= */
+const A = window.AndroidBridge || null;
+const pending = {};
+window.__bridgeCb = (id, ok, payload) => {
+  const p = pending[id]; if(!p) return; delete pending[id];
+  ok ? p.res(payload) : p.rej(new Error(payload));
+};
+function call(fn, ...args){
+  if(!A) return Promise.reject(new Error("Funzione disponibile solo nell'app Android."));
+  return new Promise((res, rej) => {
+    const id = "c" + Date.now() + Math.random().toString(36).slice(2);
+    pending[id] = {res, rej};
+    try{ A[fn](id, ...args); }catch(e){ delete pending[id]; rej(e); }
+  });
+}
+
+/* =========================================================
+   Indice locale (copia dell'archivio sul NAS, per cercare anche offline)
+   ========================================================= */
+let dbp = null;
+function db(){
+  if(!dbp) dbp = new Promise((res, rej) => {
+    const r = indexedDB.open("garanzie_scontrini", 2);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if(d.objectStoreNames.contains("acquisti")) d.deleteObjectStore("acquisti");
+      d.createObjectStore("acquisti", {keyPath:"id"});
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  return dbp;
+}
+const rq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+async function st(mode){ return (await db()).transaction("acquisti", mode).objectStore("acquisti"); }
+async function allAcquisti(){ return rq((await st("readonly")).getAll()); }
+async function getAcquisto(id){ return rq((await st("readonly")).get(id)); }
+async function putAcquisto(a){ return rq((await st("readwrite")).put(a)); }
+async function delAcquisto(id){ return rq((await st("readwrite")).delete(id)); }
+
+/* =========================================================
+   Impostazioni (NAS: password tenuta solo dalla parte Android)
+   ========================================================= */
+const DEFAULTS = {mesiDefault:24, giorniAvviso:30, apiKey:"", model:"claude-sonnet-5-5", ultimoAggiornamento:""};
+function settings(){ try{ return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("gs_settings") || "{}")); }catch(e){ return Object.assign({}, DEFAULTS); } }
+function saveSettings(p){ localStorage.setItem("gs_settings", JSON.stringify(Object.assign(settings(), p))); }
+function nasCfg(){
+  if(!A) return {host:"", share:"", folder:"", user:"", domain:"", hasPassword:false};
+  try{ return JSON.parse(A.getNasConfig()); }catch(e){ return {}; }
+}
+const nasReady = () => { const c = nasCfg(); return !!(c.host && c.share); };
+function nasLabel(){ const c = nasCfg(); return c.host ? `\\\\${c.host}\\${c.share}${c.folder ? "\\" + c.folder : ""}` : "NAS non configurato"; }
+
+/* =========================================================
+   Utilità
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg, err){ const t = $("#toast"); t.textContent = msg; t.className = "show" + (err ? " err" : ""); clearTimeout(t._h); t._h = setTimeout(() => t.className = "", 3500); }
+const euro = n => (n === "" || n === null || n === undefined || isNaN(n)) ? "" : Number(n).toLocaleString("it-IT", {style:"currency", currency:"EUR"});
+function fmtDate(iso){ if(!iso) return "—"; const [y, m, d] = iso.split("-"); return `${d}/${m}/${y}`; }
+function todayISO(){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); }
+function addMonths(iso, months){
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + Number(months), 1));
+  const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+  t.setUTCDate(Math.min(d, last)); return t.toISOString().slice(0, 10);
+}
+const daysLeft = iso => Math.round((Date.parse(iso + "T00:00:00Z") - Date.parse(todayISO() + "T00:00:00Z")) / 86400000);
+function scadenzaInfo(a){
+  if(!a.dataAcquisto || !Number(a.garanziaMesi)) return {cls:"none", label: a.dataAcquisto ? "Senza garanzia" : "Data mancante", days:null, date:""};
+  const date = addMonths(a.dataAcquisto, a.garanziaMesi), days = daysLeft(date);
+  if(days < 0) return {cls:"bad", label:"Scaduta il " + fmtDate(date), days, date};
+  if(days <= settings().giorniAvviso) return {cls:"warn", label: days === 0 ? "Scade oggi" : `Scade tra ${days} gg (${fmtDate(date)})`, days, date};
+  return {cls:"ok", label:"In garanzia fino al " + fmtDate(date), days, date};
+}
+function safeName(s){ return String(s || "").replace(/[\\/:*?"<>|#%]+/g, " ").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "").slice(0, 60); }
+function folderFor(a){ return `${safeName(a.negozio) || "Negozio sconosciuto"}/${safeName(a.nome) || "Acquisto"} ${(a.dataAcquisto || todayISO()).replace(/-/g, "_")}`; }
+const extOf = n => (n.match(/\.([a-z0-9]+)$/i) || ["", ""])[1].toLowerCase();
+const isImg = n => /^(jpe?g|png|webp|bmp|heic|gif)$/.test(extOf(n));
+const mimeOf = n => extOf(n) === "pdf" ? "application/pdf" : isImg(n) ? (extOf(n) === "png" ? "image/png" : "image/jpeg") : "application/octet-stream";
+const dataUrl = f => `data:${f.mime};base64,${f.data}`;
+const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
+
+function readAsDataURL(file){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error); r.readAsDataURL(file); }); }
+function loadImage(src){ return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+async function prepareFile(file){
+  const url = await readAsDataURL(file);
+  if(file.type === "application/pdf" || /\.pdf$/i.test(file.name)) return {name:file.name || "documento.pdf", mime:"application/pdf", data:url.split(",")[1]};
+  const img = await loadImage(url), max = 2400, k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  return {name:(file.name || "foto").replace(/\.[^.]+$/, "") + ".jpg", mime:"image/jpeg", data:c.toDataURL("image/jpeg", 0.88).split(",")[1]};
+}
+
+/* =========================================================
+   Lettura scontrino: testo OCR -> dati
+   ========================================================= */
+const NEGOZI_NOTI = ["Leroy Merlin","Bricoman","Brico io","Bricocenter","Obi","Tecnomat","MediaWorld","Unieuro","Euronics","Expert","Trony","Comet","Ikea","Decathlon","Lidl","Aldi","Esselunga","Carrefour","Coop","Conad","Iper","Eurospin","Tigota","Acqua & Sapone","Amazon","Maisons du Monde","Mondo Convenienza","Camping Sport","Brico Center","Self","Toys","Norauto","Euronics","Apple","Samsung","Zara","H&M","OVS","Bennet","Famila","Penny","Pam","Tuodì","Action","Kasanova","Coin","Sportland","Cisalfa","Agrieuro","Mondial","Castorama","Hornbach","Würth","Wuerth"];
+const num = s => { const v = parseFloat(String(s).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")); return isNaN(v) ? null : v; };
+const PRICE = "(-?\\d{1,5}(?:\\.\\d{3})*\\s?[,.]\\s?\\d{2})";
+function fixYear(y){
+  const now = new Date().getFullYear();
+  if(y < 100) y += 2000;
+  if(y > now){ // errore di lettura (es. 2076 invece di 2026): prende l'anno plausibile più vicino
+    const s = String(y), alts = new Set();
+    const sw = {"0":"9","9":"0","5":"6","6":"5","8":"6","7":"2","3":"8","1":"7"};
+    for(let i = 0; i < 4; i++) if(sw[s[i]]){ alts.add(+(s.slice(0, i) + sw[s[i]] + s.slice(i + 1))); }
+    const ok = [...alts].filter(v => v <= now && v >= 1990).sort((a, b) => b - a);
+    y = ok.length ? ok[0] : now;
+  }
+  return y;
+}
+function parseReceipt(text){
+  const lines = text.split(/\r?\n/).map(l => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const all = lines.join("\n"), up = all.toUpperCase();
+  const out = {negozio:"", dataAcquisto:"", prezzo:"", numeroScontrino:"", tipoPagamento:"", negozioIndirizzo:"", negozioCitta:"", negozioTelefono:"", articoli:[]};
+  // negozio
+  const noto = NEGOZI_NOTI.find(n => up.includes(n.toUpperCase()));
+  if(noto) out.negozio = noto;
+  else{
+    const cand = lines.slice(0, 6).find(l => /[A-Za-z]{3,}/.test(l) && !/(documento|commerciale|via |viale|piazza|p\.?\s?iva|partita|tel|www|http|@|srl|s\.r\.l|spa|s\.p\.a)/i.test(l));
+    if(cand) out.negozio = cand.replace(/[^\p{L}\d &'.-]/gu, "").trim().slice(0, 40);
+  }
+  // data
+  let best = null;
+  for(const m of all.matchAll(/\b(\d{1,2})\s?[\/.\-]\s?(\d{1,2})\s?[\/.\-]\s?(\d{2,4})\b/g)){
+    const d = +m[1], mo = +m[2], y = fixYear(+m[3]);
+    if(d >= 1 && d <= 31 && mo >= 1 && mo <= 12){ best = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`; if(/\d{2}:\d{2}/.test(all.slice(m.index, m.index + 30))) break; }
+  }
+  if(best) out.dataAcquisto = best;
+  // totale
+  const tot = all.match(new RegExp("(?:TOTALE\\s*COMPLESSIVO|TOTALE\\s*EURO|TOTALE\\s*EUR|IMPORTO\\s*PAGATO|TOTALE|TOT\\.?)\\s*(?:€|EUR|EURO)?\\s*:?\\s*" + PRICE, "i"));
+  if(tot) out.prezzo = num(tot[1]);
+  // numero documento
+  const nd = all.match(/(?:DOCUMENTO\s*N\.?|DOC\.?\s*N\.?|SCONTRINO\s*N\.?|FATTURA\s*N\.?|N\.\s*DOC\.?)\s*[:°]?\s*([\w\-\/]{3,})/i);
+  if(nd) out.numeroScontrino = nd[1];
+  // pagamento
+  if(/BANCOMAT|PAGOBANCOMAT/i.test(all)) out.tipoPagamento = "Bancomat";
+  else if(/CARTA|VISA|MASTERCARD|AMEX|MAESTRO|ELETTRONICO|POS/i.test(all)) out.tipoPagamento = "Carta";
+  else if(/CONTANT/i.test(all)) out.tipoPagamento = "Contanti";
+  // indirizzo, città, telefono
+  const ind = lines.find(l => /^(via|viale|piazza|piazzale|corso|largo|strada|s\.?s\.?|sp|loc\.?)\b/i.test(l)); if(ind) out.negozioIndirizzo = ind.slice(0, 60);
+  const cap = all.match(/\b\d{5}\s*[-–]?\s*([A-Z][A-Za-zÀ-ù' ]{2,30})/); if(cap) out.negozioCitta = cap[1].trim();
+  const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
+  // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga o prezzo sulla riga dopo
+  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZIONE)/i;
+  const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*[A-Z]?$");
+  const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?$");
+  for(let i = 0; i < lines.length; i++){
+    const l = lines[i]; if(SKIP.test(l)) continue;
+    let m = l.match(lineRe), desc, price;
+    if(m){ desc = m[1]; price = num(m[2]); }
+    else if(/[A-Za-z]{3,}/.test(l) && lines[i + 1] && onlyPrice.test(lines[i + 1]) && !SKIP.test(lines[i + 1])){
+      desc = l; price = num(lines[i + 1].match(onlyPrice)[1]); i++;
+    }
+    if(desc && price !== null && price > 0){
+      desc = desc.replace(/\s+\d{1,2}\s?%$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").trim();
+      let qty = 1; const q = desc.match(/^(\d{1,2})\s*[xX*]\s+(.*)$/); if(q){ qty = +q[1]; desc = q[2]; }
+      if(desc.length >= 2) out.articoli.push({descrizione:desc, quantita:qty, prezzo:price});
+    }
+  }
+  return out;
+}
+function nomeDaArticoli(art){
+  if(!art.length) return "";
+  const top = [...art].sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione;
+  return top.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).split(" ").slice(0, 4).join(" ");
+}
+
+/* Claude (facoltativo) */
+async function claudeRead(files){
+  const s = settings(); if(!s.apiKey) throw new Error("Nessuna chiave API di Claude in Impostazioni.");
+  const content = files.map(f => f.mime === "application/pdf"
+    ? {type:"document", source:{type:"base64", media_type:"application/pdf", data:f.data}}
+    : {type:"image", source:{type:"base64", media_type:f.mime, data:f.data}});
+  content.push({type:"text", text:`Leggi lo scontrino/fattura (Italia) e rispondi SOLO con JSON: {"negozio":"","nome":"nome breve dell'acquisto principale","dataAcquisto":"AAAA-MM-GG","prezzo":numero|null,"numeroScontrino":"","tipoPagamento":"","negozioIndirizzo":"","negozioCitta":"","negozioTelefono":"","garanziaMesi":24,"articoli":[{"descrizione":"","quantita":1,"prezzo":0}],"note":""}. Unisci descrizioni su più righe, ignora IVA/resto/pagamenti. Se l'anno è nel futuro è un errore di stampa: correggilo (oggi è ${todayISO()}).`});
+  const body = JSON.stringify({model:s.model, max_tokens:2500, messages:[{role:"user", content}]});
+  const r = JSON.parse(await call("claudeRequest", body, s.apiKey));
+  const j = JSON.parse(r.body);
+  if(r.status !== 200) throw new Error("Claude: " + (j.error?.message || r.status));
+  const txt = (j.content || []).filter(c => c.type === "text").map(c => c.text).join("");
+  const m = txt.match(/\{[\s\S]*\}/); if(!m) throw new Error("Risposta di Claude non leggibile.");
+  return JSON.parse(m[0]);
+}
+
+/* =========================================================
+   NAS: lettura archivio e salvataggio
+   ========================================================= */
+let nasState = "unknown"; // unknown | on | off
+function setNasState(s, msg){
+  nasState = s; const d = $("#nasDot"); d.className = "dot" + (s === "on" ? " on" : s === "off" ? " off" : "");
+  $("#nasLine").textContent = msg || (nasReady() ? nasLabel() : "NAS non configurato");
+}
+function entryFromFolder(f){
+  const parts = f.path.split("/").filter(Boolean), last = parts[parts.length - 1] || "";
+  const dm = last.match(/^(.*?)[\s_-]*(\d{4})[_\-.](\d{2})[_\-.](\d{2})\s*$/);
+  const e = {id:f.path, cartella:f.path, negozio: parts.length > 1 ? parts[0] : "", nome: dm ? dm[1].trim() : last,
+    dataAcquisto: dm ? `${dm[2]}-${dm[3]}-${dm[4]}` : "", garanziaMesi: settings().mesiDefault, prezzo:"", numeroScontrino:"",
+    tipoPagamento:"", negozioIndirizzo:"", negozioCitta:"", negozioTelefono:"", note:"", articoli:[],
+    files:(f.files || []).map(x => ({name:x.name, size:x.size})), hasInfo:false, modificato:(f.files || []).reduce((m, x) => Math.max(m, x.mtime || 0), 0)};
+  if(parts.length > 2) e.nome = parts.slice(1, -1).join(" / ") + " / " + e.nome;
+  if(f.info){ try{ const i = JSON.parse(f.info); for(const k of Object.keys(i)) if(!["app","versione","files","cartella","id"].includes(k)) e[k] = i[k]; e.hasInfo = true; }catch(err){} }
+  return e;
+}
+async function refreshFromNas(quiet){
+  if(!A || !nasReady()){ setNasState("unknown"); return false; }
+  setNasState("unknown", "Aggiorno dal NAS…");
+  try{
+    const folders = JSON.parse(await call("nasList"));
+    const old = await allAcquisti(), keep = old.filter(a => a.daCaricare);
+    const s = await st("readwrite"); await rq(s.clear());
+    const s2 = await st("readwrite");
+    for(const f of folders) s2.put(entryFromFolder(f));
+    for(const a of keep) s2.put(a);
+    await new Promise(r => { s2.transaction.oncomplete = r; s2.transaction.onerror = r; });
+    saveSettings({ultimoAggiornamento:new Date().toISOString()});
+    setNasState("on", `${nasLabel()} · ${folders.length} acquisti`);
+    if(keep.length) await uploadPending(true);
+    syncReminders(); updateBadge();
+    if(!quiet) toast(`Archivio aggiornato: ${folders.length} acquisti sul NAS.`);
+    return true;
+  }catch(e){
+    setNasState("off", "NAS non raggiungibile — dati dell'ultimo aggiornamento");
+    if(!quiet) toast(e.message, true);
+    return false;
+  }
+}
+function infoJSON(a){
+  const keys = ["nome","negozio","dataAcquisto","garanziaMesi","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","categoria","note","articoli"];
+  const o = {app:"GaranzieScontrini", versione:1, aggiornato:new Date().toISOString()};
+  keys.forEach(k => o[k] = a[k] ?? ""); return JSON.stringify(o, null, 2);
+}
+async function writeToNas(a){
+  for(const f of (a.pendingFiles || [])){
+    const used = await call("nasWriteFile", a.cartella, f.name, f.data);
+    a.files = (a.files || []).filter(x => x.name !== used).concat([{name:used, size:Math.round(f.data.length * 0.75)}]);
+  }
+  await call("nasWriteText", a.cartella, "garanzia.json", infoJSON(a));
+  a.pendingFiles = []; a.daCaricare = false; a.hasInfo = true;
+}
+async function uploadPending(quiet){
+  const list = (await allAcquisti()).filter(a => a.daCaricare); let ok = 0;
+  for(const a of list){ try{ await writeToNas(a); await putAcquisto(a); ok++; }catch(e){ if(!quiet) toast("Caricamento non riuscito: " + e.message, true); break; } }
+  if(ok && !quiet) toast(`${ok} acquisti caricati sul NAS.`);
+  return ok;
+}
+
+/* =========================================================
+   Navigazione
+   ========================================================= */
+let current = "acquisisci";
+function setView(v, arg){
+  current = v;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
+  window.scrollTo(0, 0);
+  ({acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio})[v](arg);
+}
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
+function nasBanner(){
+  if(!A) return `<div class="banner warn"><div>Anteprima nel browser: il collegamento al NAS funziona solo nell'app Android.</div></div>`;
+  if(!nasReady()) return `<div class="banner warn"><div>Configura il NAS QNAP per salvare e cercare gli scontrini.</div><button class="btn small" onclick="setView('impostazioni')">Configura</button></div>`;
+  return "";
+}
+async function pendingBanner(){
+  const n = (await allAcquisti()).filter(a => a.daCaricare).length;
+  return n ? `<div class="banner info"><div>⏳ ${n} acquist${n > 1 ? "i" : "o"} salvat${n > 1 ? "i" : "o"} sul telefono, da caricare sul NAS.</div><button class="btn small" id="bUpPend">Carica ora</button></div>` : "";
+}
+function bindPending(){ const b = $("#bUpPend"); if(b) b.onclick = async () => { b.disabled = true; await uploadPending(); setView(current); }; }
+
+/* =========================================================
+   ACQUISISCI / MODIFICA
+   ========================================================= */
+let draft = null, lastOcr = "";
+function newDraft(){
+  return {id:"", cartella:"", negozio:"", nome:"", categoria:"", dataAcquisto:todayISO(), prezzo:"", numeroScontrino:"", tipoPagamento:"",
+    negozioIndirizzo:"", negozioCitta:"", negozioTelefono:"", garanziaMesi:settings().mesiDefault, articoli:[], note:"", files:[], pendingFiles:[]};
+}
+async function renderAcquisisci(edit){
+  if(edit){ draft = JSON.parse(JSON.stringify(edit)); draft.pendingFiles = draft.pendingFiles || []; draft._edit = true; lastOcr = ""; }
+  if(!draft) draft = newDraft();
+  const isEdit = !!draft._edit, hasKey = !!settings().apiKey;
+  $("#view").innerHTML = `
+    ${nasBanner()}${await pendingBanner()}
+    <div class="card">
+      <h2>${isEdit ? "✏️ Modifica: " + esc(draft.nome || "acquisto") : "1. Scontrino"}</h2>
+      <p class="muted">${isEdit ? "Puoi aggiungere altri documenti (es. certificato di garanzia)." : "Fotografa lo scontrino (anche in più foto se è lungo) o scegli una foto/PDF già salvato."}</p>
+      <div class="btns">
+        <button class="btn" id="bCam">📷 Scatta foto</button>
+        <button class="btn" id="bFile">📁 Scegli file</button>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+      <div class="btns">
+        <button class="btn primary" id="bLeggi">🔎 Leggi scontrino</button>
+        ${hasKey ? `<button class="btn" id="bClaude">🤖 Rileggi con Claude</button>` : ""}
+      </div>
+      <div class="status" id="leggiStatus"></div>
+      <details id="ocrBox" class="${lastOcr ? "" : "hidden"}"><summary>Testo letto dal documento (per verifica)</summary><pre class="ocr">${esc(lastOcr)}</pre></details>
+    </div>
+    <div class="card">
+      <h2>${isEdit ? "Dati" : "2. Controlla i dati"}</h2>
+      <div class="row">
+        <div><label>Negozio</label><input id="fNegozio"></div>
+        <div><label>Nome oggetto</label><input id="fNome"></div>
+      </div>
+      <div class="row">
+        <div><label>Data acquisto</label><input id="fData" type="date"></div>
+        <div><label>Prezzo (€)</label><input id="fPrezzo" type="number" step="0.01" inputmode="decimal"></div>
+      </div>
+      <div class="row">
+        <div><label>Garanzia (mesi)</label><input id="fMesi" type="number" min="0" inputmode="numeric"></div>
+        <div><label>N. scontrino</label><input id="fNum"></div>
+      </div>
+      <div class="row">
+        <div><label>Pagamento</label><input id="fPag"></div>
+        <div><label>Città negozio</label><input id="fCitta"></div>
+      </div>
+      <label>Indirizzo negozio</label><input id="fInd">
+      <label>Articoli</label>
+      <table class="items" id="itemsTbl"></table>
+      <button class="btn small" id="bAddItem" style="margin-top:6px">＋ Aggiungi articolo</button>
+      <label>Note (matricola, modello…)</label><textarea id="fNote"></textarea>
+      <p class="muted" id="scadPreview"></p>
+      <p class="muted" id="destPreview"></p>
+      <div class="btns">
+        ${isEdit ? `<button class="btn" id="bAnnulla">Annulla</button>` : `<button class="btn" id="bReset">Svuota</button>`}
+        <button class="btn primary" id="bSalva">💾 Salva sul NAS</button>
+      </div>
+    </div>`;
+  bindPending();
+  const F = {fNegozio:"negozio", fNome:"nome", fData:"dataAcquisto", fPrezzo:"prezzo", fMesi:"garanziaMesi", fNum:"numeroScontrino", fPag:"tipoPagamento", fCitta:"negozioCitta", fInd:"negozioIndirizzo", fNote:"note"};
+  for(const [id, k] of Object.entries(F)){ $("#" + id).value = draft[k] ?? ""; $("#" + id).oninput = () => { readForm(); updPreview(); }; }
+  if(isEdit){ $("#fNegozio").disabled = $("#fNome").disabled = $("#fData").disabled = true; $("#fNegozio").title = "Negozio, nome e data formano il nome della cartella sul NAS e non si cambiano da qui."; }
+  drawThumbs(); drawItems(); updPreview();
+  $("#bCam").onclick = () => $("#camInput").click();
+  $("#bFile").onclick = () => $("#fileInput").click();
+  $("#bLeggi").onclick = () => doLeggi(false);
+  if($("#bClaude")) $("#bClaude").onclick = () => doLeggi(true);
+  $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
+  $("#bSalva").onclick = doSalva;
+  if($("#bReset")) $("#bReset").onclick = () => { if(confirm("Svuotare il modulo?")){ draft = newDraft(); lastOcr = ""; renderAcquisisci(); } };
+  if($("#bAnnulla")) $("#bAnnulla").onclick = () => { const id = draft.id; draft = null; setView("dettaglio", id); };
+}
+function updPreview(){
+  const s = scadenzaInfo(draft);
+  $("#scadPreview").innerHTML = s.date ? `Garanzia: <span class="pill ${s.cls}">${esc(s.label)}</span>` : "";
+  $("#destPreview").textContent = "Cartella sul NAS: " + (draft._edit ? draft.cartella : folderFor(draft)).replace(/\//g, "\\");
+}
+function readForm(){
+  const v = id => $("#" + id).value.trim();
+  Object.assign(draft, {negozio:v("fNegozio"), nome:v("fNome"), dataAcquisto:$("#fData").value, prezzo: v("fPrezzo") === "" ? "" : Number(v("fPrezzo")),
+    garanziaMesi: v("fMesi") === "" ? 0 : Number(v("fMesi")), numeroScontrino:v("fNum"), tipoPagamento:v("fPag"), negozioCitta:v("fCitta"), negozioIndirizzo:v("fInd"), note:$("#fNote").value.trim()});
+  document.querySelectorAll("#itemsTbl tr[data-i]").forEach(tr => {
+    const it = draft.articoli[+tr.dataset.i];
+    it.descrizione = tr.querySelector(".d").value; it.quantita = Number(tr.querySelector(".q").value) || 1;
+    it.prezzo = tr.querySelector(".p").value === "" ? "" : Number(tr.querySelector(".p").value);
+  });
+}
+function drawThumbs(){
+  const old = (draft.files || []).map(f => `<div class="thumb" title="Già sul NAS">${isImg(f.name) ? "🖼️" : "📄"}<br>${esc(f.name.slice(0, 22))}</div>`);
+  const neu = draft.pendingFiles.map((f, i) => `<div class="thumb" data-i="${i}">${f.mime.startsWith("image/") ? `<img src="${dataUrl(f)}">` : `📄<br>${esc(f.name.slice(0, 22))}`}<button data-del="${i}">✕</button></div>`);
+  $("#thumbs").innerHTML = old.concat(neu).join("") || `<span class="muted">Nessun documento.</span>`;
+  $("#thumbs").querySelectorAll("[data-del]").forEach(b => b.onclick = e => { e.stopPropagation(); draft.pendingFiles.splice(+b.dataset.del, 1); drawThumbs(); });
+  $("#thumbs").querySelectorAll(".thumb[data-i]").forEach(t => t.onclick = () => showLocal(draft.pendingFiles[+t.dataset.i]));
+}
+function drawItems(){
+  $("#itemsTbl").innerHTML = draft.articoli.map((it, i) => `<tr data-i="${i}">
+     <td><input class="d" value="${esc(it.descrizione)}" placeholder="Descrizione"></td>
+     <td style="width:50px"><input class="q" type="number" min="1" value="${esc(it.quantita ?? 1)}"></td>
+     <td style="width:84px"><input class="p" type="number" step="0.01" value="${esc(it.prezzo ?? "")}" placeholder="€"></td>
+     <td style="width:34px"><button class="btn small" data-rm="${i}">✕</button></td></tr>`).join("") || `<tr><td class="muted">Nessun articolo.</td></tr>`;
+  $("#itemsTbl").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { readForm(); draft.articoli.splice(+b.dataset.rm, 1); drawItems(); });
+}
+async function addFiles(list){
+  if(!draft) draft = newDraft();
+  for(const file of list){ try{ draft.pendingFiles.push(await prepareFile(file)); }catch(e){ toast("Impossibile leggere " + (file.name || "il file"), true); } }
+  if(current === "acquisisci"){ drawThumbs(); if(!draft._edit && list.length && !draft.articoli.length) doLeggi(false); }
+}
+$("#camInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+$("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+
+async function doLeggi(useClaude){
+  if(!draft.pendingFiles.length){ toast("Prima scatta una foto o scegli un file.", true); return; }
+  readForm();
+  const stEl = $("#leggiStatus");
+  document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = true);
+  stEl.innerHTML = `<span class="spinner"></span>${useClaude ? "Claude sta leggendo lo scontrino…" : "Leggo lo scontrino…"}`;
+  try{
+    let r;
+    if(useClaude) r = await claudeRead(draft.pendingFiles);
+    else{
+      const texts = [];
+      for(const f of draft.pendingFiles) texts.push(await call("ocr", f.data, f.mime));
+      lastOcr = texts.join("\n"); r = parseReceipt(lastOcr); r.nome = nomeDaArticoli(r.articoli);
+    }
+    const set = (k, v) => { if(v !== undefined && v !== null && v !== "" && !(draft._edit && ["negozio","nome","dataAcquisto"].includes(k))) draft[k] = v; };
+    ["negozio","nome","dataAcquisto","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono"].forEach(k => set(k, r[k]));
+    if(typeof r.garanziaMesi === "number") draft.garanziaMesi = r.garanziaMesi;
+    if(Array.isArray(r.articoli) && r.articoli.length) draft.articoli = r.articoli.map(x => ({descrizione:String(x.descrizione || ""), quantita:Number(x.quantita) || 1, prezzo: typeof x.prezzo === "number" ? x.prezzo : ""}));
+    if(r.note) draft.note = draft.note ? draft.note + "\n" + r.note : r.note;
+    await renderAcquisisci();
+    $("#leggiStatus").innerHTML = "✅ Dati compilati: controllali prima di salvare." + (!useClaude && !r.articoli.length ? " Non ho riconosciuto gli articoli: aggiungili a mano se servono." : "");
+  }catch(e){
+    stEl.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`;
+    document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = false);
+  }
+}
+
+async function doSalva(){
+  readForm();
+  if(!draft.nome && !draft.negozio){ toast("Scrivi almeno il negozio o il nome dell'oggetto.", true); return; }
+  if(!draft._edit && !draft.pendingFiles.length && !confirm("Nessuna foto o PDF allegato. Salvare lo stesso?")) return;
+  const a = draft;
+  if(!a._edit){
+    // nome cartella unico
+    const all = await allAcquisti(); let base = folderFor(a), c = base, n = 2;
+    while(all.some(x => x.cartella.toLowerCase() === c.toLowerCase())) c = `${base} (${n++})`;
+    a.cartella = a.id = c;
+    const stem = safeName(a.nome) || "scontrino";
+    a.pendingFiles.forEach((f, i) => { f.name = `${stem}_${i + 1}.${extOf(f.name) || "jpg"}`; });
+  }else{
+    const stem = safeName(a.nome) || "documento", start = (a.files || []).length;
+    a.pendingFiles.forEach((f, i) => { f.name = `${stem}_${start + i + 1}.${extOf(f.name) || "jpg"}`; });
+  }
+  delete a._edit; a.daCaricare = true;
+  const b = $("#bSalva"); b.disabled = true; b.innerHTML = `<span class="spinner"></span>Salvo sul NAS…`;
+  let msg;
+  try{
+    if(!A || !nasReady()) throw new Error("NAS non configurato");
+    await writeToNas(a);
+    setNasState("on", nasLabel());
+    msg = "✅ Salvato sul NAS in " + a.cartella.replace(/\//g, "\\");
+  }catch(e){
+    setNasState(nasReady() ? "off" : "unknown");
+    msg = "Salvato sul telefono. Lo carico sul NAS appena è raggiungibile (" + e.message + ").";
+  }
+  await putAcquisto(a); syncReminders(); updateBadge();
+  draft = null; lastOcr = "";
+  toast(msg, a.daCaricare);
+  setView("dettaglio", a.id);
+}
+
+/* =========================================================
+   CERCA
+   ========================================================= */
+let searchQ = "", sortBy = "data";
+async function renderArchivio(){
+  const list = await allAcquisti(), last = settings().ultimoAggiornamento;
+  $("#view").innerHTML = `
+    ${nasBanner()}${await pendingBanner()}
+    <div class="card" style="padding:10px">
+      <input id="q" type="search" placeholder="🔎 Cerca oggetto, negozio, articolo, note, anno…" value="${esc(searchQ)}">
+      <div class="row" style="margin-top:8px">
+        <select id="sort"><option value="data">Più recenti</option><option value="negozio">Per negozio</option><option value="scadenza">Per scadenza</option><option value="prezzo">Per prezzo</option></select>
+        <button class="btn" id="bRefresh" style="flex:none">🔄 Aggiorna dal NAS</button>
+      </div>
+      <p class="muted" style="margin:8px 2px 0" id="cnt"></p>
+    </div>
+    <div id="list"></div>`;
+  bindPending();
+  $("#sort").value = sortBy;
+  const draw = () => {
+    const words = searchQ.toLowerCase().split(/\s+/).filter(Boolean);
+    const rows = list.filter(a => { const h = [a.nome, a.negozio, a.note, a.numeroScontrino, a.negozioCitta, a.dataAcquisto, fmtDate(a.dataAcquisto), a.cartella, ...(a.articoli || []).map(x => x.descrizione)].join(" ").toLowerCase(); return words.every(w => h.includes(w)); });
+    const cmp = {
+      data:(x, y) => (y.dataAcquisto || "").localeCompare(x.dataAcquisto || ""),
+      negozio:(x, y) => (x.negozio || "").localeCompare(y.negozio || "", "it") || (y.dataAcquisto || "").localeCompare(x.dataAcquisto || ""),
+      scadenza:(x, y) => (scadenzaInfo(x).date || "9999").localeCompare(scadenzaInfo(y).date || "9999"),
+      prezzo:(x, y) => (Number(y.prezzo) || 0) - (Number(x.prezzo) || 0)}[sortBy];
+    rows.sort(cmp);
+    $("#cnt").textContent = `${rows.length} di ${list.length} acquisti` + (last ? ` · aggiornato ${new Date(last).toLocaleString("it-IT", {dateStyle:"short", timeStyle:"short"})}` : "");
+    $("#list").innerHTML = rows.slice(0, 300).map(entryHTML).join("") || `<div class="card muted">${list.length ? "Nessun risultato." : "Nessun acquisto: premi \"Aggiorna dal NAS\" o inizia da Acquisisci."}</div>`;
+    bindEntries();
+  };
+  $("#q").oninput = e => { searchQ = e.target.value; draw(); };
+  $("#sort").onchange = e => { sortBy = e.target.value; draw(); };
+  $("#bRefresh").onclick = async () => { const b = $("#bRefresh"); b.disabled = true; b.innerHTML = `<span class="spinner"></span>Aggiorno…`; await refreshFromNas(false); renderArchivio(); };
+  draw();
+}
+function entryHTML(a){
+  const s = scadenzaInfo(a), pdf = (a.files || []).some(f => extOf(f.name) === "pdf"), img = (a.files || []).some(f => isImg(f.name));
+  return `<div class="entry" data-id="${esc(a.id)}">
+    <div class="ico">${pdf ? "📄" : img ? "🖼️" : "🧾"}</div>
+    <div class="txt"><div class="t1">${esc(a.nome || "(senza nome)")}</div>
+      <div class="t2">${esc(a.negozio || "—")} · ${fmtDate(a.dataAcquisto)}${a.prezzo !== "" && a.prezzo != null ? " · " + euro(a.prezzo) : ""}</div>
+      <div style="margin-top:4px"><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare</span>` : ""}</div></div></div>`;
+}
+function bindEntries(){ document.querySelectorAll(".entry").forEach(e => e.onclick = () => setView("dettaglio", e.dataset.id)); }
+
+async function renderDettaglio(id){
+  const a = await getAcquisto(id);
+  if(!a){ setView("archivio"); return; }
+  const s = scadenzaInfo(a), files = (a.files || []).map(f => ({...f, nas:true})).concat((a.pendingFiles || []).map(f => ({...f, local:true})));
+  const tr = (k, v) => v ? `<tr><td>${k}</td><td class="num">${v}</td></tr>` : "";
+  $("#view").innerHTML = `
+    <div class="btns" style="margin:0 0 10px"><button class="btn small" id="bBack" style="flex:none">← Cerca</button></div>
+    <div class="card">
+      <h2>${esc(a.nome || "(senza nome)")}</h2>
+      <div class="muted">${esc(a.negozio || "—")}</div>
+      <p><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare sul NAS</span>` : ""}</p>
+      <table class="items">
+        ${tr("Data acquisto", fmtDate(a.dataAcquisto))}
+        ${tr("Prezzo", euro(a.prezzo))}
+        ${tr("Garanzia", a.garanziaMesi ? a.garanziaMesi + " mesi" + (a.hasInfo ? "" : " (predefinita)") : "")}
+        ${tr("N. scontrino", esc(a.numeroScontrino))}
+        ${tr("Pagamento", esc(a.tipoPagamento))}
+        ${tr("Negozio", esc([a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · ")))}
+        <tr><td>Cartella NAS</td><td class="num" style="word-break:break-word">${esc(a.cartella.replace(/\//g, "\\"))}</td></tr>
+      </table>
+      ${(a.articoli || []).length ? `<label>Articoli</label><table class="items">${a.articoli.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="num">${euro(x.prezzo)}</td></tr>`).join("")}</table>` : ""}
+      ${a.note ? `<label>Note</label><div style="white-space:pre-wrap">${esc(a.note)}</div>` : ""}
+      <label>Documenti (tocca per aprire)</label>
+      <div class="thumbs" id="dThumbs">${files.map((f, i) => `<div class="thumb" data-i="${i}">${f.local && f.mime.startsWith("image/") ? `<img src="${dataUrl(f)}">` : (isImg(f.name) ? "🖼️" : "📄") + "<br>" + esc(f.name.slice(0, 22))}</div>`).join("") || `<span class="muted">Nessuno.</span>`}</div>
+      <div class="btns">
+        <button class="btn" id="bEdit">✏️ Modifica</button>
+        <button class="btn danger" id="bDel">🗑️ Elimina</button>
+      </div>
+      ${a.hasInfo ? "" : `<p class="muted">Dati ricavati dal nome della cartella. Con "Modifica" puoi aggiungere prezzo, mesi di garanzia e note: vengono salvati nel file garanzia.json della cartella.</p>`}
+    </div>`;
+  $("#bBack").onclick = () => setView("archivio");
+  $("#dThumbs").querySelectorAll(".thumb").forEach(t => t.onclick = async () => {
+    const f = files[+t.dataset.i];
+    if(f.local){ showLocal(f); return; }
+    t.style.opacity = .5;
+    try{ await call("nasOpen", a.cartella + "/" + f.name); }catch(e){ toast(e.message, true); }
+    t.style.opacity = 1;
+  });
+  $("#bEdit").onclick = () => { draft = null; setView("acquisisci", a); };
+  $("#bDel").onclick = async () => {
+    if(a.daCaricare && !(a.files || []).length){
+      if(!confirm("Eliminare questo acquisto non ancora caricato?")) return;
+      await delAcquisto(a.id);
+    }else{
+      if(!confirm(`Eliminare dal NAS la cartella\n${a.cartella.replace(/\//g, "\\")}\ncon i suoi ${files.length} documenti?\n\nL'operazione non si può annullare.`)) return;
+      try{ await call("nasDeleteFolder", a.cartella); }catch(e){ toast(e.message, true); return; }
+      await delAcquisto(a.id);
+    }
+    syncReminders(); updateBadge(); toast("Eliminato."); setView("archivio");
+  };
+}
+function showLocal(f){
+  if(!f) return;
+  if(f.mime.startsWith("image/")){
+    const v = document.createElement("div"); v.className = "viewer";
+    v.innerHTML = `<img src="${dataUrl(f)}"><button class="btn small">✕ Chiudi</button>`;
+    v.onclick = () => v.remove(); document.body.appendChild(v);
+  }else if(A) A.openFile(f.name, f.mime, f.data);
+}
+
+/* =========================================================
+   SCADENZE
+   ========================================================= */
+async function renderScadenze(){
+  const list = (await allAcquisti()).map(a => ({a, s:scadenzaInfo(a)})).filter(x => x.s.date);
+  const pre = list.filter(x => x.s.cls === "warn").sort((x, y) => x.s.days - y.s.days);
+  const att = list.filter(x => x.s.cls === "ok").sort((x, y) => x.s.days - y.s.days);
+  const sca = list.filter(x => x.s.cls === "bad").sort((x, y) => y.s.days - x.s.days);
+  const sec = (t, arr, lim) => arr.length ? `<h2 style="font-size:15px;margin:16px 4px 8px">${t}</h2>` + arr.slice(0, lim).map(x => entryHTML(x.a)).join("") + (arr.length > lim ? `<p class="muted" style="margin:4px">…e altri ${arr.length - lim}</p>` : "") : "";
+  $("#view").innerHTML = `
+    <div class="stats">
+      <div class="stat warn"><b>${pre.length}</b>In scadenza</div>
+      <div class="stat ok"><b>${att.length}</b>In garanzia</div>
+      <div class="stat bad"><b>${sca.length}</b>Scadute</div>
+    </div>
+    <p class="muted" style="margin:0 4px">"In scadenza" = entro ${settings().giorniAvviso} giorni.${A ? " Ricevi una notifica sul telefono quando una garanzia entra in questo periodo." : ""}</p>
+    ${sec("⚠️ In scadenza", pre, 100)}${sec("✅ In garanzia", att, 100)}${sec("⛔ Scadute", sca, 30)}
+    ${list.length ? "" : `<div class="card muted">Nessun acquisto con data di acquisto e garanzia.</div>`}`;
+  bindEntries();
+}
+async function updateBadge(){
+  const n = (await allAcquisti()).filter(a => scadenzaInfo(a).cls === "warn").length;
+  const b = $("#badgeScad"); b.textContent = n; b.classList.toggle("hidden", !n);
+}
+function syncReminders(){
+  if(!A || !A.setReminders) return;
+  allAcquisti().then(list => {
+    const r = list.map(a => ({id:a.id, titolo:a.nome || a.negozio, negozio:a.negozio, scadenza:scadenzaInfo(a).date})).filter(x => x.scadenza && daysLeft(x.scadenza) >= 0);
+    A.setReminders(JSON.stringify(r), settings().giorniAvviso);
+  });
+}
+
+/* =========================================================
+   IMPOSTAZIONI
+   ========================================================= */
+function renderImpostazioni(){
+  const s = settings(), c = nasCfg();
+  const val = (v, d) => esc(v || d);
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>🗄️ NAS QNAP</h2>
+      <p class="muted">Gli scontrini vengono salvati direttamente nella cartella del NAS, con la stessa struttura del programma Windows (Negozio\\nome AAAA_MM_GG).</p>
+      <div class="row">
+        <div><label>Indirizzo NAS</label><input id="nHost" value="${val(c.host, "192.168.1.13")}" autocapitalize="off"></div>
+        <div><label>Cartella condivisa</label><input id="nShare" value="${val(c.share, "Public")}" autocapitalize="off"></div>
+      </div>
+      <label>Cartella dell'archivio dentro la condivisione</label><input id="nFolder" value="${val(c.folder, "garanzie scontrini acquisti")}" autocapitalize="off">
+      <div class="row">
+        <div><label>Nome utente</label><input id="nUser" value="${val(c.user, "VitoSilviaNas")}" autocapitalize="off" autocomplete="off"></div>
+        <div><label>Password</label><input id="nPass" type="password" placeholder="${c.hasPassword ? "🔒 salvata" : ""}" autocomplete="off"></div>
+      </div>
+      <details><summary>Opzioni avanzate</summary><label>Dominio / gruppo di lavoro (di solito vuoto)</label><input id="nDom" value="${esc(c.domain || "")}" autocapitalize="off"></details>
+      <div class="btns"><button class="btn" id="nTest">🔌 Testa connessione</button><button class="btn primary" id="nSave">💾 Salva</button></div>
+      <div class="status" id="nOut"></div>
+      <p class="muted" style="margin-top:12px">📶 <b>Fuori casa:</b> accendi sul telefono la VPN del QNAP (app QVPN o WireGuard) e l'app usa lo stesso indirizzo. A casa basta il Wi-Fi.</p>
+    </div>
+    <div class="card">
+      <h2>🧾 Garanzie</h2>
+      <div class="row">
+        <div><label>Mesi di garanzia predefiniti</label><input id="sMesi" type="number" min="0" value="${esc(s.mesiDefault)}"></div>
+        <div><label>Avvisami … giorni prima</label><input id="sGiorni" type="number" min="1" value="${esc(s.giorniAvviso)}"></div>
+      </div>
+      <div class="btns"><button class="btn primary" id="sSave">💾 Salva</button></div>
+    </div>
+    <div class="card">
+      <h2>🤖 Claude (facoltativo)</h2>
+      <p class="muted">La lettura degli scontrini funziona già senza Claude, sul telefono e gratis. Se inserisci una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) compare il tasto "Rileggi con Claude" per gli scontrini difficili.</p>
+      <label>Chiave API</label><input id="cKey" type="password" value="${esc(s.apiKey)}" placeholder="sk-ant-…" autocomplete="off">
+      <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
+      <div class="btns"><button class="btn primary" id="cSave">💾 Salva</button></div>
+    </div>
+    <p class="muted" style="text-align:center">Garanzie &amp; Scontrini per Android · v1.0</p>`;
+  const nas = () => ({host:$("#nHost").value.trim().replace(/^\\+/, ""), share:$("#nShare").value.trim().replace(/[\\/]/g, ""), folder:$("#nFolder").value.trim().replace(/^[\\/]+|[\\/]+$/g, "").replace(/\//g, "\\"),
+    user:$("#nUser").value.trim(), domain:$("#nDom").value.trim(), password:$("#nPass").value});
+  const saveNas = () => { if(!A) throw new Error("Disponibile solo nell'app Android."); A.setNasConfig(JSON.stringify(nas())); $("#nPass").value = ""; $("#nPass").placeholder = nasCfg().hasPassword ? "🔒 salvata" : ""; };
+  $("#nSave").onclick = () => { try{ saveNas(); toast("Impostazioni NAS salvate."); setNasState("unknown"); refreshFromNas(true); }catch(e){ toast(e.message, true); } };
+  $("#nTest").onclick = async () => {
+    const o = $("#nOut");
+    try{ saveNas(); }catch(e){ o.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; return; }
+    o.innerHTML = `<span class="spinner"></span>Mi collego al NAS…`;
+    try{ const r = await call("nasTest"); o.innerHTML = `✅ ${esc(r)}`; setNasState("on", nasLabel()); refreshFromNas(true); }
+    catch(e){ o.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; setNasState("off"); }
+  };
+  $("#sSave").onclick = () => { saveSettings({mesiDefault:Number($("#sMesi").value) || 0, giorniAvviso:Number($("#sGiorni").value) || 30}); syncReminders(); updateBadge(); toast("Salvato."); };
+  $("#cSave").onclick = () => { saveSettings({apiKey:$("#cKey").value.trim(), model:$("#cModel").value.trim() || DEFAULTS.model}); toast("Salvato."); };
+}
+
+/* =========================================================
+   Avvio
+   ========================================================= */
+window.onAndroidBack = () => {
+  const v = document.querySelector(".viewer"); if(v){ v.remove(); return true; }
+  if(current === "dettaglio"){ setView("archivio"); return true; }
+  if(current !== "acquisisci"){ setView("acquisisci"); return true; }
+  return false;
+};
+window.onAndroidResume = () => { if(nasReady() && Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > 10 * 60 * 1000) refreshFromNas(true).then(() => { if(current === "archivio" || current === "scadenze") setView(current); }); };
+setNasState("unknown");
+setView(A && !nasReady() ? "impostazioni" : "acquisisci");
+updateBadge();
+if(nasReady()) refreshFromNas(true).then(ok => { if(ok && (current === "archivio" || current === "scadenze")) setView(current); });
+</script>
+</body>
+</html>

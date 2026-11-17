@@ -23,6 +23,7 @@ header .hdate{color:#9a9a9a;font-size:14px;white-space:nowrap}
 .hero .day{font-size:18px;color:#555;margin-bottom:8px}
 .hero .sum{font-size:14.5px;line-height:1.75}
 .hero .sum b{color:#1d2530;font-weight:500}
+.hero .sum a{color:inherit;text-decoration:none}
 .tile{display:flex;align-items:center;gap:18px;background:#fff;border:1.5px solid #dcdcdc;border-radius:20px;padding:22px 20px;margin-bottom:14px;cursor:pointer}
 .tile:active{background:#f5f6f7}
 .tile .ic{width:58px;height:58px;flex:none;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px}
@@ -31,7 +32,15 @@ header .hdate{color:#9a9a9a;font-size:14px;white-space:nowrap}
 .tile .t2{font-size:14px;color:#777}
 .tile .chev{color:#b5b5b5;font-size:22px}
 .tile .cnt{background:var(--warn);color:#fff;border-radius:99px;font-size:12px;font-weight:700;padding:1px 8px;margin-left:6px;vertical-align:3px}
-.ver{display:block;width:max-content;margin:6px 0 10px auto;background:#e3e5e8;color:#888;font:13px ui-monospace,Menlo,Consolas,monospace;padding:5px 14px;border-radius:99px}
+.stat{cursor:pointer}
+.stat:active{background:#f5f6f7}
+.stat.sel{border-color:#1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a}
+.footer{text-align:center;margin:26px 0 6px}
+.footer .logo{width:150px;height:130px;margin:0 auto -6px}
+.footer .logo svg{width:100%;height:100%;display:block}
+.footer .brand{font-size:17px;font-weight:600;color:#333;letter-spacing:.3px}
+.footer .sub{font-size:12.5px;color:#888;margin-bottom:10px}
+.ver{cursor:pointer;position:fixed;right:14px;bottom:14px;z-index:7;background:#e6e8eb;color:#8a9097;font:13.5px ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;letter-spacing:.3px;padding:7px 16px;border-radius:99px;box-shadow:0 0 0 3px #eceef0}
 .dot{width:10px;height:10px;border-radius:50%;background:#c3c9d1;flex:none}
 .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
 main{padding:16px 14px 40px;max-width:760px;margin:0 auto}
@@ -94,6 +103,18 @@ textarea{min-height:64px;resize:vertical}
 .banner > div{flex:1}
 details{margin-top:8px} summary{color:var(--muted);font-size:13px}
 pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px;padding:8px;max-height:260px;overflow:auto}
+.side-body{animation:mbob 2.2s ease-in-out infinite}
+.side-arm{transform-origin:79px 76px;animation:armSwing 2.2s ease-in-out infinite}
+.side-folder{animation:fglow 2.2s ease-in-out infinite}
+@keyframes mbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes armSwing{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(12deg)}}
+@keyframes fglow{0%,30%,100%{filter:none}50%,70%{filter:drop-shadow(0 0 6px #38BDF8)}}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.modal .box{background:#fff;width:100%;max-width:560px;max-height:82vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 20px 28px}
+.modal h2{margin:0 0 4px;font-size:19px;font-weight:500}
+.modal .rel{border-top:1px solid var(--line);padding:12px 0}
+.modal .rel b{font-size:15px} .modal .rel span{color:#888;font-size:12.5px;margin-left:6px}
+.modal .rel ul{margin:6px 0 0;padding-left:20px;font-size:14px;color:#444}
 </style>
 </head>
 <body>
@@ -368,10 +389,15 @@ async function uploadPending(quiet){
 /* =========================================================
    Navigazione
    ========================================================= */
-let current = "acquisisci";
+let current = "";
 const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto"};
-function setView(v, arg){
-  current = v;
+let currentArg, navStack = [];
+function setView(v, arg, isBack){
+  if(!isBack){
+    if(v === "home") navStack = [];
+    else if(current && !(current === v && currentArg === arg)) navStack.push({v:current, arg:currentArg});
+  }
+  current = v; currentArg = arg;
   $("#hTitle").textContent = TITOLI[v] || "Garanzie & Scontrini";
   $("#hBack").classList.toggle("hidden", v === "home");
   $("#hDate").classList.toggle("hidden", v !== "home");
@@ -386,7 +412,75 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.1";
+const VERSIONE = "v1.2";
+const CRONOLOGIA = [
+  {v:"v1.2", d:"17/11/2026", n:[
+    "I riquadri In scadenza, In garanzia e Scadute sono cliccabili e aprono l'elenco relativo",
+    "Il tasto indietro di Android torna alla pagina precedente",
+    "Etichetta TR/software con la versione: toccandola si apre la cronologia degli aggiornamenti"]},
+  {v:"v1.1", d:"17/11/2026", n:[
+    "Nuova grafica nello stile delle app TR/software: intestazione scura e pagina iniziale a schede",
+    "Riepilogo dell'archivio nella pagina iniziale"]},
+  {v:"v1.0", d:"16/11/2026", n:[
+    "Prima versione per Android",
+    "Acquisizione scontrini con salvataggio diretto sul NAS QNAP",
+    "Lettura automatica degli scontrini sul telefono (OCR)",
+    "Ricerca nell'archivio, scadenze con notifiche"]}
+];
+const LOGO_SVG = `<svg viewBox="0 0 180 160" xmlns="http://www.w3.org/2000/svg">
+      <g class="side-folder" transform="translate(94,52)">
+        <path d="M0 3 q3 -3 6 0 q3 -3 6 0 q3 -3 6 0 q3 -3 6 0 v30 q-3 3 -6 0 q-3 3 -6 0 q-3 3 -6 0 q-3 3 -6 0 Z"
+          fill="#fbf9f0" stroke="#c9c0a0" stroke-width="1.6"/>
+        <line x1="4.5" y1="10" x2="19.5" y2="10" stroke="#a89b78" stroke-width="1.3"/>
+        <line x1="4.5" y1="14.5" x2="19.5" y2="14.5" stroke="#a89b78" stroke-width="1.3"/>
+        <line x1="4.5" y1="19" x2="15" y2="19" stroke="#a89b78" stroke-width="1.3"/>
+        <line x1="4.5" y1="25" x2="19.5" y2="25" stroke="#2ecc71" stroke-width="1.7"/>
+      </g>
+      <g class="side-body">
+        <ellipse cx="55" cy="133" rx="30" ry="4" fill="rgba(0,0,0,.10)"/>
+        <rect x="45" y="104" width="9" height="24" rx="4" fill="#2b5a8c" stroke="#27384a" stroke-width="2"/>
+        <rect x="60" y="104" width="9" height="24" rx="4" fill="#2b5a8c" stroke="#27384a" stroke-width="2"/>
+        <rect x="42" y="125" width="14" height="7" rx="3" fill="#27384a"/>
+        <rect x="58" y="125" width="14" height="7" rx="3" fill="#27384a"/>
+        <rect x="30" y="74" width="9" height="30" rx="4.5" fill="#3b7dd8" stroke="#27384a" stroke-width="2"/>
+        <circle cx="34.5" cy="106" r="5.5" fill="#f2c79b" stroke="#27384a" stroke-width="2"/>
+        <rect x="35" y="68" width="44" height="44" rx="12" fill="#3b7dd8" stroke="#27384a" stroke-width="2.2"/>
+        <path d="M47 70 L51 92" stroke="#27384a" stroke-width="2.5" fill="none"/>
+        <path d="M67 70 L63 92" stroke="#27384a" stroke-width="2.5" fill="none"/>
+        <rect x="49" y="86" width="16" height="13" rx="3" fill="#2b5a8c" stroke="#27384a" stroke-width="1.6"/>
+        <circle cx="57" cy="49" r="17" fill="#f2c79b" stroke="#27384a" stroke-width="2.2"/>
+        <circle cx="47" cy="53" r="3" fill="#f29a9a" opacity=".7"/>
+        <circle cx="67" cy="53" r="3" fill="#f29a9a" opacity=".7"/>
+        <ellipse cx="51" cy="47" rx="2.3" ry="3" fill="#27384a"/>
+        <ellipse cx="63" cy="47" rx="2.3" ry="3" fill="#27384a"/>
+        <path d="M48 41 q3 -2 6 0" stroke="#27384a" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M60 41 q3 -2 6 0" stroke="#27384a" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M50 56 q7 7 14 0" stroke="#27384a" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M39 40 a18 16 0 0 1 36 0 Z" fill="#f4c20d" stroke="#27384a" stroke-width="2.2"/>
+        <rect x="36" y="38" width="42" height="6" rx="3" fill="#f4c20d" stroke="#27384a" stroke-width="2"/>
+        <rect x="54" y="26" width="6" height="8" rx="2" fill="#e0a800" stroke="#27384a" stroke-width="1.5"/>
+      </g>
+      <g class="side-arm">
+        <line x1="79" y1="76" x2="105" y2="93" stroke="#27384a" stroke-width="11" stroke-linecap="round" opacity=".12"/>
+        <line x1="79" y1="76" x2="105" y2="93" stroke="#3b7dd8" stroke-width="9" stroke-linecap="round"/>
+        <circle cx="105" cy="93" r="5.5" fill="#f2c79b" stroke="#27384a" stroke-width="2"/>
+        <line x1="108" y1="88" x2="118" y2="78" stroke="#38BDF8" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="126" cy="70" r="15" fill="rgba(234,246,255,.85)" stroke="#38BDF8" stroke-width="5"/>
+        <circle cx="126" cy="70" r="6" fill="none" stroke="#38BDF8" stroke-width="1" opacity=".3"/>
+      </g>
+    </svg>`;
+function footerHTML(){
+  return `<div style="height:56px"></div><span class="ver" id="verBtn">TR/software ${VERSIONE}</span>`;
+}
+function showCronologia(){
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box"><h2>Cronologia aggiornamenti</h2><p class="muted" style="margin:0 0 8px">Versione installata: ${VERSIONE}</p>
+    ${CRONOLOGIA.map(r => `<div class="rel"><b>${r.v}</b><span>${r.d}</span><ul>${r.n.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
+    <div class="btns"><button class="btn primary">Chiudi</button></div></div>`;
+  m.onclick = e => { if(e.target === m || e.target.tagName === "BUTTON") m.remove(); };
+  document.body.appendChild(m);
+}
+function bindFooter(){ const b = $("#verBtn"); if(b) b.onclick = showCronologia; }
 async function renderHome(){
   const list = await allAcquisti(), info = list.map(scadenzaInfo);
   const pre = info.filter(s => s.cls === "warn").length, att = info.filter(s => s.cls === "ok").length, sca = info.filter(s => s.cls === "bad").length;
@@ -398,14 +492,16 @@ async function renderHome(){
     ${nasBanner()}
     <div class="hero">
       <div class="day">${esc(oggi)}</div>
-      <div class="sum"><b>Archivio</b>: ${list.length} acquisti · In garanzia: ${att + pre}<br>In scadenza: ${pre} · Scadute: ${sca}${spesaAnno ? ` · Spesa ${anno}: ${euro(spesaAnno)}` : ""}${nDaCaricare ? `<br>⏳ Da caricare sul NAS: ${nDaCaricare}` : ""}</div>
+      <div class="sum"><b>Archivio</b>: ${list.length} acquisti · <a href="#" data-f="ok">In garanzia: ${att}</a><br><a href="#" data-f="warn">In scadenza: ${pre}</a> · <a href="#" data-f="bad">Scadute: ${sca}</a>${spesaAnno ? ` · Spesa ${anno}: ${euro(spesaAnno)}` : ""}${nDaCaricare ? `<br>⏳ Da caricare sul NAS: ${nDaCaricare}` : ""}</div>
     </div>
     ${tile("acquisisci", "📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino")}
     ${tile("archivio", "🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti sul NAS")}
     ${tile("scadenze", "⏰", "#f8e6dc", "Scadenze", "Garanzie in scadenza e scadute", pre ? `<span class="cnt">${pre}</span>` : "")}
     ${tile("impostazioni", "⚙️", "#ece7f4", "Impostazioni", "NAS QNAP, garanzia predefinita, avvisi")}
-    <span class="ver">TR/software ${VERSIONE}</span>`;
+    ${footerHTML()}`;
   document.querySelectorAll(".tile").forEach(t => t.onclick = () => setView(t.dataset.v));
+  bindFooter();
+  document.querySelectorAll(".hero a[data-f]").forEach(x => x.onclick = e => { e.preventDefault(); setView("scadenze", x.dataset.f); });
 }
 function nasBanner(){
   if(!A) return `<div class="banner warn"><div>Anteprima nel browser: il collegamento al NAS funziona solo nell'app Android.</div></div>`;
@@ -489,7 +585,7 @@ async function renderAcquisisci(edit){
   $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
   $("#bSalva").onclick = doSalva;
   if($("#bReset")) $("#bReset").onclick = () => { if(confirm("Svuotare il modulo?")){ draft = newDraft(); lastOcr = ""; renderAcquisisci(); } };
-  if($("#bAnnulla")) $("#bAnnulla").onclick = () => { const id = draft.id; draft = null; setView("dettaglio", id); };
+  if($("#bAnnulla")) $("#bAnnulla").onclick = () => { draft = null; window.onAndroidBack(); };
 }
 function updPreview(){
   const s = scadenzaInfo(draft);
@@ -587,6 +683,8 @@ async function doSalva(){
   await putAcquisto(a); syncReminders(); updateBadge();
   draft = null; lastOcr = "";
   toast(msg, a.daCaricare);
+  navStack = navStack.filter(x => x.v !== "acquisisci");
+  current = "home"; currentArg = undefined;
   setView("dettaglio", a.id);
 }
 
@@ -700,21 +798,27 @@ function showLocal(f){
 /* =========================================================
    SCADENZE
    ========================================================= */
-async function renderScadenze(){
+const FILTRI = {warn:"⚠️ In scadenza", ok:"✅ In garanzia", bad:"⛔ Scadute"};
+async function renderScadenze(filtro){
   const list = (await allAcquisti()).map(a => ({a, s:scadenzaInfo(a)})).filter(x => x.s.date);
   const pre = list.filter(x => x.s.cls === "warn").sort((x, y) => x.s.days - y.s.days);
   const att = list.filter(x => x.s.cls === "ok").sort((x, y) => x.s.days - y.s.days);
   const sca = list.filter(x => x.s.cls === "bad").sort((x, y) => y.s.days - x.s.days);
   const sec = (t, arr, lim) => arr.length ? `<h2 style="font-size:15px;margin:16px 4px 8px">${t}</h2>` + arr.slice(0, lim).map(x => entryHTML(x.a)).join("") + (arr.length > lim ? `<p class="muted" style="margin:4px">…e altri ${arr.length - lim}</p>` : "") : "";
+  const st = (k, n, t) => `<div class="stat ${k}${filtro === k ? " sel" : ""}" data-f="${k}"><b>${n}</b>${t}</div>`;
+  const gruppi = {warn:pre, ok:att, bad:sca};
+  if(filtro) $("#hTitle").textContent = FILTRI[filtro].replace(/^\S+\s/, "");
   $("#view").innerHTML = `
-    <div class="stats">
-      <div class="stat warn"><b>${pre.length}</b>In scadenza</div>
-      <div class="stat ok"><b>${att.length}</b>In garanzia</div>
-      <div class="stat bad"><b>${sca.length}</b>Scadute</div>
-    </div>
-    <p class="muted" style="margin:0 4px">"In scadenza" = entro ${settings().giorniAvviso} giorni.${A ? " Ricevi una notifica sul telefono quando una garanzia entra in questo periodo." : ""}</p>
-    ${sec("⚠️ In scadenza", pre, 100)}${sec("✅ In garanzia", att, 100)}${sec("⛔ Scadute", sca, 30)}
+    <div class="stats">${st("warn", pre.length, "In scadenza")}${st("ok", att.length, "In garanzia")}${st("bad", sca.length, "Scadute")}</div>
+    <p class="muted" style="margin:0 4px">${filtro ? "Tocca di nuovo il riquadro per vedere tutte le garanzie." : "Tocca un riquadro per vedere solo quell'elenco."} "In scadenza" = entro ${settings().giorniAvviso} giorni.</p>
+    ${filtro
+      ? (sec(FILTRI[filtro] + ` (${gruppi[filtro].length})`, gruppi[filtro], 1000) || `<div class="card muted" style="margin-top:14px">Nessun acquisto in questo elenco.</div>`)
+      : sec("⚠️ In scadenza", pre, 100) + sec("✅ In garanzia", att, 100) + sec("⛔ Scadute", sca, 30)}
     ${list.length ? "" : `<div class="card muted">Nessun acquisto con data di acquisto e garanzia.</div>`}`;
+  document.querySelectorAll(".stat[data-f]").forEach(el => el.onclick = () => {
+    const f = el.dataset.f;
+    if(filtro === f) window.onAndroidBack(); else if(filtro) setView("scadenze", f, true) ; else setView("scadenze", f);
+  });
   bindEntries();
 }
 async function updateBadge(){
@@ -768,7 +872,8 @@ function renderImpostazioni(){
       <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
       <div class="btns"><button class="btn primary" id="cSave">💾 Salva</button></div>
     </div>
-    <p class="muted" style="text-align:center">Garanzie &amp; Scontrini per Android · ${VERSIONE}</p>`;
+    ${footerHTML()}`;
+  bindFooter();
   const nas = () => ({host:$("#nHost").value.trim().replace(/^\\+/, ""), share:$("#nShare").value.trim().replace(/[\\/]/g, ""), folder:$("#nFolder").value.trim().replace(/^[\\/]+|[\\/]+$/g, "").replace(/\//g, "\\"),
     user:$("#nUser").value.trim(), domain:$("#nDom").value.trim(), password:$("#nPass").value});
   const saveNas = () => { if(!A) throw new Error("Disponibile solo nell'app Android."); A.setNasConfig(JSON.stringify(nas())); $("#nPass").value = ""; $("#nPass").placeholder = nasCfg().hasPassword ? "🔒 salvata" : ""; };
@@ -788,10 +893,12 @@ function renderImpostazioni(){
    Avvio
    ========================================================= */
 window.onAndroidBack = () => {
-  const v = document.querySelector(".viewer"); if(v){ v.remove(); return true; }
-  if(current === "dettaglio"){ setView("archivio"); return true; }
-  if(current !== "home"){ setView("home"); return true; }
-  return false;
+  const ov = document.querySelector(".viewer, .modal"); if(ov){ ov.remove(); return true; }
+  if(current === "home") return false;              // dalla pagina iniziale si esce dall'app
+  let prev = navStack.pop();
+  while(prev && prev.v === "dettaglio" && !prev.arg) prev = navStack.pop();
+  if(prev) setView(prev.v, prev.arg, true); else setView("home", undefined, true);
+  return true;
 };
 window.onAndroidResume = () => { if(nasReady() && Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > 10 * 60 * 1000) refreshFromNas(true).then(() => { if(["home","archivio","scadenze"].includes(current)) setView(current); }); };
 setNasState("unknown");

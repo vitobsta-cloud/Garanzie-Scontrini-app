@@ -6,26 +6,41 @@
 <title>TR/software — Garanzie &amp; Scontrini</title>
 <style>
 :root{
-  --bg:#eef1f5; --card:#fff; --text:#1d2530; --muted:#6b7480; --line:#dde2e8;
+  --bg:#eceef0; --card:#fff; --text:#1d2530; --muted:#6b7480; --line:#dde2e8;
   --accent:#0EA5E9; --accent-soft:rgba(56,189,248,.16);
   --ok:#16a34a; --ok-soft:#e7f6ec; --warn:#d97706; --warn-soft:#fdf1e2; --bad:#dc2626; --bad-soft:#fde8e8;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px 9px;display:flex;align-items:center;gap:10px}
-header .ttl{flex:1;min-width:0}
-header h1{margin:0;font-size:16.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-header h1 b{color:var(--accent)}
-header p{margin:1px 0 0;color:var(--muted);font-size:12px}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Roboto,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:5;background:#1a1a1a;color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px;min-height:62px}
+header .back{border:0;background:none;color:#fff;font-size:30px;line-height:1;padding:0 6px 4px 0;margin-left:-4px}
+header h1{flex:1;margin:0;font-size:21px;font-weight:500;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .hdate{color:#9a9a9a;font-size:14px;white-space:nowrap}
+.statusbar{display:flex;align-items:center;gap:8px;padding:7px 18px;font-size:12px;color:var(--muted);background:#f6f7f8;border-bottom:1px solid var(--line)}
+.statusbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* home a schede */
+.hero{text-align:center;padding:14px 6px 22px;color:#666}
+.hero .day{font-size:18px;color:#555;margin-bottom:8px}
+.hero .sum{font-size:14.5px;line-height:1.75}
+.hero .sum b{color:#1d2530;font-weight:500}
+.tile{display:flex;align-items:center;gap:18px;background:#fff;border:1.5px solid #dcdcdc;border-radius:20px;padding:22px 20px;margin-bottom:14px;cursor:pointer}
+.tile:active{background:#f5f6f7}
+.tile .ic{width:58px;height:58px;flex:none;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.tile .tx{flex:1;min-width:0}
+.tile .t1{font-size:19px;color:#1d2530;margin-bottom:2px}
+.tile .t2{font-size:14px;color:#777}
+.tile .chev{color:#b5b5b5;font-size:22px}
+.tile .cnt{background:var(--warn);color:#fff;border-radius:99px;font-size:12px;font-weight:700;padding:1px 8px;margin-left:6px;vertical-align:3px}
+.ver{display:block;width:max-content;margin:6px 0 10px auto;background:#e3e5e8;color:#888;font:13px ui-monospace,Menlo,Consolas,monospace;padding:5px 14px;border-radius:99px}
 .dot{width:10px;height:10px;border-radius:50%;background:#c3c9d1;flex:none}
 .dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
-main{padding:14px 14px 96px;max-width:760px;margin:0 auto}
-nav{position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+main{padding:16px 14px 40px;max-width:760px;margin:0 auto}
+nav{display:none!important;position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
 nav button span{font-size:20px;line-height:1}
 nav button.active{color:var(--accent);font-weight:600}
 nav .badge{position:absolute;top:4px;left:calc(50% + 6px);background:var(--warn);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;min-width:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card{background:var(--card);border:1.5px solid #dcdcdc;border-radius:18px;padding:14px;margin-bottom:12px}
 .card h2{margin:0 0 10px;font-size:16px}
 .muted{color:var(--muted);font-size:13px}
 .row{display:flex;gap:10px;flex-wrap:wrap}
@@ -49,7 +64,7 @@ textarea{min-height:64px;resize:vertical}
 .items td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
 .items td.num{text-align:right}
 .items input{padding:6px;font-size:13.5px}
-.entry{display:flex;gap:12px;align-items:center;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+.entry{display:flex;gap:12px;align-items:center;padding:14px;background:var(--card);border:1.5px solid #dcdcdc;border-radius:16px;margin-bottom:8px}
 .entry .ico{width:46px;height:46px;flex:none;border-radius:9px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:21px}
 .entry .txt{flex:1;min-width:0}
 .entry .t1{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -61,13 +76,13 @@ textarea{min-height:64px;resize:vertical}
 .pill.none{background:#eef0f3;color:var(--muted)}
 .pill.up{background:var(--accent-soft);color:#0369a1}
 .stats{display:flex;gap:8px;margin-bottom:12px}
-.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;font-size:12.5px}
+.stat{flex:1;background:var(--card);border:1.5px solid #dcdcdc;border-radius:16px;padding:10px;text-align:center;font-size:12.5px}
 .stat b{display:block;font-size:22px}
 .stat.warn b{color:var(--warn)} .stat.bad b{color:var(--bad)} .stat.ok b{color:var(--ok)}
 .status{margin-top:10px;font-size:13.5px}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--accent-soft);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-#toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1d2530;color:#fff;padding:10px 16px;border-radius:9px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:20}
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);background:#1d2530;color:#fff;padding:10px 16px;border-radius:9px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%;z-index:20}
 #toast.show{opacity:1} #toast.err{background:var(--bad)}
 .viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:flex;align-items:center;justify-content:center}
 .viewer img{max-width:100%;max-height:100%}
@@ -83,12 +98,11 @@ pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px
 </head>
 <body>
 <header>
-  <div class="ttl">
-    <h1>🧾 TR/software — <b>Garanzie &amp; Scontrini</b></h1>
-    <p id="nasLine">NAS non configurato</p>
-  </div>
-  <div class="dot" id="nasDot" title="Stato NAS"></div>
+  <button class="back hidden" id="hBack" aria-label="Indietro">‹</button>
+  <h1 id="hTitle">Garanzie &amp; Scontrini</h1>
+  <div class="hdate" id="hDate"></div>
 </header>
+<div class="statusbar"><div class="dot" id="nasDot" title="Stato NAS"></div><span id="nasLine">NAS non configurato</span></div>
 <main id="view"></main>
 <nav id="nav">
   <button data-v="acquisisci"><span>📷</span>Acquisisci</button>
@@ -355,13 +369,44 @@ async function uploadPending(quiet){
    Navigazione
    ========================================================= */
 let current = "acquisisci";
+const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto"};
 function setView(v, arg){
   current = v;
+  $("#hTitle").textContent = TITOLI[v] || "Garanzie & Scontrini";
+  $("#hBack").classList.toggle("hidden", v === "home");
+  $("#hDate").classList.toggle("hidden", v !== "home");
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
   window.scrollTo(0, 0);
-  ({acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio})[v](arg);
+  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio})[v](arg);
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
+$("#hBack").onclick = () => window.onAndroidBack();
+$("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric", month:"long", year:"numeric"});
+
+/* =========================================================
+   HOME
+   ========================================================= */
+const VERSIONE = "v1.1";
+async function renderHome(){
+  const list = await allAcquisti(), info = list.map(scadenzaInfo);
+  const pre = info.filter(s => s.cls === "warn").length, att = info.filter(s => s.cls === "ok").length, sca = info.filter(s => s.cls === "bad").length;
+  const anno = new Date().getFullYear(), spesaAnno = list.filter(a => (a.dataAcquisto || "").startsWith(anno)).reduce((t, a) => t + (Number(a.prezzo) || 0), 0);
+  const nDaCaricare = list.filter(a => a.daCaricare).length;
+  const oggi = new Date().toLocaleDateString("it-IT", {weekday:"long", day:"numeric", month:"long", year:"numeric"}).replace(/^\w|\s\w/g, c => c.toUpperCase());
+  const tile = (v, ic, bg, t1, t2, extra) => `<div class="tile" data-v="${v}"><div class="ic" style="background:${bg}">${ic}</div><div class="tx"><div class="t1">${t1}${extra || ""}</div><div class="t2">${t2}</div></div><div class="chev">›</div></div>`;
+  $("#view").innerHTML = `
+    ${nasBanner()}
+    <div class="hero">
+      <div class="day">${esc(oggi)}</div>
+      <div class="sum"><b>Archivio</b>: ${list.length} acquisti · In garanzia: ${att + pre}<br>In scadenza: ${pre} · Scadute: ${sca}${spesaAnno ? ` · Spesa ${anno}: ${euro(spesaAnno)}` : ""}${nDaCaricare ? `<br>⏳ Da caricare sul NAS: ${nDaCaricare}` : ""}</div>
+    </div>
+    ${tile("acquisisci", "📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino")}
+    ${tile("archivio", "🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti sul NAS")}
+    ${tile("scadenze", "⏰", "#f8e6dc", "Scadenze", "Garanzie in scadenza e scadute", pre ? `<span class="cnt">${pre}</span>` : "")}
+    ${tile("impostazioni", "⚙️", "#ece7f4", "Impostazioni", "NAS QNAP, garanzia predefinita, avvisi")}
+    <span class="ver">TR/software ${VERSIONE}</span>`;
+  document.querySelectorAll(".tile").forEach(t => t.onclick = () => setView(t.dataset.v));
+}
 function nasBanner(){
   if(!A) return `<div class="banner warn"><div>Anteprima nel browser: il collegamento al NAS funziona solo nell'app Android.</div></div>`;
   if(!nasReady()) return `<div class="banner warn"><div>Configura il NAS QNAP per salvare e cercare gli scontrini.</div><button class="btn small" onclick="setView('impostazioni')">Configura</button></div>`;
@@ -598,7 +643,7 @@ async function renderDettaglio(id){
   const s = scadenzaInfo(a), files = (a.files || []).map(f => ({...f, nas:true})).concat((a.pendingFiles || []).map(f => ({...f, local:true})));
   const tr = (k, v) => v ? `<tr><td>${k}</td><td class="num">${v}</td></tr>` : "";
   $("#view").innerHTML = `
-    <div class="btns" style="margin:0 0 10px"><button class="btn small" id="bBack" style="flex:none">← Cerca</button></div>
+    <button class="hidden" id="bBack"></button>
     <div class="card">
       <h2>${esc(a.nome || "(senza nome)")}</h2>
       <div class="muted">${esc(a.negozio || "—")}</div>
@@ -723,7 +768,7 @@ function renderImpostazioni(){
       <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
       <div class="btns"><button class="btn primary" id="cSave">💾 Salva</button></div>
     </div>
-    <p class="muted" style="text-align:center">Garanzie &amp; Scontrini per Android · v1.0</p>`;
+    <p class="muted" style="text-align:center">Garanzie &amp; Scontrini per Android · ${VERSIONE}</p>`;
   const nas = () => ({host:$("#nHost").value.trim().replace(/^\\+/, ""), share:$("#nShare").value.trim().replace(/[\\/]/g, ""), folder:$("#nFolder").value.trim().replace(/^[\\/]+|[\\/]+$/g, "").replace(/\//g, "\\"),
     user:$("#nUser").value.trim(), domain:$("#nDom").value.trim(), password:$("#nPass").value});
   const saveNas = () => { if(!A) throw new Error("Disponibile solo nell'app Android."); A.setNasConfig(JSON.stringify(nas())); $("#nPass").value = ""; $("#nPass").placeholder = nasCfg().hasPassword ? "🔒 salvata" : ""; };
@@ -745,14 +790,14 @@ function renderImpostazioni(){
 window.onAndroidBack = () => {
   const v = document.querySelector(".viewer"); if(v){ v.remove(); return true; }
   if(current === "dettaglio"){ setView("archivio"); return true; }
-  if(current !== "acquisisci"){ setView("acquisisci"); return true; }
+  if(current !== "home"){ setView("home"); return true; }
   return false;
 };
-window.onAndroidResume = () => { if(nasReady() && Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > 10 * 60 * 1000) refreshFromNas(true).then(() => { if(current === "archivio" || current === "scadenze") setView(current); }); };
+window.onAndroidResume = () => { if(nasReady() && Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > 10 * 60 * 1000) refreshFromNas(true).then(() => { if(["home","archivio","scadenze"].includes(current)) setView(current); }); };
 setNasState("unknown");
-setView(A && !nasReady() ? "impostazioni" : "acquisisci");
+setView(A && !nasReady() ? "impostazioni" : "home");
 updateBadge();
-if(nasReady()) refreshFromNas(true).then(ok => { if(ok && (current === "archivio" || current === "scadenze")) setView(current); });
+if(nasReady()) refreshFromNas(true).then(ok => { if(ok && ["home","archivio","scadenze"].includes(current)) setView(current); });
 </script>
 </body>
 </html>

@@ -491,8 +491,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.4";
+const VERSIONE = "v1.4.1";
 const CRONOLOGIA = [
+  {v:"v1.4.1", d:"18/11/2026", n:[
+    "Nella modifica di un acquisto si possono cambiare anche negozio, nome e data (es. data mancante)",
+    "In modifica, \"Leggi scontrino\" legge i documenti già salvati e completa i campi vuoti"]},
   {v:"v1.4", d:"17/11/2026", n:[
     "Impostazioni divise in menu: Destinazione file, Garanzie e avvisi, Lettura scontrini, Informazioni",
     "Destinazione file a scelta: NAS di casa, Google Drive o una cartella sul telefono",
@@ -623,7 +626,7 @@ async function renderAcquisisci(edit){
     ${nasBanner()}${await pendingBanner()}
     <div class="card">
       <h2>${isEdit ? "✏️ Modifica: " + esc(draft.nome || "acquisto") : "1. Scontrino"}</h2>
-      <p class="muted">${isEdit ? "Puoi aggiungere altri documenti (es. certificato di garanzia)." : "Fotografa lo scontrino (anche in più foto se è lungo) o scegli una foto/PDF già salvato."}</p>
+      <p class="muted">${isEdit ? "Puoi aggiungere altri documenti (es. certificato di garanzia). \"Leggi scontrino\" legge anche i documenti già salvati e completa i campi vuoti, come la data." : "Fotografa lo scontrino (anche in più foto se è lungo) o scegli una foto/PDF già salvato."}</p>
       <div class="btns">
         <button class="btn" id="bCam">📷 Scatta foto</button>
         <button class="btn" id="bFile">📁 Scegli file</button>
@@ -669,7 +672,7 @@ async function renderAcquisisci(edit){
   bindPending();
   const F = {fNegozio:"negozio", fNome:"nome", fData:"dataAcquisto", fPrezzo:"prezzo", fMesi:"garanziaMesi", fNum:"numeroScontrino", fPag:"tipoPagamento", fCitta:"negozioCitta", fInd:"negozioIndirizzo", fNote:"note"};
   for(const [id, k] of Object.entries(F)){ $("#" + id).value = draft[k] ?? ""; $("#" + id).oninput = () => { readForm(); updPreview(); }; }
-  if(isEdit){ $("#fNegozio").disabled = $("#fNome").disabled = $("#fData").disabled = true; $("#fNegozio").title = "Negozio, nome e data formano il nome della cartella sul NAS e non si cambiano da qui."; }
+  // in modifica tutti i campi sono modificabili: i dati vanno nel file garanzia.json, la cartella resta quella
   drawThumbs(); drawItems(); updPreview();
   $("#bCam").onclick = () => $("#camInput").click();
   $("#bFile").onclick = () => $("#fileInput").click();
@@ -683,7 +686,9 @@ async function renderAcquisisci(edit){
 function updPreview(){
   const s = scadenzaInfo(draft);
   $("#scadPreview").innerHTML = s.date ? `Garanzia: <span class="pill ${s.cls}">${esc(s.label)}</span>` : "";
-  $("#destPreview").textContent = "Cartella nell'archivio: " + (draft._edit ? draft.cartella : folderFor(draft)).replace(/\//g, "\\");
+  $("#destPreview").textContent = draft._edit
+    ? "Cartella nell'archivio: " + draft.cartella.replace(/\//g, "\\") + " (resta questa; i dati modificati vengono salvati nel file garanzia.json)"
+    : "Cartella nell'archivio: " + folderFor(draft).replace(/\//g, "\\");
 }
 function readForm(){
   const v = id => $("#" + id).value.trim();
@@ -719,20 +724,29 @@ $("#camInput").onchange = e => { addFiles([...e.target.files]); e.target.value =
 $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 
 async function doLeggi(useClaude){
-  if(!draft.pendingFiles.length){ toast("Prima scatta una foto o scegli un file.", true); return; }
+  const giaSalvati = (draft.files || []).filter(f => /\.(pdf|jpe?g|png|webp)$/i.test(f.name));
+  if(!draft.pendingFiles.length && !(draft._edit && giaSalvati.length)){ toast("Prima scatta una foto o scegli un file.", true); return; }
   readForm();
   const stEl = $("#leggiStatus");
   document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = true);
   stEl.innerHTML = `<span class="spinner"></span>${useClaude ? "Claude sta leggendo lo scontrino…" : "Leggo lo scontrino…"}`;
   try{
+    // in modifica, senza documenti nuovi, legge quelli già salvati nell'archivio (prima lo "scontrino")
+    let docs = draft.pendingFiles;
+    if(!docs.length){
+      const ord = [...giaSalvati].sort((x, y) => (/scontrin|fattur|ricevut/i.test(y.name) ? 1 : 0) - (/scontrin|fattur|ricevut/i.test(x.name) ? 1 : 0)).slice(0, 2);
+      docs = [];
+      for(const f of ord) docs.push({name:f.name, mime:mimeOf(f.name), data: await call("nasRead", draft.cartella + "/" + f.name)});
+    }
     let r;
-    if(useClaude) r = await claudeRead(draft.pendingFiles);
+    if(useClaude) r = await claudeRead(docs);
     else{
       const texts = [];
-      for(const f of draft.pendingFiles) texts.push(await call("ocr", f.data, f.mime));
+      for(const f of docs) texts.push(await call("ocr", f.data, f.mime));
       lastOcr = texts.join("\n"); r = parseReceipt(lastOcr); r.nome = nomeDaArticoli(r.articoli);
     }
-    const set = (k, v) => { if(v !== undefined && v !== null && v !== "" && !(draft._edit && ["negozio","nome","dataAcquisto"].includes(k))) draft[k] = v; };
+    // in modifica la lettura completa solo i campi vuoti, senza cambiare quelli già compilati
+    const set = (k, v) => { if(v !== undefined && v !== null && v !== "" && !(draft._edit && draft[k])) draft[k] = v; };
     ["negozio","nome","dataAcquisto","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono"].forEach(k => set(k, r[k]));
     if(typeof r.garanziaMesi === "number") draft.garanziaMesi = r.garanziaMesi;
     if(Array.isArray(r.articoli) && r.articoli.length) draft.articoli = r.articoli.map(x => ({descrizione:String(x.descrizione || ""), quantita:Number(x.quantita) || 1, prezzo: typeof x.prezzo === "number" ? x.prezzo : ""}));

@@ -10,6 +10,9 @@ interface Store {
     /** Prova collegamento, scrittura e lettura. Restituisce un messaggio per l'utente. */
     String test() throws Exception;
 
+    /** Controllo veloce del collegamento (senza leggere l'elenco). */
+    String ping() throws Exception;
+
     /** JSON: [{path, files:[{name,size,mtime}], info}] per ogni cartella che contiene documenti. */
     String list() throws Exception;
 

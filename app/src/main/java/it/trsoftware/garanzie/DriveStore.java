@@ -182,6 +182,12 @@ final class DriveStore implements Store {
     }
 
     @Override
+    public String ping() throws Exception {
+        rootId();
+        return "ok";
+    }
+
+    @Override
     public String list() throws Exception {
         String root = rootId();
         // tutti i file creati dall'app (permesso drive.file), poi l'albero in memoria

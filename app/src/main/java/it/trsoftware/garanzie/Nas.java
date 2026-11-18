@@ -84,17 +84,112 @@ final class Nas {
         return client;
     }
 
-    static <T> T with(Cfg c, Op<T> op) throws Exception {
-        if (c.host == null || c.host.isEmpty()) throw new IllegalStateException("Indirizzo del NAS non impostato.");
-        if (c.share == null || c.share.isEmpty()) throw new IllegalStateException("Cartella condivisa non impostata.");
-        try (Connection conn = client().connect(c.host, c.port)) {
+    // ---------- collegamento riutilizzato ----------
+    // Il collegamento resta aperto tra un'operazione e l'altra (fino a 3 minuti di inattività):
+    // aprire una cartella o salvare uno scontrino non rifà ogni volta collegamento e accesso.
+
+    private static Connection openConn;
+    private static DiskShare openShare;
+    private static String openKey;
+    private static long lastUse;
+    private static final long IDLE_MS = 3 * 60 * 1000L;
+
+    private static String key(Cfg c) {
+        return c.host + "|" + c.port + "|" + c.share + "|" + c.user + "|" + c.domain + "|" + (c.password == null ? 0 : c.password.hashCode());
+    }
+
+    private static void open(Cfg c) throws Exception {
+        Connection conn = client().connect(c.host, c.port);
+        try {
             AuthenticationContext auth = (c.user == null || c.user.isEmpty())
                     ? AuthenticationContext.guest()
                     : new AuthenticationContext(c.user, c.password == null ? new char[0] : c.password.toCharArray(), c.domain);
             Session session = conn.authenticate(auth);
-            try (DiskShare share = (DiskShare) session.connectShare(c.share)) {
-                return op.run(share, norm(c.folder));
+            openShare = (DiskShare) session.connectShare(c.share);
+            openConn = conn;
+            openKey = key(c);
+        } catch (Exception e) {
+            try { conn.close(); } catch (Exception ignored) { }
+            throw e;
+        }
+    }
+
+    static synchronized void closeQuietly() {
+        try { if (openShare != null) openShare.close(); } catch (Exception ignored) { }
+        try { if (openConn != null) openConn.close(); } catch (Exception ignored) { }
+        openShare = null;
+        openConn = null;
+        openKey = null;
+    }
+
+    private static boolean connectionProblem(Throwable t) {
+        for (Throwable x = t; x != null; x = x.getCause()) {
+            String n = x.getClass().getSimpleName();
+            if (n.contains("Transport") || x instanceof java.io.IOException || n.contains("Timeout")) return true;
+        }
+        return false;
+    }
+
+    static synchronized <T> T with(Cfg c, Op<T> op) throws Exception {
+        if (c.host == null || c.host.isEmpty()) throw new IllegalStateException("Indirizzo del NAS non impostato.");
+        if (c.share == null || c.share.isEmpty()) throw new IllegalStateException("Cartella condivisa non impostata.");
+        boolean reused = false;
+        if (openShare != null && key(c).equals(openKey) && openConn != null && openConn.isConnected()
+                && System.currentTimeMillis() - lastUse < IDLE_MS) {
+            reused = true;
+        } else {
+            closeQuietly();
+            open(c);
+        }
+        try {
+            T r = op.run(openShare, norm(c.folder));
+            lastUse = System.currentTimeMillis();
+            return r;
+        } catch (Exception e) {
+            closeQuietly();
+            // collegamento vecchio caduto nel frattempo: si riapre e si riprova una volta
+            if (reused && connectionProblem(e)) {
+                open(c);
+                T r = op.run(openShare, norm(c.folder));
+                lastUse = System.currentTimeMillis();
+                return r;
             }
+            throw e;
+        }
+    }
+
+    /** Controllo veloce: collegamento, accesso e cartella dell'archivio (senza leggere l'elenco). */
+    static String ping(Cfg c) throws Exception {
+        return with(c, (s, root) -> {
+            if (!root.isEmpty() && !s.folderExists(root))
+                throw new IllegalStateException("Cartella \"" + root + "\" non trovata nella condivisione " + c.share + ".");
+            return "ok";
+        });
+    }
+
+    // ---------- copia dei garanzia.json già letti ----------
+    // Rilegge un garanzia.json solo se è cambiato (data o dimensione diverse).
+
+    static java.io.File infoCacheFile;
+    private static JSONObject infoCache;
+
+    private static synchronized JSONObject infoCache() {
+        if (infoCache == null) {
+            infoCache = new JSONObject();
+            try {
+                if (infoCacheFile != null && infoCacheFile.exists())
+                    infoCache = new JSONObject(new String(java.nio.file.Files.readAllBytes(infoCacheFile.toPath()), StandardCharsets.UTF_8));
+            } catch (Exception ignored) {
+            }
+        }
+        return infoCache;
+    }
+
+    private static synchronized void saveInfoCache() {
+        try {
+            if (infoCacheFile != null && infoCache != null)
+                java.nio.file.Files.write(infoCacheFile.toPath(), infoCache.toString().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception ignored) {
         }
     }
 
@@ -156,6 +251,7 @@ final class Nas {
         return with(c, (s, root) -> {
             JSONArray out = new JSONArray();
             walk(s, root, "", 0, out);
+            saveInfoCache();
             return out.toString();
         });
     }
@@ -171,9 +267,16 @@ final class Nas {
             if (isDir(f)) {
                 if (depth < MAX_DEPTH) subdirs.add(name);
             } else if (INFO_FILE.equalsIgnoreCase(name)) {
-                try {
-                    info = new String(readBytes(s, join(path, name)), StandardCharsets.UTF_8);
-                } catch (Exception ignored) {
+                String stamp = f.getLastWriteTime().toEpochMillis() + "/" + f.getEndOfFile();
+                JSONObject cached = infoCache().optJSONObject(rel);
+                if (cached != null && stamp.equals(cached.optString("stamp"))) {
+                    info = cached.optString("text");
+                } else {
+                    try {
+                        info = new String(readBytes(s, join(path, name)), StandardCharsets.UTF_8);
+                        infoCache().put(rel, new JSONObject().put("stamp", stamp).put("text", info));
+                    } catch (Exception ignored) {
+                    }
                 }
             } else if (DOC_EXT.matcher(name).matches()) {
                 JSONObject o = new JSONObject();

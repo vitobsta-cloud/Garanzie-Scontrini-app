@@ -11,6 +11,8 @@ final class NasStore implements Store {
 
     @Override public String test() throws Exception { return Nas.test(cfg); }
 
+    @Override public String ping() throws Exception { return Nas.ping(cfg); }
+
     @Override public String list() throws Exception { return Nas.list(cfg); }
 
     @Override public byte[] read(String relPath) throws Exception { return Nas.read(cfg, relPath); }

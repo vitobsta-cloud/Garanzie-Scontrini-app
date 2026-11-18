@@ -43,6 +43,7 @@ public class Bridge {
         this.act = act;
         this.web = web;
         this.nasPrefs = act.getSharedPreferences("nas", Context.MODE_PRIVATE);
+        Nas.infoCacheFile = new File(act.getCacheDir(), "info_nas.json");
     }
 
     private interface Job {
@@ -226,6 +227,7 @@ public class Bridge {
             String pw = o.optString("password", "");
             if (!pw.isEmpty()) e.putString("password", pw);
             e.apply();
+            nasQueue.execute(Nas::closeQuietly);
         } catch (Exception ignored) {
         }
     }
@@ -235,6 +237,12 @@ public class Bridge {
     @JavascriptInterface
     public void nasTest(String id) {
         async(nasQueue, id, () -> store().test());
+    }
+
+    /** Controllo veloce del collegamento: il pallino diventa verde senza aspettare l'elenco. */
+    @JavascriptInterface
+    public void nasPing(String id) {
+        async(nasQueue, id, () -> store().ping());
     }
 
     @JavascriptInterface

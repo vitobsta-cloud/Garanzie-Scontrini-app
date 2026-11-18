@@ -112,6 +112,12 @@ final class LocalStore implements Store {
     }
 
     @Override
+    public String ping() throws Exception {
+        root();
+        return "ok";
+    }
+
+    @Override
     public String list() throws Exception {
         JSONArray out = new JSONArray();
         walk(root(), "", 0, out);

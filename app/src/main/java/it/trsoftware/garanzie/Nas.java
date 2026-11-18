@@ -287,6 +287,25 @@ final class Nas {
 
     /** Traduce gli errori in messaggi comprensibili. */
     static String friendly(Throwable t) {
+        return friendlyBase(t) + "\n[dettaglio: " + detail(t) + "]";
+    }
+
+    /** Catena tecnica dell'errore, per capire la causa senza altre prove. */
+    static String detail(Throwable t) {
+        StringBuilder d = new StringBuilder();
+        int n = 0;
+        for (Throwable x = t; x != null && n < 4; x = x.getCause(), n++) {
+            if (n > 0) d.append(" ← ");
+            d.append(x.getClass().getSimpleName());
+            if (x.getMessage() != null) {
+                String m = x.getMessage();
+                d.append(": ").append(m.length() > 160 ? m.substring(0, 160) + "…" : m);
+            }
+        }
+        return d.toString();
+    }
+
+    private static String friendlyBase(Throwable t) {
         StringBuilder all = new StringBuilder();
         for (Throwable x = t; x != null; x = x.getCause()) {
             all.append(x.getClass().getSimpleName()).append(' ').append(x.getMessage()).append(' ');

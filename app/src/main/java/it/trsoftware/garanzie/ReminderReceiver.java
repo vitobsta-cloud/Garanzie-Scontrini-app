@@ -60,6 +60,26 @@ public class ReminderReceiver extends BroadcastReceiver {
         am.setInexactRepeating(AlarmManager.RTC_WAKEUP, c.getTimeInMillis(), AlarmManager.INTERVAL_DAY, pi);
     }
 
+    /** Notifica di prova. */
+    static void test(Context ctx) {
+        if (Build.VERSION.SDK_INT >= 33
+                && ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
+        NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Garanzie in scadenza",
+                NotificationManager.IMPORTANCE_DEFAULT));
+        Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pi = PendingIntent.getActivity(ctx, 3, open,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        nm.notify(101, new Notification.Builder(ctx, CHANNEL)
+                .setSmallIcon(R.drawable.ic_notify)
+                .setContentTitle("Notifica di prova")
+                .setContentText("Gli avvisi di scadenza delle garanzie funzionano.")
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build());
+    }
+
     static synchronized void check(Context ctx) {
         SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         int days = p.getInt("days", 30);

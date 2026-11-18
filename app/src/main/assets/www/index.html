@@ -13,9 +13,12 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Roboto,system-ui,-apple-system,"Segoe UI",sans-serif}
 header{position:sticky;top:0;z-index:5;background:#1a1a1a;color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px;min-height:62px}
-header .back{border:0;background:none;color:#fff;font-size:30px;line-height:1;padding:0 6px 4px 0;margin-left:-4px}
-header h1{flex:1;margin:0;font-size:21px;font-weight:500;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .back{flex:none;border:0;background:#333;color:#fff;font:inherit;font-size:16px;border-radius:10px;padding:8px 14px;white-space:nowrap}
+header .back:active{background:#444}
+header h1{flex:1;margin:0;font-size:20px;font-weight:500;letter-spacing:.2px;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 header .hdate{color:#9a9a9a;font-size:14px;white-space:nowrap}
+header.sub .hdate{font-size:12.5px;white-space:normal;text-align:right;max-width:76px;line-height:1.25}
+header.sub h1{font-size:18.5px}
 .statusbar{display:flex;align-items:center;gap:8px;padding:7px 18px;font-size:12px;color:var(--muted);background:#f6f7f8;border-bottom:1px solid var(--line)}
 .statusbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* home a schede */
@@ -32,6 +35,52 @@ header .hdate{color:#9a9a9a;font-size:14px;white-space:nowrap}
 .tile .t2{font-size:14px;color:#777}
 .tile .chev{color:#b5b5b5;font-size:22px}
 .tile .cnt{background:var(--warn);color:#fff;border-radius:99px;font-size:12px;font-weight:700;padding:1px 8px;margin-left:6px;vertical-align:3px}
+.scelta{display:flex;align-items:center;gap:14px;border:1.5px solid #dcdcdc;border-radius:16px;padding:14px;margin-top:10px;cursor:pointer;background:#fff}
+.scelta .ic{width:48px;height:48px;flex:none;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.scelta .tx{flex:1;min-width:0} .scelta .t1{font-size:16.5px;color:#1d2530} .scelta .t2{font-size:13px;color:#777}
+.scelta .rd{width:22px;height:22px;border-radius:50%;border:2px solid #c3c7cc;flex:none}
+.scelta.off{opacity:.55}
+.presto{font-size:11px;font-weight:600;background:#eef0f3;color:#6b7480;border-radius:99px;padding:2px 8px;vertical-align:2px;margin-left:4px}
+.scelta.on{border-color:#1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a}
+.scelta.on .rd{border:7px solid #1a1a1a}
+.koline{background:var(--bad-soft);color:#991b1b;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+.okline{background:var(--ok-soft);color:#166534;border-radius:10px;padding:10px 12px;font-size:14px;margin-top:10px}
+.card.fcard{padding:0;overflow:hidden}
+.fhead{padding:16px 18px;font-size:17px;font-weight:500;border-bottom:1px solid #ececec}
+.fbody{padding:6px 18px 18px}
+.fbody label{font-size:14px;color:#666;margin:12px 0 6px}
+.fbody select,.fbody input{border:1.5px solid #d6d6d0;border-radius:12px;padding:12px 14px;font-size:16px;background:#fff}
+.fbtns{display:flex;gap:10px;margin-top:14px}
+.fbtns button{font:inherit;font-size:16px;border-radius:12px;padding:10px 20px}
+.bk{background:#1a1a1a;color:#fff;border:1.5px solid #1a1a1a}
+.bw{background:#fff;color:#1d2530;border:1.5px solid #d6d6d0}
+.periodo{margin:0 6px 12px;color:#555;font-size:14.5px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
+.chip{flex:none;border:1.5px solid #dcdcdc;background:#fff;border-radius:99px;padding:7px 14px;font:inherit;font-size:14px;color:#444}
+.chip.on{background:#1a1a1a;border-color:#1a1a1a;color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.kpi{background:#fff;border:1.5px solid #dcdcdc;border-radius:16px;padding:12px 10px;text-align:center}
+.kpi.wide{grid-column:1 / -1}
+.kpi .kv{font-size:20px;font-weight:600;color:#1d2530}
+.kpi.wide .kv{font-size:28px}
+.kpi .kl{font-size:12.5px;color:#777}
+.hb{padding:7px 0;cursor:pointer}
+.hbl{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:#333}
+.hbl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbl b{font-weight:600;white-space:nowrap}
+.hbt{height:10px;background:#f0f1f3;border-radius:4px;margin-top:4px}
+.hbf{height:100%;background:#0EA5E9;border-radius:4px}
+.hbf.alt{background:#9aa3ad}
+.hb.sel .hbf{background:#0369a1}
+.hbn{font-size:12px;color:#888;margin-top:2px}
+.vb{display:flex;align-items:flex-end;gap:4px;height:170px;margin-top:8px;border-bottom:1px solid #e3e5e8}
+.vbc{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;min-width:0}
+.vbt{flex:1;display:flex;align-items:flex-end}
+.vbf{width:100%;background:#0EA5E9;border-radius:4px 4px 0 0}
+.vbc.sel .vbf{background:#0369a1}
+.vb.fitto{gap:1px} .vb.fitto .vbk{font-size:10px;overflow:visible}
+.vbk{font-size:11px;color:#777;text-align:center;padding-top:4px;white-space:nowrap;overflow:hidden}
+.tip{font-size:13.5px;color:#555;background:#f6f7f8;border-radius:8px;padding:8px 10px}
 .stat{cursor:pointer}
 .stat:active{background:#f5f6f7}
 .stat.sel{border-color:#1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a}
@@ -119,7 +168,7 @@ pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px
 </head>
 <body>
 <header>
-  <button class="back hidden" id="hBack" aria-label="Indietro">‹</button>
+  <button class="back hidden" id="hBack">← Home</button>
   <h1 id="hTitle">Garanzie &amp; Scontrini</h1>
   <div class="hdate" id="hDate"></div>
 </header>
@@ -189,6 +238,22 @@ function nasCfg(){
   try{ return JSON.parse(A.getNasConfig()); }catch(e){ return {}; }
 }
 const nasReady = () => { const c = nasCfg(); return !!(c.host && c.share); };
+function archivioPronto(){
+  const m = archivioScelto();
+  if(!A) return false;
+  if(m === "nas") return nasReady();
+  if(m === "locale") return !!(A.getLocalFolder && A.getLocalFolder());
+  if(m === "gdrive") return !!(A.getDriveAccount && A.getDriveAccount());
+  return false;
+}
+const NOMI_ARCHIVIO = {nas:"NAS", locale:"cartella del telefono", gdrive:"Google Drive"};
+function nomeArchivio(){ return NOMI_ARCHIVIO[archivioScelto()] || "archivio"; }
+function etichettaArchivio(){
+  const m = archivioScelto();
+  if(m === "gdrive") return "☁️ Google Drive · " + ((A && A.getDriveAccount && A.getDriveAccount()) || settings().driveAccount || "non collegato");
+  if(m === "locale") return "📱 " + ((A && A.getLocalFolder && A.getLocalFolder()) || settings().localFolder || "nessuna cartella scelta");
+  return nasLabel();
+}
 function nasLabel(){ const c = nasCfg(); return c.host ? `\\\\${c.host}\\${c.share}${c.folder ? "\\" + c.folder : ""}` : "NAS non configurato"; }
 
 /* =========================================================
@@ -219,6 +284,15 @@ function folderFor(a){ return `${safeName(a.negozio) || "Negozio sconosciuto"}/$
 const extOf = n => (n.match(/\.([a-z0-9]+)$/i) || ["", ""])[1].toLowerCase();
 const isImg = n => /^(jpe?g|png|webp|bmp|heic|gif)$/.test(extOf(n));
 const mimeOf = n => extOf(n) === "pdf" ? "application/pdf" : isImg(n) ? (extOf(n) === "png" ? "image/png" : "image/jpeg") : "application/octet-stream";
+function conferma(msg, ok = "Conferma", pericolo = false){
+  return new Promise(res => {
+    const m = document.createElement("div"); m.className = "modal";
+    m.innerHTML = `<div class="box"><div style="white-space:pre-line;font-size:15.5px;line-height:1.5;margin:4px 0 6px">${esc(msg)}</div>
+      <div class="btns"><button class="btn" data-r="0">Annulla</button><button class="btn ${pericolo ? "danger" : "primary"}" data-r="1">${esc(ok)}</button></div></div>`;
+    m.onclick = e => { const r = e.target.dataset && e.target.dataset.r; if(e.target === m || r !== undefined){ m.remove(); res(r === "1"); } };
+    document.body.appendChild(m);
+  });
+}
 const dataUrl = f => `data:${f.mime};base64,${f.data}`;
 const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
 
@@ -330,7 +404,9 @@ async function claudeRead(files){
 let nasState = "unknown"; // unknown | on | off
 function setNasState(s, msg){
   nasState = s; const d = $("#nasDot"); d.className = "dot" + (s === "on" ? " on" : s === "off" ? " off" : "");
-  $("#nasLine").textContent = msg || (nasReady() ? nasLabel() : "NAS non configurato");
+  const def = !archivioScelto() ? "Archivio non configurato: scegli dove salvare in Impostazioni"
+            : archivioScelto() === "nas" && !nasReady() ? "NAS non configurato" : etichettaArchivio();
+  $("#nasLine").textContent = msg || def;
 }
 function entryFromFolder(f){
   const parts = f.path.split("/").filter(Boolean), last = parts[parts.length - 1] || "";
@@ -344,7 +420,7 @@ function entryFromFolder(f){
   return e;
 }
 async function refreshFromNas(quiet){
-  if(!A || !nasReady()){ setNasState("unknown"); return false; }
+  if(!archivioPronto()){ setNasState("unknown"); return false; }
   setNasState("unknown", "Aggiorno dal NAS…");
   try{
     const folders = JSON.parse(await call("nasList"));
@@ -355,13 +431,13 @@ async function refreshFromNas(quiet){
     for(const a of keep) s2.put(a);
     await new Promise(r => { s2.transaction.oncomplete = r; s2.transaction.onerror = r; });
     saveSettings({ultimoAggiornamento:new Date().toISOString()});
-    setNasState("on", `${nasLabel()} · ${folders.length} acquisti`);
+    setNasState("on", `${etichettaArchivio()} · ${folders.length} acquisti`);
     if(keep.length) await uploadPending(true);
     syncReminders(); updateBadge();
-    if(!quiet) toast(`Archivio aggiornato: ${folders.length} acquisti sul NAS.`);
+    if(!quiet) toast(`Archivio aggiornato: ${folders.length} acquisti.`);
     return true;
   }catch(e){
-    setNasState("off", "NAS non raggiungibile — dati dell'ultimo aggiornamento");
+    setNasState("off", `${nomeArchivio()[0].toUpperCase() + nomeArchivio().slice(1)} non raggiungibile — dati dell'ultimo aggiornamento`);
     if(!quiet) toast(e.message, true);
     return false;
   }
@@ -382,7 +458,7 @@ async function writeToNas(a){
 async function uploadPending(quiet){
   const list = (await allAcquisti()).filter(a => a.daCaricare); let ok = 0;
   for(const a of list){ try{ await writeToNas(a); await putAcquisto(a); ok++; }catch(e){ if(!quiet) toast("Caricamento non riuscito: " + e.message, true); break; } }
-  if(ok && !quiet) toast(`${ok} acquisti caricati sul NAS.`);
+  if(ok && !quiet) toast(`${ok} acquisti caricati nell'archivio.`);
   return ok;
 }
 
@@ -390,7 +466,7 @@ async function uploadPending(quiet){
    Navigazione
    ========================================================= */
 let current = "";
-const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto"};
+const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni"};
 let currentArg, navStack = [];
 function setView(v, arg, isBack){
   if(!isBack){
@@ -400,10 +476,13 @@ function setView(v, arg, isBack){
   current = v; currentArg = arg;
   $("#hTitle").textContent = TITOLI[v] || "Garanzie & Scontrini";
   $("#hBack").classList.toggle("hidden", v === "home");
-  $("#hDate").classList.toggle("hidden", v !== "home");
+  const prev = navStack[navStack.length - 1];
+  $("#hBack").textContent = !prev || prev.v === "home" ? "← Home" : "← Indietro";
+  $("#hDate").classList.remove("hidden");
+  document.querySelector("header").classList.toggle("sub", v !== "home");
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
   window.scrollTo(0, 0);
-  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio})[v](arg);
+  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo})[v](arg);
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
 $("#hBack").onclick = () => window.onAndroidBack();
@@ -412,8 +491,19 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.2";
+const VERSIONE = "v1.4";
 const CRONOLOGIA = [
+  {v:"v1.4", d:"17/11/2026", n:[
+    "Impostazioni divise in menu: Destinazione file, Garanzie e avvisi, Lettura scontrini, Informazioni",
+    "Destinazione file a scelta: NAS di casa, Google Drive o una cartella sul telefono",
+    "Tasto di verifica per controllare che la destinazione funzioni davvero",
+    "Notifica di prova e controllo aggiornamenti manuale",
+    "Nuovo menu Grafici: spese per negozio e per periodo, con scelta di anno, mese o date",
+    "Backup e ripristino delle impostazioni ed esportazione dell'elenco acquisti in Excel (CSV)",
+    "Intestazione con pulsante \u2190 Home come nelle altre app TR/software"]},
+  {v:"v1.3", d:"17/11/2026", n:[
+    "Aggiornamenti senza reinstallare: l'app scarica da sola le nuove versioni caricate su GitHub",
+    "All'apertura avvisa che c'è un aggiornamento, mostra le novità e chiede se applicarlo subito o più tardi"]},
   {v:"v1.2", d:"17/11/2026", n:[
     "I riquadri In scadenza, In garanzia e Scadute sono cliccabili e aprono l'elenco relativo",
     "Il tasto indietro di Android torna alla pagina precedente",
@@ -495,22 +585,25 @@ async function renderHome(){
       <div class="sum"><b>Archivio</b>: ${list.length} acquisti · <a href="#" data-f="ok">In garanzia: ${att}</a><br><a href="#" data-f="warn">In scadenza: ${pre}</a> · <a href="#" data-f="bad">Scadute: ${sca}</a>${spesaAnno ? ` · Spesa ${anno}: ${euro(spesaAnno)}` : ""}${nDaCaricare ? `<br>⏳ Da caricare sul NAS: ${nDaCaricare}` : ""}</div>
     </div>
     ${tile("acquisisci", "📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino")}
-    ${tile("archivio", "🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti sul NAS")}
+    ${tile("archivio", "🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti nell'archivio")}
     ${tile("scadenze", "⏰", "#f8e6dc", "Scadenze", "Garanzie in scadenza e scadute", pre ? `<span class="cnt">${pre}</span>` : "")}
-    ${tile("impostazioni", "⚙️", "#ece7f4", "Impostazioni", "NAS QNAP, garanzia predefinita, avvisi")}
+    ${tile("grafici", "📊", "#e8f4f1", "Grafici", "Spese per negozio e per periodo")}
+    ${tile("impostazioni", "⚙️", "#ece7f4", "Impostazioni", "Destinazione file, garanzie, avvisi")}
     ${footerHTML()}`;
   document.querySelectorAll(".tile").forEach(t => t.onclick = () => setView(t.dataset.v));
   bindFooter();
+  if(updInAttesa) setTimeout(proponiAggiornamento, 300);
   document.querySelectorAll(".hero a[data-f]").forEach(x => x.onclick = e => { e.preventDefault(); setView("scadenze", x.dataset.f); });
 }
 function nasBanner(){
   if(!A) return `<div class="banner warn"><div>Anteprima nel browser: il collegamento al NAS funziona solo nell'app Android.</div></div>`;
-  if(!nasReady()) return `<div class="banner warn"><div>Configura il NAS QNAP per salvare e cercare gli scontrini.</div><button class="btn small" onclick="setView('impostazioni')">Configura</button></div>`;
+  if(!archivioScelto()) return `<div class="banner warn"><div>Scegli dove salvare gli scontrini: NAS, Google Drive o telefono.</div><button class="btn small" onclick="setView('impDest')">Scegli</button></div>`;
+  if(!archivioPronto()) return `<div class="banner warn"><div>Completa le impostazioni della destinazione (${esc(nomeArchivio())}).</div><button class="btn small" onclick="setView('impDest')">Apri</button></div>`;
   return "";
 }
 async function pendingBanner(){
   const n = (await allAcquisti()).filter(a => a.daCaricare).length;
-  return n ? `<div class="banner info"><div>⏳ ${n} acquist${n > 1 ? "i" : "o"} salvat${n > 1 ? "i" : "o"} sul telefono, da caricare sul NAS.</div><button class="btn small" id="bUpPend">Carica ora</button></div>` : "";
+  return n ? `<div class="banner info"><div>⏳ ${n} acquist${n > 1 ? "i" : "o"} salvat${n > 1 ? "i" : "o"} sul telefono, da caricare nell'archivio.</div><button class="btn small" id="bUpPend">Carica ora</button></div>` : "";
 }
 function bindPending(){ const b = $("#bUpPend"); if(b) b.onclick = async () => { b.disabled = true; await uploadPending(); setView(current); }; }
 
@@ -570,7 +663,7 @@ async function renderAcquisisci(edit){
       <p class="muted" id="destPreview"></p>
       <div class="btns">
         ${isEdit ? `<button class="btn" id="bAnnulla">Annulla</button>` : `<button class="btn" id="bReset">Svuota</button>`}
-        <button class="btn primary" id="bSalva">💾 Salva sul NAS</button>
+        <button class="btn primary" id="bSalva">💾 Salva</button>
       </div>
     </div>`;
   bindPending();
@@ -584,13 +677,13 @@ async function renderAcquisisci(edit){
   if($("#bClaude")) $("#bClaude").onclick = () => doLeggi(true);
   $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
   $("#bSalva").onclick = doSalva;
-  if($("#bReset")) $("#bReset").onclick = () => { if(confirm("Svuotare il modulo?")){ draft = newDraft(); lastOcr = ""; renderAcquisisci(); } };
+  if($("#bReset")) $("#bReset").onclick = async () => { if(await conferma("Svuotare il modulo?", "Svuota")){ draft = newDraft(); lastOcr = ""; renderAcquisisci(); } };
   if($("#bAnnulla")) $("#bAnnulla").onclick = () => { draft = null; window.onAndroidBack(); };
 }
 function updPreview(){
   const s = scadenzaInfo(draft);
   $("#scadPreview").innerHTML = s.date ? `Garanzia: <span class="pill ${s.cls}">${esc(s.label)}</span>` : "";
-  $("#destPreview").textContent = "Cartella sul NAS: " + (draft._edit ? draft.cartella : folderFor(draft)).replace(/\//g, "\\");
+  $("#destPreview").textContent = "Cartella nell'archivio: " + (draft._edit ? draft.cartella : folderFor(draft)).replace(/\//g, "\\");
 }
 function readForm(){
   const v = id => $("#" + id).value.trim();
@@ -603,7 +696,7 @@ function readForm(){
   });
 }
 function drawThumbs(){
-  const old = (draft.files || []).map(f => `<div class="thumb" title="Già sul NAS">${isImg(f.name) ? "🖼️" : "📄"}<br>${esc(f.name.slice(0, 22))}</div>`);
+  const old = (draft.files || []).map(f => `<div class="thumb" title="Già nell'archivio">${isImg(f.name) ? "🖼️" : "📄"}<br>${esc(f.name.slice(0, 22))}</div>`);
   const neu = draft.pendingFiles.map((f, i) => `<div class="thumb" data-i="${i}">${f.mime.startsWith("image/") ? `<img src="${dataUrl(f)}">` : `📄<br>${esc(f.name.slice(0, 22))}`}<button data-del="${i}">✕</button></div>`);
   $("#thumbs").innerHTML = old.concat(neu).join("") || `<span class="muted">Nessun documento.</span>`;
   $("#thumbs").querySelectorAll("[data-del]").forEach(b => b.onclick = e => { e.stopPropagation(); draft.pendingFiles.splice(+b.dataset.del, 1); drawThumbs(); });
@@ -655,7 +748,7 @@ async function doLeggi(useClaude){
 async function doSalva(){
   readForm();
   if(!draft.nome && !draft.negozio){ toast("Scrivi almeno il negozio o il nome dell'oggetto.", true); return; }
-  if(!draft._edit && !draft.pendingFiles.length && !confirm("Nessuna foto o PDF allegato. Salvare lo stesso?")) return;
+  if(!draft._edit && !draft.pendingFiles.length && !(await conferma("Nessuna foto o PDF allegato. Salvare lo stesso?", "Salva"))) return;
   const a = draft;
   if(!a._edit){
     // nome cartella unico
@@ -669,16 +762,16 @@ async function doSalva(){
     a.pendingFiles.forEach((f, i) => { f.name = `${stem}_${start + i + 1}.${extOf(f.name) || "jpg"}`; });
   }
   delete a._edit; a.daCaricare = true;
-  const b = $("#bSalva"); b.disabled = true; b.innerHTML = `<span class="spinner"></span>Salvo sul NAS…`;
+  const b = $("#bSalva"); b.disabled = true; b.innerHTML = `<span class="spinner"></span>Salvo…`;
   let msg;
   try{
-    if(!A || !nasReady()) throw new Error("NAS non configurato");
+    if(!archivioPronto()) throw new Error("destinazione dei file non configurata");
     await writeToNas(a);
-    setNasState("on", nasLabel());
-    msg = "✅ Salvato sul NAS in " + a.cartella.replace(/\//g, "\\");
+    setNasState("on", etichettaArchivio());
+    msg = "✅ Salvato in " + a.cartella.replace(/\//g, "\\");
   }catch(e){
-    setNasState(nasReady() ? "off" : "unknown");
-    msg = "Salvato sul telefono. Lo carico sul NAS appena è raggiungibile (" + e.message + ").";
+    setNasState(archivioPronto() ? "off" : "unknown");
+    msg = "Salvato sul telefono. Lo carico nell'archivio appena è raggiungibile (" + e.message + ").";
   }
   await putAcquisto(a); syncReminders(); updateBadge();
   draft = null; lastOcr = "";
@@ -745,7 +838,7 @@ async function renderDettaglio(id){
     <div class="card">
       <h2>${esc(a.nome || "(senza nome)")}</h2>
       <div class="muted">${esc(a.negozio || "—")}</div>
-      <p><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare sul NAS</span>` : ""}</p>
+      <p><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare</span>` : ""}</p>
       <table class="items">
         ${tr("Data acquisto", fmtDate(a.dataAcquisto))}
         ${tr("Prezzo", euro(a.prezzo))}
@@ -753,7 +846,7 @@ async function renderDettaglio(id){
         ${tr("N. scontrino", esc(a.numeroScontrino))}
         ${tr("Pagamento", esc(a.tipoPagamento))}
         ${tr("Negozio", esc([a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · ")))}
-        <tr><td>Cartella NAS</td><td class="num" style="word-break:break-word">${esc(a.cartella.replace(/\//g, "\\"))}</td></tr>
+        <tr><td>Cartella</td><td class="num" style="word-break:break-word">${esc(a.cartella.replace(/\//g, "\\"))}</td></tr>
       </table>
       ${(a.articoli || []).length ? `<label>Articoli</label><table class="items">${a.articoli.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="num">${euro(x.prezzo)}</td></tr>`).join("")}</table>` : ""}
       ${a.note ? `<label>Note</label><div style="white-space:pre-wrap">${esc(a.note)}</div>` : ""}
@@ -776,10 +869,10 @@ async function renderDettaglio(id){
   $("#bEdit").onclick = () => { draft = null; setView("acquisisci", a); };
   $("#bDel").onclick = async () => {
     if(a.daCaricare && !(a.files || []).length){
-      if(!confirm("Eliminare questo acquisto non ancora caricato?")) return;
+      if(!(await conferma("Eliminare questo acquisto non ancora caricato?", "Elimina", true))) return;
       await delAcquisto(a.id);
     }else{
-      if(!confirm(`Eliminare dal NAS la cartella\n${a.cartella.replace(/\//g, "\\")}\ncon i suoi ${files.length} documenti?\n\nL'operazione non si può annullare.`)) return;
+      if(!(await conferma(`Eliminare ${archivioScelto() === "gdrive" ? "da Google Drive (finisce nel cestino di Drive)" : archivioScelto() === "locale" ? "dal telefono" : "dal NAS"} la cartella\n${a.cartella.replace(/\//g, "\\")}\ncon i suoi ${files.length} documenti?\n\nL'operazione non si può annullare.`, "Elimina", true))) return;
       try{ await call("nasDeleteFolder", a.cartella); }catch(e){ toast(e.message, true); return; }
       await delAcquisto(a.id);
     }
@@ -836,57 +929,366 @@ function syncReminders(){
 /* =========================================================
    IMPOSTAZIONI
    ========================================================= */
-function renderImpostazioni(){
-  const s = settings(), c = nasCfg();
-  const val = (v, d) => esc(v || d);
+function archivioScelto(){ const a = settings().archivio; return a || (nasReady() ? "nas" : ""); }
+async function impostaArchivio(m){
+  saveSettings({archivio:m, ultimoAggiornamento:""}); if(A && A.setArchivio) A.setArchivio(m);
+  // l'elenco mostrato era quello della destinazione precedente
+  for(const a of await allAcquisti()) if(!a.daCaricare) await delAcquisto(a.id);
+  syncReminders(); updateBadge();
+}
+/* ---------- GRAFICI ---------- */
+let grafDa = "", grafA = "", grafAnno = "", grafMese = "";
+const MESI_LUNGHI = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+function grafImpostaPeriodo(){
+  // mese senza anno = anno in corso; anno senza mese = tutto l'anno
+  if(!grafAnno && !grafMese){ grafDa = grafA = ""; return; }
+  const y = grafAnno || String(new Date().getFullYear());
+  if(grafMese){ const m = Number(grafMese), last = new Date(Number(y), m, 0).getDate(); grafDa = `${y}-${String(m).padStart(2, "0")}-01`; grafA = `${y}-${String(m).padStart(2, "0")}-${last}`; }
+  else{ grafDa = y + "-01-01"; grafA = y + "-12-31"; }
+}
+function euro0(n){ return Number(n || 0).toLocaleString("it-IT", {style:"currency", currency:"EUR", useGrouping:"always", maximumFractionDigits: n >= 1000 ? 0 : 2}); }
+async function renderGrafici(){
+  const all = await allAcquisti();
+  const anni = [...new Set(all.map(a => (a.dataAcquisto || "").slice(0, 4)).filter(y => /^\d{4}$/.test(y)))].sort().reverse();
+  const tutto = !grafDa && !grafA;
+  const inPeriodo = a => { const d = a.dataAcquisto || ""; return tutto || (d && (!grafDa || d >= grafDa) && (!grafA || d <= grafA)); };
+  const list = all.filter(inPeriodo);
+  const conPrezzo = list.filter(a => Number(a.prezzo) > 0);
+  const tot = conPrezzo.reduce((t, a) => t + Number(a.prezzo), 0);
+  const negozi = {};
+  for(const a of list){ const n = (a.negozio || "Senza negozio").trim(); const k = n.toLowerCase(); negozi[k] = negozi[k] || {nome:n, euro:0, n:0}; negozi[k].n++; negozi[k].euro += Number(a.prezzo) || 0; }
+  let righe = Object.values(negozi).sort((x, y) => y.euro - x.euro || y.n - x.n);
+  if(righe.length > 10){ const altri = righe.slice(9); righe = righe.slice(0, 9).concat([{nome:`Altri ${altri.length} negozi`, euro:altri.reduce((t, r) => t + r.euro, 0), n:altri.reduce((t, r) => t + r.n, 0), altri:true}]); }
+  const maxNeg = Math.max(1, ...righe.map(r => r.euro));
+  // andamento nel tempo: per mese se è un anno, altrimenti per anno
+  const annoUnico = grafDa && grafA && grafDa.slice(0, 4) === grafA.slice(0, 4) ? grafDa.slice(0, 4) : "";
+  const meseUnico = annoUnico && grafDa.slice(0, 7) === grafA.slice(0, 7) ? grafDa.slice(0, 7) : "";
+  const perGiorno = !!meseUnico, perMese = !!annoUnico && !perGiorno;
+  const MESI = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+  let tempo = [];
+  if(perGiorno){ const nd = new Date(Number(meseUnico.slice(0, 4)), Number(meseUnico.slice(5, 7)), 0).getDate(); tempo = Array.from({length:nd}, (_, i) => ({k:String(i + 1), euro:0, n:0})); }
+  else if(perMese) tempo = MESI.map((m, i) => ({k:m, euro:0, n:0, i}));
+  else{ const ys = [...new Set(conPrezzo.map(a => a.dataAcquisto.slice(0, 4)))].sort(); tempo = ys.map(y => ({k:y, euro:0, n:0})); }
+  for(const a of conPrezzo){
+    const t = perGiorno ? tempo[Number(a.dataAcquisto.slice(8, 10)) - 1] : perMese ? tempo[Number(a.dataAcquisto.slice(5, 7)) - 1] : tempo.find(x => x.k === a.dataAcquisto.slice(0, 4));
+    if(t){ t.euro += Number(a.prezzo); t.n++; }
+  }
+  const maxT = Math.max(1, ...tempo.map(t => t.euro));
+  const titoloPeriodo = tutto ? "Tutti gli anni" : meseUnico && grafDa.endsWith("-01") ? MESI_LUNGHI[Number(meseUnico.slice(5, 7)) - 1] + " " + meseUnico.slice(0, 4) : grafAnno && !grafMese ? "Anno " + grafAnno : `${fmtDate(grafDa) === "—" ? "inizio" : fmtDate(grafDa)} → ${fmtDate(grafA) === "—" ? "oggi" : fmtDate(grafA)}`;
+  const senza = list.length - conPrezzo.length;
   $("#view").innerHTML = `
-    <div class="card">
-      <h2>🗄️ NAS QNAP</h2>
-      <p class="muted">Gli scontrini vengono salvati direttamente nella cartella del NAS, con la stessa struttura del programma Windows (Negozio\\nome AAAA_MM_GG).</p>
-      <div class="row">
-        <div><label>Indirizzo NAS</label><input id="nHost" value="${val(c.host, "192.168.1.13")}" autocapitalize="off"></div>
-        <div><label>Cartella condivisa</label><input id="nShare" value="${val(c.share, "Public")}" autocapitalize="off"></div>
+    <div class="card fcard">
+      <div class="fhead">Grafici acquisti e spese</div>
+      <div class="fbody">
+        <div class="row">
+          <div><label>Anno</label><select id="gAnno"><option value="">— anno —</option>${[...new Set([String(new Date().getFullYear()), ...anni])].sort().reverse().map(y => `<option${y === grafAnno ? " selected" : ""}>${y}</option>`).join("")}</select></div>
+          <div><label>Mese</label><select id="gMese"><option value="">— mese —</option>${MESI_LUNGHI.map((m, i) => `<option value="${i + 1}"${String(i + 1) === grafMese ? " selected" : ""}>${m}</option>`).join("")}</select></div>
+        </div>
+        <div class="row">
+          <div><label>Da</label><input type="date" id="gDa" value="${grafDa}"></div>
+          <div><label>A</label><input type="date" id="gA" value="${grafA}"></div>
+        </div>
+        <div class="fbtns"><button class="bk" id="gCalc">Calcola</button><button class="bw" id="gTutto">Tutto</button><button class="bw" id="gReset">Reset</button></div>
       </div>
-      <label>Cartella dell'archivio dentro la condivisione</label><input id="nFolder" value="${val(c.folder, "garanzie scontrini acquisti")}" autocapitalize="off">
+    </div>
+    <p class="periodo">📅 ${esc(titoloPeriodo)}</p>
+    <div class="kpis">
+      <div class="kpi wide"><div class="kv">${euro0(tot)}</div><div class="kl">Totale spese</div></div>
+      <div class="kpi"><div class="kv">${list.length}</div><div class="kl">Acquisti</div></div>
+      <div class="kpi"><div class="kv">${conPrezzo.length ? euro0(tot / conPrezzo.length) : "—"}</div><div class="kl">Spesa media</div></div>
+      <div class="kpi"><div class="kv">${Object.keys(negozi).length}</div><div class="kl">Negozi</div></div>
+    </div>
+    ${senza ? `<p class="muted" style="margin:0 4px 12px">ℹ️ ${senza} acquist${senza > 1 ? "i" : "o"} senza prezzo: contat${senza > 1 ? "i" : "o"} negli acquisti ma non nella spesa. Aggiungi il prezzo con "Modifica" nella scheda.</p>` : ""}
+    <div class="card">
+      <h2>🏪 Spesa per negozio</h2>
+      ${righe.length ? righe.map(r => `<div class="hb" data-tip="${esc(r.nome)}: ${euro0(r.euro)} · ${r.n} acquist${r.n > 1 ? "i" : "o"}">
+          <div class="hbl"><span>${esc(r.nome)}</span><b>${euro0(r.euro)}</b></div>
+          <div class="hbt"><div class="hbf${r.altri ? " alt" : ""}" style="width:${Math.max(r.euro / maxNeg * 100, r.euro ? 1.5 : 0)}%"></div></div>
+          <div class="hbn">${r.n} acquist${r.n > 1 ? "i" : "o"}</div></div>`).join("") : `<p class="muted">Nessun acquisto nel periodo.</p>`}
+    </div>
+    <div class="card">
+      <h2>📅 Spesa ${perGiorno ? "per giorno · " + MESI_LUNGHI[Number(meseUnico.slice(5, 7)) - 1] + " " + annoUnico : perMese ? "per mese · " + annoUnico : "per anno"}</h2>
+      <div class="tip" id="gTip">${tempo.length ? "Tocca una barra per vedere il dettaglio." : "Nessuna spesa con data nel periodo."}</div>
+      ${tempo.length ? `<div class="vb${tempo.length > 14 ? " fitto" : ""}">${tempo.map(t => `<div class="vbc" data-tip="${perGiorno ? t.k + " " + MESI_LUNGHI[Number(meseUnico.slice(5, 7)) - 1] + " " + annoUnico : t.k + (perMese ? " " + annoUnico : "")}: ${euro0(t.euro)} · ${t.n} acquist${t.n === 1 ? "o" : "i"}"><div class="vbt"><div class="vbf" style="height:${t.euro ? Math.max(t.euro / maxT * 100, 2) : 0}%"></div></div><div class="vbk">${perGiorno && t.k !== "1" && Number(t.k) % 5 ? "&nbsp;" : t.k}</div></div>`).join("")}</div>` : ""}
+    </div>
+    <div class="card">
+      <h2>🧾 Riepilogo</h2>
+      <table class="items">${righe.map(r => `<tr><td>${esc(r.nome)}</td><td class="num">${r.n}</td><td class="num">${euro0(r.euro)}</td></tr>`).join("")}
+        <tr><td><b>Totale</b></td><td class="num"><b>${list.length}</b></td><td class="num"><b>${euro0(tot)}</b></td></tr></table>
+    </div>`;
+  $("#gAnno").onchange = e => { grafAnno = e.target.value; grafImpostaPeriodo(); renderGrafici(); };
+  $("#gMese").onchange = e => { grafMese = e.target.value; if(grafMese && !grafAnno) grafAnno = String(new Date().getFullYear()); grafImpostaPeriodo(); renderGrafici(); };
+  $("#gCalc").onclick = () => { grafDa = $("#gDa").value; grafA = $("#gA").value; grafAnno = grafMese = ""; renderGrafici(); };
+  $("#gTutto").onclick = () => { grafDa = grafA = grafAnno = grafMese = ""; renderGrafici(); };
+  $("#gReset").onclick = () => { grafAnno = String(new Date().getFullYear()); grafMese = ""; grafImpostaPeriodo(); renderGrafici(); };
+  document.querySelectorAll(".vbc").forEach(c => c.onclick = () => { document.querySelectorAll(".vbc").forEach(x => x.classList.remove("sel")); c.classList.add("sel"); $("#gTip").textContent = c.dataset.tip; });
+  document.querySelectorAll(".hb").forEach(c => c.onclick = () => { document.querySelectorAll(".hb").forEach(x => x.classList.remove("sel")); c.classList.add("sel"); });
+}
+
+/* ---------- IMPOSTAZIONI: menu principale ---------- */
+function rigaMenu(v, ic, bg, t1, t2){
+  return `<div class="tile" data-v="${v}"><div class="ic" style="background:${bg}">${ic}</div><div class="tx"><div class="t1">${t1}</div><div class="t2">${t2}</div></div><div class="chev">›</div></div>`;
+}
+function descrDestinazione(){
+  const m = archivioScelto(), s = settings(), c = nasCfg();
+  if(m === "nas") return "🗄️ NAS di casa" + (c.host ? " · \\\\" + c.host + "\\" + c.share : " · da configurare");
+  if(m === "gdrive") return "☁️ Google Drive" + (s.driveAccount || (A && A.getDriveAccount && A.getDriveAccount()) ? " · " + (A && A.getDriveAccount ? A.getDriveAccount() : s.driveAccount) : " · da collegare");
+  if(m === "locale") return "📱 Sul telefono · " + (s.localFolder || "Documenti/Garanzie e Scontrini");
+  return "⚠️ Non ancora scelta";
+}
+function renderImpostazioni(){
+  const s = settings();
+  $("#view").innerHTML = `
+    ${rigaMenu("impDest", "📁", "#e6eef8", "Destinazione file", esc(descrDestinazione()))}
+    ${rigaMenu("impGar", "🧾", "#edf3e4", "Garanzie e avvisi", `${s.mesiDefault} mesi predefiniti · avviso ${s.giorniAvviso} giorni prima`)}
+    ${rigaMenu("impLett", "🔎", "#f8e6dc", "Lettura scontrini", s.apiKey ? "OCR sul telefono + Claude" : "OCR sul telefono, gratuito")}
+    ${rigaMenu("impBackup", "💾", "#e8f4f1", "Backup e ripristino", "Esporta o importa le impostazioni, elenco acquisti in Excel")}
+    ${rigaMenu("impInfo", "ℹ️", "#ece7f4", "Informazioni e aggiornamenti", `Versione ${VERSIONE} · cronologia`)}`;
+  document.querySelectorAll(".tile").forEach(t => t.onclick = () => setView(t.dataset.v));
+}
+const esito = (el, ok, msg) => { el.innerHTML = ok === null ? `<span class="spinner"></span>${esc(msg)}` : `<div class="${ok ? "okline" : "koline"}">${ok ? "✅" : "❌"} ${esc(msg)}</div>`; };
+
+/* ---------- Destinazione file ---------- */
+function demoGoogle(){ return new Promise(r => setTimeout(() => r("nome.cognome@gmail.com"), 700)); }
+function demoFolder(){ return new Promise(r => setTimeout(() => r("Documenti/Scontrini (cartella scelta)"), 400)); }
+function renderImpDest(){
+  const s = settings(), c = nasCfg(), mode = archivioScelto();
+  const g = A && A.getDriveAccount ? A.getDriveAccount() : (s.driveAccount || "");
+  const loc = A && A.getLocalFolder ? A.getLocalFolder() : (s.localFolder || "");
+  // Google Drive e cartella sul telefono si attivano quando la parte Android le supporta
+  const pronto = {nas:true, gdrive:!!(A && A.driveLogin), locale:!!(A && A.pickFolder)};
+  const opt = (k, ic, bg, t1, t2) => `<div class="scelta${mode === k ? " on" : ""}${pronto[k] ? "" : " off"}" data-m="${k}"><div class="ic" style="background:${bg}">${ic}</div><div class="tx"><div class="t1">${t1}${pronto[k] ? "" : ' <span class="presto">in arrivo</span>'}</div><div class="t2">${t2}</div></div><div class="rd"></div></div>`;
+  let conf = "";
+  if(mode === "nas") conf = `
+    <div class="card">
+      <h2>🗄️ Impostazioni NAS</h2>
       <div class="row">
-        <div><label>Nome utente</label><input id="nUser" value="${val(c.user, "VitoSilviaNas")}" autocapitalize="off" autocomplete="off"></div>
+        <div><label>Indirizzo NAS</label><input id="nHost" value="${esc(c.host || "")}" placeholder="es. 192.168.1.10" autocapitalize="off"></div>
+        <div><label>Cartella condivisa</label><input id="nShare" value="${esc(c.share || "")}" placeholder="es. Public" autocapitalize="off"></div>
+      </div>
+      <label>Cartella dell'archivio dentro la condivisione</label><input id="nFolder" value="${esc(c.folder || "")}" placeholder="es. garanzie scontrini acquisti" autocapitalize="off">
+      <div class="row">
+        <div><label>Nome utente</label><input id="nUser" value="${esc(c.user || "")}" autocapitalize="off" autocomplete="off"></div>
         <div><label>Password</label><input id="nPass" type="password" placeholder="${c.hasPassword ? "🔒 salvata" : ""}" autocomplete="off"></div>
       </div>
       <details><summary>Opzioni avanzate</summary><label>Dominio / gruppo di lavoro (di solito vuoto)</label><input id="nDom" value="${esc(c.domain || "")}" autocapitalize="off"></details>
-      <div class="btns"><button class="btn" id="nTest">🔌 Testa connessione</button><button class="btn primary" id="nSave">💾 Salva</button></div>
-      <div class="status" id="nOut"></div>
-      <p class="muted" style="margin-top:12px">📶 <b>Fuori casa:</b> accendi sul telefono la VPN del QNAP (app QVPN o WireGuard) e l'app usa lo stesso indirizzo. A casa basta il Wi-Fi.</p>
-    </div>
+      <div class="btns"><button class="btn primary" id="nSave">💾 Salva</button></div>
+      <p class="muted" style="margin-top:12px">📶 <b>Fuori casa:</b> accendi sul telefono la VPN del NAS (per QNAP l'app QVPN o WireGuard). A casa basta il Wi-Fi.</p>
+    </div>`;
+  if(mode === "gdrive") conf = `
     <div class="card">
-      <h2>🧾 Garanzie</h2>
+      <h2>☁️ Impostazioni Google Drive</h2>
+      <p class="muted">Gli scontrini vanno nella cartella <b>Garanzie e Scontrini</b> del tuo Drive, con sottocartelle Negozio\\nome AAAA_MM_GG. Li vedi anche dal PC su drive.google.com. L'app vede solo i file che ha creato lei, non il resto del tuo Drive.</p>
+      ${g ? `<div class="okline">👤 Collegato come <b>${esc(g)}</b></div>` : `<div class="koline">Nessun account collegato</div>`}
+      <div class="btns">${g ? `<button class="btn" id="gOut">Disconnetti</button>` : ""}<button class="btn primary" id="gIn">${g ? "Cambia account" : "Accedi con Google"}</button></div>
+    </div>`;
+  if(mode === "locale") conf = `
+    <div class="card">
+      <h2>📱 Impostazioni cartella</h2>
+      <p class="muted">Gli scontrini restano nel telefono. Se scegli una cartella sincronizzata (OneDrive, Dropbox…) li ritrovi anche sul PC. Fai un backup ogni tanto: se il telefono si rompe i file si perdono.</p>
+      ${loc ? `<div class="okline">📂 ${esc(loc)}</div>` : `<div class="koline">Nessuna cartella scelta</div>`}
+      <p class="muted" style="margin-top:10px">Nella finestra di Android entra dove vuoi (es. Documenti) e tocca <b>Usa questa cartella</b>: l'app crea da sola la sottocartella <b>Garanzie e Scontrini</b>. Se scegli una cartella che si chiama già "Garanzie…", usa quella. Per creare una cartella nuova: menu <b>⋮ → Nuova cartella</b>.</p>
+      <div class="btns"><button class="btn ${loc ? "" : "primary"}" id="lPick">📂 ${loc ? "Scegli un'altra cartella" : "Scegli la cartella"}</button></div>
+    </div>`;
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>Dove salvare gli scontrini</h2>
+      ${opt("nas", "🗄️", "#e6eef8", "NAS di casa", "QNAP, Synology o cartella condivisa del PC. Da casa o con la VPN.")}
+      ${opt("gdrive", "☁️", "#edf3e4", "Google Drive", "Con il tuo account Google: archivio raggiungibile ovunque.")}
+      ${opt("locale", "📱", "#f8e6dc", "Sul telefono", "In una cartella del telefono. Nessun account, funziona anche offline.")}
+    </div>
+    ${conf}
+    ${mode ? `<div class="card">
+      <h2>🧪 Verifica funzionamento</h2>
+      <p class="muted">Prova davvero la destinazione: collegamento, scrittura e lettura di un file di prova, che poi viene cancellato.</p>
+      <div class="btns"><button class="btn primary" id="vTest">▶️ Avvia verifica</button></div>
+      <div id="vOut"></div>
+    </div>` : ""}`;
+  setNasState(mode === "nas" ? nasState : "unknown");
+
+  document.querySelectorAll(".scelta").forEach(el => el.onclick = async () => {
+    const m = el.dataset.m; if(m === archivioScelto()) return;
+    if(el.classList.contains("off")){ toast("Disponibile in un prossimo aggiornamento."); return; }
+    if(archivioScelto() && archivioPronto() && !(await conferma("Cambiare la destinazione dei file?\n\nGli scontrini già salvati restano dove sono: da ora in poi i nuovi acquisti vanno nella nuova destinazione.", "Cambia"))) return;
+    await impostaArchivio(m); renderImpDest(); setNasState("unknown");
+    if(archivioPronto()) refreshFromNas(true);
+    toast({nas:"Destinazione: NAS di casa", gdrive:"Destinazione: Google Drive", locale:"Destinazione: sul telefono"}[m]);
+  });
+  const nas = () => ({host:$("#nHost").value.trim().replace(/^\\+/, ""), share:$("#nShare").value.trim().replace(/[\\/]/g, ""), folder:$("#nFolder").value.trim().replace(/^[\\/]+|[\\/]+$/g, "").replace(/\//g, "\\"),
+    user:$("#nUser").value.trim(), domain:$("#nDom").value.trim(), password:$("#nPass").value});
+  const saveNas = () => { if(!A) throw new Error("Disponibile solo nell'app Android."); A.setNasConfig(JSON.stringify(nas())); $("#nPass").value = ""; $("#nPass").placeholder = nasCfg().hasPassword ? "🔒 salvata" : ""; };
+  if($("#nSave")) $("#nSave").onclick = () => { try{ saveNas(); toast("Impostazioni NAS salvate."); setNasState("unknown"); refreshFromNas(true); }catch(e){ toast(e.message, true); } };
+  if($("#gIn")) $("#gIn").onclick = async () => {
+    try{ const acc = A && A.driveLogin ? await call("driveLogin") : await demoGoogle(); saveSettings({driveAccount:acc}); renderImpDest(); toast("Collegato a Google Drive: " + acc); refreshFromNas(true); }
+    catch(e){ toast(e.message, true); }
+  };
+  if($("#gOut")) $("#gOut").onclick = async () => { if(!(await conferma("Disconnettere l'account Google?\n\nI file su Google Drive restano dove sono.", "Disconnetti"))) return; if(A && A.driveLogout) A.driveLogout(); saveSettings({driveAccount:""}); renderImpDest(); setNasState("unknown"); };
+  if($("#lPick")) $("#lPick").onclick = async () => {
+    try{ const f = A && A.pickFolder ? await call("pickFolder") : await demoFolder(); saveSettings({localFolder:f}); renderImpDest(); toast("Cartella: " + f); refreshFromNas(true); }
+    catch(e){ toast(e.message, true); }
+  };
+  if($("#vTest")) $("#vTest").onclick = async () => {
+    const o = $("#vOut"), b = $("#vTest"); b.disabled = true;
+    const passi = [];
+    const show = () => o.innerHTML = passi.map(p => `<div class="${p.ok === false ? "koline" : p.ok ? "okline" : "status"}">${p.ok === null ? '<span class="spinner"></span>' : p.ok ? "✅ " : "❌ "}${esc(p.t)}</div>`).join("");
+    const passo = async (t, fn) => { const p = {t, ok:null}; passi.push(p); show(); try{ const r = await fn(); p.ok = true; if(r) p.t = r; }catch(e){ p.ok = false; p.t = t + ": " + e.message; show(); throw e; } show(); };
+    try{
+      if(mode === "nas" && $("#nHost")) saveNas();
+      if(A && A.setArchivio){
+        await passo("Collegamento, scrittura e lettura di un file di prova", async () => { const r = await call("nasTest"); setNasState("on", etichettaArchivio()); return r; });
+        await passo("Lettura dell'archivio", async () => { await refreshFromNas(true); return `Archivio letto: ${(await allAcquisti()).length} acquisti trovati`; });
+      }else{
+        await passo("Collegamento e prova di scrittura", async () => { if(mode === "nas") return await call("nasTest"); await new Promise(r => setTimeout(r, 800)); return "Destinazione raggiungibile e scrivibile (simulato)"; });
+      }
+      passi.push({t:"Tutto funziona: puoi salvare gli scontrini.", ok:true}); show();
+    }catch(e){ if(mode === "nas") setNasState("off"); }
+    b.disabled = false;
+  };
+}
+
+/* ---------- Garanzie e avvisi ---------- */
+function renderImpGar(){
+  const s = settings();
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>🧾 Garanzie e avvisi</h2>
       <div class="row">
         <div><label>Mesi di garanzia predefiniti</label><input id="sMesi" type="number" min="0" value="${esc(s.mesiDefault)}"></div>
         <div><label>Avvisami … giorni prima</label><input id="sGiorni" type="number" min="1" value="${esc(s.giorniAvviso)}"></div>
       </div>
+      <p class="muted">In Italia la garanzia legale sui beni è di 24 mesi. Il valore predefinito si usa per gli acquisti di cui non hai indicato la durata.</p>
       <div class="btns"><button class="btn primary" id="sSave">💾 Salva</button></div>
     </div>
     <div class="card">
+      <h2>🔔 Verifica notifiche</h2>
+      <p class="muted">Invia subito una notifica di prova per controllare che gli avvisi di scadenza arrivino.</p>
+      <div class="btns"><button class="btn" id="sNotif">▶️ Invia notifica di prova</button></div>
+      <div id="sNotifOut"></div>
+    </div>`;
+  $("#sSave").onclick = () => { saveSettings({mesiDefault:Number($("#sMesi").value) || 0, giorniAvviso:Number($("#sGiorni").value) || 30}); syncReminders(); updateBadge(); toast("Salvato."); };
+  $("#sNotif").onclick = () => {
+    if(A && A.testNotification){ A.testNotification(); esito($("#sNotifOut"), true, "Notifica inviata: controlla la barra in alto del telefono."); }
+    else esito($("#sNotifOut"), true, "Anteprima: nell'app arriva una notifica di prova.");
+  };
+}
+
+/* ---------- Lettura scontrini ---------- */
+function renderImpLett(){
+  const s = settings();
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>🔎 Lettura automatica</h2>
+      <p class="muted">Gli scontrini vengono letti sul telefono con l'OCR di Google: gratuito e senza internet.</p>
+    </div>
+    <div class="card">
       <h2>🤖 Claude (facoltativo)</h2>
-      <p class="muted">La lettura degli scontrini funziona già senza Claude, sul telefono e gratis. Se inserisci una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) compare il tasto "Rileggi con Claude" per gli scontrini difficili.</p>
+      <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) compare il tasto "Rileggi con Claude" per gli scontrini difficili.</p>
       <label>Chiave API</label><input id="cKey" type="password" value="${esc(s.apiKey)}" placeholder="sk-ant-…" autocomplete="off">
       <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
-      <div class="btns"><button class="btn primary" id="cSave">💾 Salva</button></div>
-    </div>
-    ${footerHTML()}`;
-  bindFooter();
-  const nas = () => ({host:$("#nHost").value.trim().replace(/^\\+/, ""), share:$("#nShare").value.trim().replace(/[\\/]/g, ""), folder:$("#nFolder").value.trim().replace(/^[\\/]+|[\\/]+$/g, "").replace(/\//g, "\\"),
-    user:$("#nUser").value.trim(), domain:$("#nDom").value.trim(), password:$("#nPass").value});
-  const saveNas = () => { if(!A) throw new Error("Disponibile solo nell'app Android."); A.setNasConfig(JSON.stringify(nas())); $("#nPass").value = ""; $("#nPass").placeholder = nasCfg().hasPassword ? "🔒 salvata" : ""; };
-  $("#nSave").onclick = () => { try{ saveNas(); toast("Impostazioni NAS salvate."); setNasState("unknown"); refreshFromNas(true); }catch(e){ toast(e.message, true); } };
-  $("#nTest").onclick = async () => {
-    const o = $("#nOut");
-    try{ saveNas(); }catch(e){ o.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; return; }
-    o.innerHTML = `<span class="spinner"></span>Mi collego al NAS…`;
-    try{ const r = await call("nasTest"); o.innerHTML = `✅ ${esc(r)}`; setNasState("on", nasLabel()); refreshFromNas(true); }
-    catch(e){ o.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`; setNasState("off"); }
+      <div class="btns"><button class="btn" id="cTest">▶️ Verifica</button><button class="btn primary" id="cSave">💾 Salva</button></div>
+      <div id="cOut"></div>
+    </div>`;
+  const save = () => saveSettings({apiKey:$("#cKey").value.trim(), model:$("#cModel").value.trim() || DEFAULTS.model});
+  $("#cSave").onclick = () => { save(); toast("Salvato."); };
+  $("#cTest").onclick = async () => {
+    save(); const o = $("#cOut");
+    if(!settings().apiKey){ esito(o, false, "Inserisci prima la chiave API."); return; }
+    esito(o, null, "Provo il collegamento a Claude…");
+    try{
+      const body = JSON.stringify({model:settings().model, max_tokens:10, messages:[{role:"user", content:"Rispondi solo OK"}]});
+      const r = JSON.parse(await call("claudeRequest", body, settings().apiKey));
+      if(r.status === 200) esito(o, true, "Claude risponde correttamente."); else esito(o, false, "Errore " + r.status + ": " + ((JSON.parse(r.body).error || {}).message || ""));
+    }catch(e){ esito(o, false, e.message); }
   };
-  $("#sSave").onclick = () => { saveSettings({mesiDefault:Number($("#sMesi").value) || 0, giorniAvviso:Number($("#sGiorni").value) || 30}); syncReminders(); updateBadge(); toast("Salvato."); };
-  $("#cSave").onclick = () => { saveSettings({apiKey:$("#cKey").value.trim(), model:$("#cModel").value.trim() || DEFAULTS.model}); toast("Salvato."); };
+}
+
+/* ---------- Backup e ripristino ---------- */
+async function salvaFile(nome, mime, testo){
+  const b64 = b64utf8(testo);
+  if(A && A.saveDownload) return await call("saveDownload", nome, mime, b64);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([testo], {type:mime})); a.download = nome; a.click();
+  return "Download/" + nome;
+}
+function renderImpBackup(){
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>⬆️ Esporta impostazioni</h2>
+      <p class="muted">Crea un file con tutte le impostazioni: destinazione dei file, dati del NAS, garanzia predefinita, avvisi, lettura scontrini. Serve per reinstallare l'app o passarla su un altro telefono senza rifare tutto.</p>
+      <label style="display:flex;gap:10px;align-items:flex-start;color:var(--text);font-size:14.5px;margin-top:10px"><input type="checkbox" id="bPass" style="width:auto;margin-top:3px"> Includi le password (NAS e chiave Claude). Attenzione: chi ha il file può leggerle.</label>
+      <div class="btns"><button class="btn primary" id="bExp">💾 Esporta impostazioni</button></div>
+      <div id="bExpOut"></div>
+    </div>
+    <div class="card">
+      <h2>⬇️ Importa impostazioni</h2>
+      <p class="muted">Scegli un file di backup creato con "Esporta impostazioni". Le impostazioni attuali vengono sostituite.</p>
+      <div class="btns"><button class="btn" id="bImp">📂 Scegli file di backup</button></div>
+      <input type="file" id="bImpFile" accept="application/json,.json" class="hidden">
+      <div id="bImpOut"></div>
+    </div>
+    <div class="card">
+      <h2>📋 Elenco acquisti</h2>
+      <p class="muted">Esporta l'elenco di tutti gli acquisti in un file CSV, da aprire con Excel o Fogli Google. I documenti (foto e PDF) restano nell'archivio.</p>
+      <div class="btns"><button class="btn" id="bCsv">📊 Esporta elenco (CSV)</button></div>
+      <div id="bCsvOut"></div>
+    </div>`;
+  $("#bExp").onclick = async () => {
+    const o = $("#bExpOut"), s = settings(), pass = $("#bPass").checked;
+    const nas = nasCfg(); delete nas.hasPassword;
+    if(pass && A && A.getNasPassword) nas.password = A.getNasPassword();
+    const imp = {mesiDefault:s.mesiDefault, giorniAvviso:s.giorniAvviso, archivio:archivioScelto(), localFolder:s.localFolder || "", driveAccount:s.driveAccount || "", model:s.model};
+    if(pass) imp.apiKey = s.apiKey;
+    const dati = {app:"GaranzieScontrini", tipo:"impostazioni", versioneApp:VERSIONE, creato:new Date().toISOString(), conPassword:pass, impostazioni:imp, nas};
+    try{ const dove = await salvaFile(`GaranzieScontrini_impostazioni_${todayISO()}.json`, "application/json", JSON.stringify(dati, null, 2)); esito(o, true, "Salvato in " + dove); }
+    catch(e){ esito(o, false, e.message); }
+  };
+  $("#bImp").onclick = () => $("#bImpFile").click();
+  $("#bImpFile").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+    const o = $("#bImpOut");
+    try{
+      const d = JSON.parse(await f.text());
+      if(d.app !== "GaranzieScontrini" || d.tipo !== "impostazioni") throw new Error("Il file non è un backup delle impostazioni di Garanzie & Scontrini.");
+      if(!(await conferma(`Importare le impostazioni del ${fmtDate((d.creato || "").slice(0, 10))}?\n\nQuelle attuali vengono sostituite.`, "Importa"))) return;
+      const imp = d.impostazioni || {};
+      const keep = {apiKey: imp.apiKey !== undefined ? imp.apiKey : settings().apiKey};
+      saveSettings(Object.assign({}, imp, keep));
+      if(d.nas && A) A.setNasConfig(JSON.stringify(d.nas));
+      syncReminders(); updateBadge(); setNasState("unknown");
+      esito(o, true, "Impostazioni importate" + (d.conPassword ? "." : ". Le password non erano nel file: inseriscile in Destinazione file."));
+      if(A && A.setArchivio) A.setArchivio(archivioScelto());
+      if(archivioPronto()) refreshFromNas(true);
+    }catch(err){ esito(o, false, err.message); }
+  };
+  $("#bCsv").onclick = async () => {
+    const o = $("#bCsvOut"), list = (await allAcquisti()).sort((x, y) => (x.dataAcquisto || "").localeCompare(y.dataAcquisto || ""));
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const head = ["Data acquisto","Negozio","Oggetto","Prezzo","Garanzia mesi","Scadenza garanzia","Stato","N. scontrino","Pagamento","Città","Note","Cartella"];
+    const rows = list.map(a => { const sc = scadenzaInfo(a); return [fmtDate(a.dataAcquisto), a.negozio, a.nome, a.prezzo === "" || a.prezzo == null ? "" : String(a.prezzo).replace(".", ","), a.garanziaMesi, sc.date ? fmtDate(sc.date) : "", sc.label, a.numeroScontrino, a.tipoPagamento, a.negozioCitta, a.note, (a.cartella || "").replace(/\//g, "\\")].map(q).join(";"); });
+    try{ const dove = await salvaFile(`GaranzieScontrini_elenco_${todayISO()}.csv`, "text/csv", "\ufeff" + [head.map(q).join(";"), ...rows].join("\r\n")); esito(o, true, `${list.length} acquisti esportati in ${dove}`); }
+    catch(e){ esito(o, false, e.message); }
+  };
+}
+
+/* ---------- Informazioni ---------- */
+function renderImpInfo(){
+  const ultimo = CRONOLOGIA[0];
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>ℹ️ Garanzie & Scontrini</h2>
+      <table class="items">
+        <tr><td>Versione</td><td class="num">${VERSIONE}</td></tr>
+        <tr><td>Ultimo aggiornamento</td><td class="num">${ultimo.d}</td></tr>
+        <tr><td>Sviluppo</td><td class="num">TR/software</td></tr>
+      </table>
+      <div class="btns"><button class="btn" id="iCron">📜 Cronologia aggiornamenti</button><button class="btn primary" id="iCheck">🔄 Cerca aggiornamenti</button></div>
+      <div id="iOut"></div>
+    </div>`;
+  $("#iCron").onclick = showCronologia;
+  $("#iCheck").onclick = () => {
+    if(A && A.getPendingUpdate && A.getPendingUpdate()){ updRinviato = false; proponiAggiornamento(); return; }
+    if(A && A.checkUpdateNow){ A.checkUpdateNow(); esito($("#iOut"), null, "Controllo su GitHub…"); setTimeout(() => { if(!document.querySelector(".modal")) esito($("#iOut"), true, "Hai già l'ultima versione."); }, 6000); }
+    else esito($("#iOut"), true, "Anteprima: nell'app qui controlla se c'è una versione nuova.");
+  };
 }
 
 /* =========================================================
@@ -900,11 +1302,40 @@ window.onAndroidBack = () => {
   if(prev) setView(prev.v, prev.arg, true); else setView("home", undefined, true);
   return true;
 };
-window.onAndroidResume = () => { if(nasReady() && Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > 10 * 60 * 1000) refreshFromNas(true).then(() => { if(["home","archivio","scadenze"].includes(current)) setView(current); }); };
+/* ---------- aggiornamenti: avviso con scelta ---------- */
+let updRinviato = false, updInAttesa = false;
+function leggiNovita(html){
+  const out = {v:"", note:[]};
+  const mv = html.match(/const VERSIONE = "([^"]+)"/); if(mv) out.v = mv[1];
+  const mc = html.match(/const CRONOLOGIA = (\[[\s\S]*?\n\]);/);
+  if(mc){ try{ const cr = new Function("return " + mc[1])(); const r = cr.find(x => x.v === out.v) || cr[0]; if(r) out.note = r.n || []; }catch(e){} }
+  return out;
+}
+function occupato(){ return (current === "acquisisci" && draft && ((draft.pendingFiles || []).length || draft.nome || draft.negozio)) || document.querySelector(".modal"); }
+function proponiAggiornamento(){
+  if(!A || !A.getPendingUpdate || updRinviato) return;
+  const html = A.getPendingUpdate(); if(!html) return;
+  if(occupato()){ updInAttesa = true; return; }      // lo propone appena torni alla pagina iniziale
+  updInAttesa = false;
+  const n = leggiNovita(html), stessa = n.v === VERSIONE;
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box"><h2>🔄 ${stessa ? "Aggiornamento disponibile" : "È disponibile la " + esc(n.v)}</h2>
+    <p class="muted" style="margin:0 0 8px">Versione installata: ${VERSIONE}${n.v && !stessa ? " → nuova: " + esc(n.v) : ""}</p>
+    ${n.note.length ? `<div class="rel"><b>Novità</b><ul>${n.note.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    <div class="btns"><button class="btn" id="updDopo">Più tardi</button><button class="btn primary" id="updOra">Aggiorna ora</button></div></div>`;
+  document.body.appendChild(m);
+  $("#updDopo").onclick = () => { updRinviato = true; m.remove(); toast("Te lo ricordo alla prossima apertura."); };
+  $("#updOra").onclick = () => { try{ sessionStorage.setItem("gs_aggiornata", "1"); }catch(e){} m.remove(); A.applyUpdate(); };
+}
+window.onWebUpdate = proponiAggiornamento;
+try{ if(sessionStorage.getItem("gs_aggiornata")){ sessionStorage.removeItem("gs_aggiornata"); setTimeout(() => toast("✅ App aggiornata alla " + VERSIONE), 600); } }catch(e){}
+setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e non ancora applicata
+if(A && A.setArchivio && archivioScelto()) A.setArchivio(archivioScelto());
+window.onAndroidResume = () => { if(archivioPronto() && Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > 10 * 60 * 1000) refreshFromNas(true).then(() => { if(["home","archivio","scadenze"].includes(current)) setView(current); }); };
 setNasState("unknown");
-setView(A && !nasReady() ? "impostazioni" : "home");
+setView(A && !archivioPronto() ? "impostazioni" : "home");
 updateBadge();
-if(nasReady()) refreshFromNas(true).then(ok => { if(ok && ["home","archivio","scadenze"].includes(current)) setView(current); });
+if(archivioPronto()) refreshFromNas(true).then(ok => { if(ok && ["home","archivio","scadenze"].includes(current)) setView(current); });
 </script>
 </body>
 </html>

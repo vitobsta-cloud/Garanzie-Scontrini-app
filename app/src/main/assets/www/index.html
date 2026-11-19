@@ -464,6 +464,93 @@ async function refreshFromNas(quiet){
     return false;
   }
 }
+/* ---------- Import dal programma Windows (CSV "Esporta CSV" o catalogo JSON) ---------- */
+function decodificaTesto(bytes){
+  let t = new TextDecoder("utf-8").decode(bytes);
+  if(t.includes("�")){ try{ t = new TextDecoder("windows-1252").decode(bytes); }catch(e){} }
+  return t.replace(/^﻿/, "");
+}
+function parseCSV(t){
+  const first = t.split(/\r?\n/)[0] || "";
+  const sep = [";", ",", "\t"].sort((a, b) => first.split(b).length - first.split(a).length)[0];
+  const rows = []; let row = [], cell = "", q = false;
+  for(let i = 0; i < t.length; i++){
+    const c = t[i];
+    if(q){ if(c === '"'){ if(t[i + 1] === '"'){ cell += '"'; i++; } else q = false; } else cell += c; }
+    else if(c === '"') q = true;
+    else if(c === sep){ row.push(cell); cell = ""; }
+    else if(c === "\n" || c === "\r"){ if(c === "\r" && t[i + 1] === "\n") i++; row.push(cell); cell = ""; if(row.some(x => x.trim())) rows.push(row); row = []; }
+    else cell += c;
+  }
+  row.push(cell); if(row.some(x => x.trim())) rows.push(row);
+  return rows;
+}
+function vociDaWindows(testo){
+  const t = testo.trim();
+  if(t.startsWith("{") || t.startsWith("[")){
+    const j = JSON.parse(t);
+    const arr = Array.isArray(j) ? j : (j.items || j.voci || j.entries || j.catalogo || j.catalog || Object.values(j).find(Array.isArray) || []);
+    return arr.filter(x => x && typeof x === "object");
+  }
+  const rows = parseCSV(t); if(rows.length < 2) throw new Error("Il file è vuoto o non è un CSV del programma.");
+  const norm = h => h.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+  const MAP = [["cartella","cartella"],["percorso","cartella"],["folder","cartella"],["oggetto","nome"],["nome","nome"],["descrizione","nome"],["negoziocitta","negozioCitta"],["citta","negozioCitta"],["negoziotelefono","negozioTelefono"],["telefono","negozioTelefono"],["negozioindirizzo","negozioIndirizzo"],["indirizzo","negozioIndirizzo"],["negozio","negozio"],["prezzo","prezzo"],["importo","prezzo"],["totale","prezzo"],["dataacquisto","dataAcquisto"],["acquisto","dataAcquisto"],["data","dataAcquisto"],["garanziamesi","garanziaMesi"],["mesi","garanziaMesi"],["garanzia","garanziaMesi"],["numeroscontrino","numeroScontrino"],["nscontrino","numeroScontrino"],["scontrino","numeroScontrino"],["pagamento","tipoPagamento"],["note","note"],["file","file"],["categoria","categoria"]];
+  const cols = rows[0].map(h => { const n = norm(h); if(n.includes("scadenza") || n === "stato") return ""; const m = MAP.find(([k]) => n === k) || MAP.find(([k]) => n.includes(k)); return m ? m[1] : ""; });
+  if(!cols.includes("cartella") && !cols.includes("nome")) throw new Error("Non riconosco le colonne del file: serve il CSV di \"Esporta CSV\" del programma Windows.");
+  return rows.slice(1).map(r => { const o = {}; cols.forEach((k, i) => { if(k && !(k in o)) o[k] = (r[i] ?? "").trim(); }); return o; });
+}
+function prezzoNum(v){
+  if(v === null || v === undefined || v === "") return "";
+  if(typeof v === "number") return isFinite(v) && v > 0 ? v : "";
+  let t = String(v).replace(/[€\s]/g, "").replace(/[^\d.,-]/g, "");
+  if(!t) return "";
+  if(t.includes(",") && t.includes(".")) t = t.lastIndexOf(",") > t.lastIndexOf(".") ? t.replace(/\./g, "").replace(",", ".") : t.replace(/,/g, "");
+  else t = t.replace(",", ".");
+  const n = parseFloat(t); return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : "";
+}
+function dataISO(v){
+  const t = String(v || "").trim(); let m;
+  if((m = t.match(/^(\d{4})[-_/.](\d{1,2})[-_/.](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  if((m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/))) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return "";
+}
+async function importaDaWindows(testo, avanza){
+  const voci = vociDaWindows(testo);
+  if(!voci.length) throw new Error("Nel file non ci sono acquisti.");
+  const list = await allAcquisti();
+  if(!list.length) throw new Error("L'elenco dell'archivio è vuoto: aggiornalo prima (pallino verde in alto).");
+  const k = x => String(x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+  const coda = p => String(p || "").replace(/\\/g, "/").split("/").filter(Boolean).slice(-2).map(k).join("/");
+  const perCartella = new Map(), perDati = new Map();
+  for(const a of list){
+    perCartella.set(coda(a.cartella), a);
+    const dRaw = a.annoCartellaErrato && a.dataAcquisto ? a.annoCartellaErrato + a.dataAcquisto.slice(4) : a.dataAcquisto;
+    const nomeBase = String(a.nome || "").split(" / ").pop();
+    for(const d of new Set([a.dataAcquisto, dRaw])) perDati.set(k(a.negozio) + "|" + k(nomeBase) + "|" + d, a);
+  }
+  const CAMPI = ["numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","note","categoria"];
+  const daSalvare = [], nonTrovati = []; let giaOk = 0;
+  for(const v of voci){
+    const cart = v.cartella || v.folder || v.path || "";
+    const a = (cart && perCartella.get(coda(cart))) || perDati.get(k(v.negozio) + "|" + k(v.nome) + "|" + dataISO(v.dataAcquisto));
+    if(!a){ nonTrovati.push(v.nome || cart || "?"); continue; }
+    let cambiato = false;
+    const p = prezzoNum(v.prezzo);
+    if(p !== "" && (a.prezzo === "" || a.prezzo == null)){ a.prezzo = p; cambiato = true; }
+    const mesi = parseInt(v.garanziaMesi, 10);
+    if(mesi > 0 && !a.hasInfo && Number(a.garanziaMesi) !== mesi){ a.garanziaMesi = mesi; cambiato = true; }
+    for(const c of CAMPI){ const val = v[c] == null ? "" : String(v[c]).trim(); if(val && val !== "0" && !String(a[c] || "").trim()){ a[c] = val; cambiato = true; } }
+    if(Array.isArray(v.articoli) && v.articoli.length && !(a.articoli || []).length){ a.articoli = v.articoli; cambiato = true; }
+    if(cambiato){ if(!daSalvare.includes(a)) daSalvare.push(a); } else giaOk++;
+  }
+  let fatti = 0, errori = 0;
+  for(const a of daSalvare){
+    avanza && avanza(`Salvo i dati nell'archivio… ${fatti + errori + 1} di ${daSalvare.length}`);
+    try{ await writeToNas(a); }catch(e){ a.daCaricare = true; errori++; }
+    await putAcquisto(a); fatti++;
+  }
+  return {letti:voci.length, aggiornati:daSalvare.length - errori, errori, giaOk, nonTrovati};
+}
 function infoJSON(a){
   const keys = ["nome","negozio","dataAcquisto","garanziaMesi","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","categoria","note","articoli"];
   const o = {app:"GaranzieScontrini", versione:1, aggiornato:new Date().toISOString()};
@@ -513,8 +600,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.8";
+const VERSIONE = "v1.9";
 const CRONOLOGIA = [
+  {v:"v1.9", d:"19/11/2026", n:[
+    "Backup: nuova funzione \"Dati dal programma Windows\" per portare nell'app prezzi, note e altri dati inseriti sul PC",
+    "I dati importati vengono salvati nei file garanzia.json delle cartelle: grafici con la spesa in euro"
+  ]},
   {v:"v1.8", d:"19/11/2026", n:[
     "Impostazioni NAS: spunta \"Mostra password\" per vedere in chiaro la password inserita o quella salvata"
   ]},
@@ -1306,6 +1397,14 @@ function renderImpBackup(){
       <div id="bImpOut"></div>
     </div>
     <div class="card">
+      <h2>💻 Dati dal programma Windows</h2>
+      <p class="muted">Porta nell'app i prezzi, le note e gli altri dati inseriti con il programma Garanzie &amp; Scontrini del PC. Nel programma: <b>Importa / Esporta → Esporta CSV</b>, e salva il file <b>dentro la cartella dell'archivio</b> col nome <b>catalogo_garanzie.csv</b>. Oppure mandatelo sul telefono e sceglilo qui sotto.</p>
+      <p class="muted">Vengono completati solo i campi vuoti; i dati restano salvati nei file garanzia.json delle cartelle, così non si perdono.</p>
+      <div class="btns"><button class="btn primary" id="bWinNas">🗄️ Leggi dall'archivio</button><button class="btn" id="bWinFile">📂 Scegli file</button></div>
+      <input type="file" id="bWinInput" accept=".csv,.json,text/csv,application/json,text/plain" class="hidden">
+      <div id="bWinOut"></div>
+    </div>
+    <div class="card">
       <h2>📋 Elenco acquisti</h2>
       <p class="muted">Esporta l'elenco di tutti gli acquisti in un file CSV, da aprire con Excel o Fogli Google. I documenti (foto e PDF) restano nell'archivio.</p>
       <div class="btns"><button class="btn" id="bCsv">📊 Esporta elenco (CSV)</button></div>
@@ -1338,6 +1437,28 @@ function renderImpBackup(){
       if(A && A.setArchivio) A.setArchivio(archivioScelto());
       if(archivioPronto()) refreshFromNas(true);
     }catch(err){ esito(o, false, err.message); }
+  };
+  const winRun = async (testo) => {
+    const o = $("#bWinOut");
+    try{
+      const r = await importaDaWindows(testo, msg => esito(o, true, msg));
+      esito(o, true, `Completati ${r.aggiornati} acquisti su ${r.letti} del programma Windows.` + (r.giaOk ? ` ${r.giaOk} avevano già tutti i dati.` : "") + (r.nonTrovati.length ? ` ${r.nonTrovati.length} non trovati nell'archivio (es. ${r.nonTrovati.slice(0, 3).map(esc).join(", ")}).` : "") + (r.errori ? ` ${r.errori} non salvati: riprova quando l'archivio è raggiungibile.` : ""));
+      updateBadge(); syncReminders();
+    }catch(e){ esito(o, false, e.message); }
+  };
+  $("#bWinNas").onclick = async () => {
+    const o = $("#bWinOut");
+    if(!archivioPronto()){ esito(o, false, "Imposta prima la destinazione dei file."); return; }
+    esito(o, true, "Leggo catalogo_garanzie.csv dall'archivio…");
+    let b64;
+    try{ b64 = await call("nasRead", "catalogo_garanzie.csv"); }
+    catch(e){ esito(o, false, "Non trovo catalogo_garanzie.csv nella cartella dell'archivio. Nel programma Windows usa Importa / Esporta → Esporta CSV e salvalo lì. (" + e.message + ")"); return; }
+    await winRun(decodificaTesto(Uint8Array.from(atob(b64), c => c.charCodeAt(0))));
+  };
+  $("#bWinFile").onclick = () => $("#bWinInput").click();
+  $("#bWinInput").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+    await winRun(decodificaTesto(new Uint8Array(await f.arrayBuffer())));
   };
   $("#bCsv").onclick = async () => {
     const o = $("#bCsvOut"), list = (await allAcquisti()).sort((x, y) => (x.dataAcquisto || "").localeCompare(y.dataAcquisto || ""));

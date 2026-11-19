@@ -23,11 +23,23 @@ jobs:
         with:
           gradle-version: "8.14.3"
 
+      - name: Chiave di firma (dai Secrets del repository)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "Manca il secret KEYSTORE_BASE64"; exit 1; fi
+          echo "$KEYSTORE_BASE64" | base64 -d > app/firma.keystore
+
       - name: Compila
+        env:
+          KEYSTORE_FILE: firma.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: gradle :app:assembleRelease --stacktrace
 
       - name: Prepara APK
-        run: cp app/build/outputs/apk/release/app-release.apk GaranzieScontrini.apk
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk GaranzieScontrini.apk
+          rm -f app/firma.keystore
 
       - name: Allega ai risultati della build
         uses: actions/upload-artifact@v4
@@ -40,6 +52,8 @@ jobs:
         with:
           tag_name: ultima-versione
           name: Ultima versione
-          body: APK compilato automaticamente. Scarica GaranzieScontrini.apk dal telefono e installalo.
+          body: |
+            Garanzie & Scontrini per Android.
+            Per installarla scarica GaranzieScontrini.apk dal telefono e aprilo.
           make_latest: true
           files: GaranzieScontrini.apk

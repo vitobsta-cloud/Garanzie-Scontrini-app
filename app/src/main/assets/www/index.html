@@ -513,8 +513,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.7";
+const VERSIONE = "v1.8";
 const CRONOLOGIA = [
+  {v:"v1.8", d:"19/11/2026", n:[
+    "Impostazioni NAS: spunta \"Mostra password\" per vedere in chiaro la password inserita o quella salvata"
+  ]},
   {v:"v1.7", d:"19/11/2026", n:[
     "Firma dell'app protetta: la chiave non è più pubblica (richiede una reinstallazione una tantum)",
     "App pronta per essere condivisa con amici: ognuno usa il proprio archivio"
@@ -1142,6 +1145,7 @@ function renderImpDest(){
         <div><label>Nome utente</label><input id="nUser" value="${esc(c.user || "")}" autocapitalize="off" autocomplete="off"></div>
         <div><label>Password</label><input id="nPass" type="password" placeholder="${c.hasPassword ? "🔒 salvata" : ""}" autocomplete="off"></div>
       </div>
+      <label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:14.5px;margin-top:6px"><input type="checkbox" id="nShow" style="width:auto;margin:0"> Mostra password</label>
       <details><summary>Opzioni avanzate</summary><label>Dominio / gruppo di lavoro (di solito vuoto)</label><input id="nDom" value="${esc(c.domain || "")}" autocapitalize="off"></details>
       <div class="btns"><button class="btn primary" id="nSave">💾 Salva</button></div>
       <p class="muted" style="margin-top:12px">📶 <b>Fuori casa:</b> accendi sul telefono la VPN del NAS (per QNAP l'app QVPN o WireGuard). A casa basta il Wi-Fi.</p>
@@ -1188,6 +1192,11 @@ function renderImpDest(){
   const nas = () => ({host:$("#nHost").value.trim().replace(/^\\+/, ""), share:$("#nShare").value.trim().replace(/[\\/]/g, ""), folder:$("#nFolder").value.trim().replace(/^[\\/]+|[\\/]+$/g, "").replace(/\//g, "\\"),
     user:$("#nUser").value.trim(), domain:$("#nDom").value.trim(), password:$("#nPass").value});
   const saveNas = () => { if(!A) throw new Error("Disponibile solo nell'app Android."); A.setNasConfig(JSON.stringify(nas())); $("#nPass").value = ""; $("#nPass").placeholder = nasCfg().hasPassword ? "🔒 salvata" : ""; };
+  if($("#nShow")) $("#nShow").onchange = e => {
+    const p = $("#nPass"), on = e.target.checked;
+    if(on && !p.value && nasCfg().hasPassword && A && A.getNasPassword){ try{ p.value = A.getNasPassword() || ""; }catch(_){} }
+    p.type = on ? "text" : "password";
+  };
   if($("#nSave")) $("#nSave").onclick = () => { try{ saveNas(); toast("Impostazioni NAS salvate."); setNasState("unknown"); refreshFromNas(true); }catch(e){ toast(e.message, true); } };
   if($("#gIn")) $("#gIn").onclick = async () => {
     try{ const acc = A && A.driveLogin ? await call("driveLogin") : await demoGoogle(); saveSettings({driveAccount:acc}); renderImpDest(); toast("Collegato a Google Drive: " + acc); refreshFromNas(true); }

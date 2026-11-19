@@ -10,18 +10,19 @@ android {
         applicationId "it.trsoftware.garanzie"
         minSdk 29
         targetSdk 34
-        versionCode 7
-        versionName "1.6"
+        versionCode 8
+        versionName "1.7"
     }
 
     signingConfigs {
-        // Chiave fissa inclusa nel progetto: ogni APK compilato da GitHub si installa
-        // sopra il precedente senza dover disinstallare l'app.
+        // La chiave di firma NON è nel progetto: GitHub la ricrea a ogni compilazione dai Secrets
+        // del repository (KEYSTORE_BASE64 e KEYSTORE_PASSWORD). Sempre la stessa chiave, quindi
+        // ogni APK nuovo si installa sopra il precedente.
         fissa {
-            storeFile file("garanzie.keystore")
-            storePassword "garanzie"
+            storeFile file(System.getenv("KEYSTORE_FILE") ?: "firma.keystore")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
             keyAlias "garanzie"
-            keyPassword "garanzie"
+            keyPassword System.getenv("KEYSTORE_PASSWORD") ?: ""
         }
     }
 

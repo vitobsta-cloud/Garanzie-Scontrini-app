@@ -102,8 +102,28 @@ public class Bridge {
                     throw new IllegalStateException("Nessun account Google collegato: accedi in Destinazione file.");
                 return new DriveStore(this::driveToken, nasPrefs);
             default:
+                Nas.wifiSocketFactory = networkSocketFactory(android.net.NetworkCapabilities.TRANSPORT_WIFI);
+                Nas.vpnSocketFactory = networkSocketFactory(android.net.NetworkCapabilities.TRANSPORT_VPN);
                 return new NasStore(cfg());
         }
+    }
+
+    /** Rete del tipo indicato (VPN o Wi-Fi) attiva sul telefono, per forzare da dove passa il collegamento al NAS. */
+    @SuppressWarnings("deprecation")
+    private javax.net.SocketFactory networkSocketFactory(int transport) {
+        try {
+            android.net.ConnectivityManager cm = act.getSystemService(android.net.ConnectivityManager.class);
+            if (cm == null) return null;
+            for (android.net.Network n : cm.getAllNetworks()) {
+                android.net.NetworkCapabilities nc = cm.getNetworkCapabilities(n);
+                if (nc == null || !nc.hasTransport(transport)) continue;
+                if (transport == android.net.NetworkCapabilities.TRANSPORT_WIFI
+                        && nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN)) continue;
+                return n.getSocketFactory();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     @JavascriptInterface

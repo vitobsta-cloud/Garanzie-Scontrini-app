@@ -59,7 +59,7 @@ header.sub h1{font-size:18.5px}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
 .chip{flex:none;border:1.5px solid #dcdcdc;background:#fff;border-radius:99px;padding:7px 14px;font:inherit;font-size:14px;color:#444}
 .chip.on{background:#1a1a1a;border-color:#1a1a1a;color:#fff}
-.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
 .kpi{background:#fff;border:1.5px solid #dcdcdc;border-radius:16px;padding:12px 10px;text-align:center}
 .kpi.wide{grid-column:1 / -1}
 .kpi .kv{font-size:20px;font-weight:600;color:#1d2530}
@@ -513,8 +513,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.5.2";
+const VERSIONE = "v1.6";
 const CRONOLOGIA = [
+  {v:"v1.6", d:"19/11/2026", n:[
+    "Collegamento al NAS più robusto: usa prima la VPN, poi la rete normale, poi il Wi-Fi (in auto il Wi-Fi di Android Auto non blocca più)",
+    "Il NAS si raggiunge anche quando il Wi-Fi di casa risulta \"senza internet\"",
+    "Grafici: numero di acquisti e spesa insieme, senza pulsanti da scegliere",
+    "Toccando un negozio nei grafici si apre l'elenco dei suoi acquisti nel periodo scelto"]},
   {v:"v1.5.2", d:"18/11/2026", n:[
     "In alto due indicatori distinti: collegamento (NAS online / non raggiungibile) e aggiornamento dell'elenco (aggiornato alle…, in aggiornamento, elenco vecchio)",
     "Grafici in modalità \"N° acquisti\": numeri al posto degli importi a zero"]},
@@ -834,10 +839,15 @@ async function doSalva(){
    CERCA
    ========================================================= */
 let searchQ = "", sortBy = "data";
-async function renderArchivio(){
-  const list = await allAcquisti(), last = settings().ultimoAggiornamento;
+async function renderArchivio(filtro){
+  const tutti = await allAcquisti(), last = settings().ultimoAggiornamento;
+  const f = filtro || null, chiave = s => (s || "").trim().toLowerCase();
+  const list = !f ? tutti : tutti.filter(a => (!f.negozio || chiave(a.negozio || "Senza negozio") === chiave(f.negozio))
+    && (!f.da || (a.dataAcquisto && a.dataAcquisto >= f.da)) && (!f.a || (a.dataAcquisto && a.dataAcquisto <= f.a)));
+  if(f) $("#hTitle").textContent = f.negozio ? f.negozio : "Acquisti";
   $("#view").innerHTML = `
     ${nasBanner()}${await pendingBanner()}
+    ${f ? `<div class="banner info"><div>🏪 <b>${esc(f.negozio || "Tutti i negozi")}</b>${f.titolo ? " · " + esc(f.titolo) : ""} — ${list.length} acquist${list.length === 1 ? "o" : "i"}</div><button class="btn small" id="bTogliFiltro">Tutti</button></div>` : ""}
     <div class="card" style="padding:10px">
       <input id="q" type="search" placeholder="🔎 Cerca oggetto, negozio, articolo, note, anno…" value="${esc(searchQ)}">
       <div class="row" style="margin-top:8px">
@@ -848,6 +858,7 @@ async function renderArchivio(){
     </div>
     <div id="list"></div>`;
   bindPending();
+  if($("#bTogliFiltro")) $("#bTogliFiltro").onclick = () => setView("archivio");
   $("#sort").value = sortBy;
   const draw = () => {
     const words = searchQ.toLowerCase().split(/\s+/).filter(Boolean);
@@ -1007,7 +1018,8 @@ async function renderGrafici(){
   const negozi = {};
   for(const a of list){ const n = (a.negozio || "Senza negozio").trim(); const k = n.toLowerCase(); negozi[k] = negozi[k] || {nome:n, euro:0, n:0}; negozi[k].n++; negozi[k].euro += Number(a.prezzo) || 0; }
   // senza prezzi i grafici in euro sarebbero vuoti: allora contano gli acquisti
-  const misura = grafMisura || (tot > 0 ? "euro" : "n");
+  // le barre seguono la spesa se ci sono prezzi, altrimenti il numero di acquisti; i testi mostrano sempre entrambi
+  const misura = tot > 0 ? "euro" : "n";
   const val = r => misura === "euro" ? r.euro : r.n;
   const fmtVal = v => misura === "euro" ? euro0(v) : `${v} acquist${v === 1 ? "o" : "i"}`;
   let righe = Object.values(negozi).sort((x, y) => val(y) - val(x) || y.n - x.n);
@@ -1044,22 +1056,20 @@ async function renderGrafici(){
         <div class="fbtns"><button class="bk" id="gCalc">Calcola</button><button class="bw" id="gTutto">Tutto</button><button class="bw" id="gReset">Reset</button></div>
       </div>
     </div>
-    <div class="periodo" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${esc(titoloPeriodo)}
-      <span style="margin-left:auto" class="chips" id="gMis"><button class="chip${misura === "euro" ? " on" : ""}" data-m="euro">€ Spesa</button><button class="chip${misura === "n" ? " on" : ""}" data-m="n">N° acquisti</button></span></div>
+    <p class="periodo">📅 ${esc(titoloPeriodo)}</p>
     <div class="kpis">
-      ${misura === "euro"
-        ? `<div class="kpi wide"><div class="kv">${euro0(tot)}</div><div class="kl">Totale spese</div></div><div class="kpi"><div class="kv">${list.length}</div><div class="kl">Acquisti</div></div>`
-        : `<div class="kpi wide"><div class="kv">${list.length}</div><div class="kl">Acquisti nel periodo</div></div><div class="kpi"><div class="kv">${tot ? euro0(tot) : "—"}</div><div class="kl">Spesa</div></div>`}
+      <div class="kpi"><div class="kv">${list.length}</div><div class="kl">Acquisti</div></div>
+      <div class="kpi"><div class="kv">${tot ? euro0(tot) : "—"}</div><div class="kl">Spesa${tot && senza ? " (parziale)" : ""}</div></div>
       <div class="kpi"><div class="kv">${conPrezzo.length ? euro0(tot / conPrezzo.length) : "—"}</div><div class="kl">Spesa media</div></div>
       <div class="kpi"><div class="kv">${Object.keys(negozi).length}</div><div class="kl">Negozi</div></div>
     </div>
-    ${senza ? `<p class="muted" style="margin:0 4px 12px">ℹ️ ${senza} acquist${senza > 1 ? "i" : "o"} senza prezzo: contat${senza > 1 ? "i" : "o"} negli acquisti ma non nella spesa. Aggiungi il prezzo con "Modifica" nella scheda.</p>` : ""}
+    ${senza ? `<div class="banner warn"><div>💶 ${senza === list.length ? "Nessuno di questi acquisti ha il prezzo" : `${senza} acquist${senza > 1 ? "i" : "o"} su ${list.length} senza prezzo`}: per questo la spesa è ${tot ? "parziale" : "vuota"}. Il prezzo si aggiunge con "Modifica" nella scheda dell'acquisto${tot ? "" : ", oppure con \"Leggi scontrino\" che lo ricava dal documento"}.</div></div>` : ""}
     <div class="card">
-      <h2>🏪 ${misura === "euro" ? "Spesa" : "Acquisti"} per negozio</h2>
-      ${righe.length ? righe.map(r => `<div class="hb" data-tip="${esc(r.nome)}: ${euro0(r.euro)} · ${r.n} acquist${r.n > 1 ? "i" : "o"}">
-          <div class="hbl"><span>${esc(r.nome)}</span><b>${misura === "euro" ? euro0(r.euro) : r.n}</b></div>
+      <h2>🏪 Per negozio</h2>
+      ${righe.length ? righe.map(r => `<div class="hb"${r.altri ? "" : ` data-neg="${esc(r.nome)}"`} data-tip="${esc(r.nome)}: ${euro0(r.euro)} · ${r.n} acquist${r.n > 1 ? "i" : "o"}">
+          <div class="hbl"><span>${esc(r.nome)}</span><b>${r.n} · ${r.euro ? euro0(r.euro) : "— €"}</b></div>
           <div class="hbt"><div class="hbf${r.altri ? " alt" : ""}" style="width:${Math.max(val(r) / maxNeg * 100, val(r) ? 1.5 : 0)}%"></div></div>
-          <div class="hbn">${misura === "euro" ? `${r.n} acquist${r.n > 1 ? "i" : "o"}` : (r.euro ? euro0(r.euro) : "acquist" + (r.n > 1 ? "i" : "o"))}</div></div>`).join("") : `<p class="muted">Nessun acquisto nel periodo.</p>`}
+          <div class="hbn">${r.n} acquist${r.n > 1 ? "i" : "o"}${r.altri ? "" : " · tocca per vederli ›"}</div></div>`).join("") : `<p class="muted">Nessun acquisto nel periodo.</p>`}
     </div>
     <div class="card">
       <h2>📅 ${misura === "euro" ? "Spesa" : "Acquisti"} ${perGiorno ? "per giorno · " + MESI_LUNGHI[Number(meseUnico.slice(5, 7)) - 1] + " " + annoUnico : perMese ? "per mese · " + annoUnico : "per anno"}</h2>
@@ -1074,11 +1084,12 @@ async function renderGrafici(){
   $("#gAnno").onchange = e => { grafAnno = e.target.value; grafImpostaPeriodo(); renderGrafici(); };
   $("#gMese").onchange = e => { grafMese = e.target.value; if(grafMese && !grafAnno) grafAnno = String(new Date().getFullYear()); grafImpostaPeriodo(); renderGrafici(); };
   $("#gCalc").onclick = () => { grafDa = $("#gDa").value; grafA = $("#gA").value; grafAnno = grafMese = ""; renderGrafici(); };
-  document.querySelectorAll("#gMis .chip").forEach(c => c.onclick = () => { grafMisura = c.dataset.m; renderGrafici(); });
+  // tocco su un negozio: elenco dei suoi acquisti nel periodo scelto
+  document.querySelectorAll(".hb[data-neg]").forEach(c => c.onclick = () => setView("archivio", {negozio:c.dataset.neg, da:grafDa, a:grafA, titolo: tutto ? "" : titoloPeriodo}));
   $("#gTutto").onclick = () => { grafDa = grafA = grafAnno = grafMese = ""; renderGrafici(); };
   $("#gReset").onclick = () => { grafAnno = String(new Date().getFullYear()); grafMese = ""; grafImpostaPeriodo(); renderGrafici(); };
   document.querySelectorAll(".vbc").forEach(c => c.onclick = () => { document.querySelectorAll(".vbc").forEach(x => x.classList.remove("sel")); c.classList.add("sel"); $("#gTip").textContent = c.dataset.tip; });
-  document.querySelectorAll(".hb").forEach(c => c.onclick = () => { document.querySelectorAll(".hb").forEach(x => x.classList.remove("sel")); c.classList.add("sel"); });
+
 }
 
 /* ---------- IMPOSTAZIONI: menu principale ---------- */

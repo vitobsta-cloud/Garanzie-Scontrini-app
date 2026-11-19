@@ -84,6 +84,50 @@ final class Nas {
         return client;
     }
 
+    /**
+     * Rete Wi-Fi del telefono (impostata dal ponte). Quando il Wi-Fi di casa "non ha internet",
+     * Android manda il traffico sulla rete mobile e il NAS non si raggiunge: in quel caso si
+     * riprova forzando il collegamento sul Wi-Fi.
+     */
+    static volatile javax.net.SocketFactory wifiSocketFactory;
+    /** Rete VPN attiva (es. WireGuard): ha la precedenza, così in auto il Wi-Fi di Android Auto non interferisce. */
+    static volatile javax.net.SocketFactory vpnSocketFactory;
+    private static final java.util.Map<javax.net.SocketFactory, SMBClient> boundClients = new java.util.HashMap<>();
+
+    private static synchronized SMBClient boundClient(javax.net.SocketFactory sf) {
+        SMBClient c = boundClients.get(sf);
+        if (c == null) {
+            if (boundClients.size() > 4) boundClients.clear();
+            c = new SMBClient(SmbConfig.builder()
+                    .withSecurityProvider(new BCSecurityProvider())
+                    .withSocketFactory(sf)
+                    .withTimeout(20, TimeUnit.SECONDS)
+                    .withSoTimeout(45, TimeUnit.SECONDS)
+                    .build());
+            boundClients.put(sf, c);
+        }
+        return c;
+    }
+
+    /** Prova in ordine: VPN, rete predefinita, Wi-Fi. Usa la prima che risponde. */
+    private static Connection connect(Cfg c) throws Exception {
+        java.util.List<SMBClient> tries = new java.util.ArrayList<>();
+        javax.net.SocketFactory vpn = vpnSocketFactory, wifi = wifiSocketFactory;
+        if (vpn != null) tries.add(boundClient(vpn));
+        tries.add(client());
+        if (wifi != null) tries.add(boundClient(wifi));
+        Exception first = null;
+        for (SMBClient cl : tries) {
+            try {
+                return cl.connect(c.host, c.port);
+            } catch (Exception e) {
+                if (first == null) first = e;
+                if (!connectionProblem(e)) throw e;
+            }
+        }
+        throw first;
+    }
+
     // ---------- collegamento riutilizzato ----------
     // Il collegamento resta aperto tra un'operazione e l'altra (fino a 3 minuti di inattività):
     // aprire una cartella o salvare uno scontrino non rifà ogni volta collegamento e accesso.
@@ -99,7 +143,7 @@ final class Nas {
     }
 
     private static void open(Cfg c) throws Exception {
-        Connection conn = client().connect(c.host, c.port);
+        Connection conn = connect(c);
         try {
             AuthenticationContext auth = (c.user == null || c.user.isEmpty())
                     ? AuthenticationContext.guest()

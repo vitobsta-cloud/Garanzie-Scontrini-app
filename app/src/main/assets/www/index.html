@@ -19,8 +19,9 @@ header h1{flex:1;margin:0;font-size:20px;font-weight:500;letter-spacing:.2px;lin
 header .hdate{color:#9a9a9a;font-size:14px;white-space:nowrap}
 header.sub .hdate{font-size:12.5px;white-space:normal;text-align:right;max-width:76px;line-height:1.25}
 header.sub h1{font-size:18.5px}
-.statusbar{display:flex;align-items:center;gap:8px;padding:7px 18px;font-size:12px;color:var(--muted);background:#f6f7f8;border-bottom:1px solid var(--line)}
-.statusbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.statusbar{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:12.5px;color:#555;background:#f6f7f8;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.statusbar .st{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 11px;min-width:0;max-width:100%}
+.statusbar .st span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* home a schede */
 .hero{text-align:center;padding:14px 6px 22px;color:#666}
 .hero .day{font-size:18px;color:#555;margin-bottom:8px}
@@ -91,7 +92,9 @@ header.sub h1{font-size:18.5px}
 .footer .sub{font-size:12.5px;color:#888;margin-bottom:10px}
 .ver{cursor:pointer;position:fixed;right:14px;bottom:14px;z-index:7;background:#e6e8eb;color:#8a9097;font:13.5px ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;letter-spacing:.3px;padding:7px 16px;border-radius:99px;box-shadow:0 0 0 3px #eceef0}
 .dot{width:10px;height:10px;border-radius:50%;background:#c3c9d1;flex:none}
-.dot.on{background:var(--ok)} .dot.off{background:var(--bad)}
+.dot.on{background:var(--ok)} .dot.off{background:var(--bad)} .dot.old{background:var(--warn)}
+.dot.run{background:#0EA5E9;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 main{padding:16px 14px 40px;max-width:760px;margin:0 auto}
 nav{display:none!important;position:fixed;bottom:0;left:0;right:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;border:0;background:none;padding:9px 2px 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
@@ -172,7 +175,10 @@ pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px
   <h1 id="hTitle">Garanzie &amp; Scontrini</h1>
   <div class="hdate" id="hDate"></div>
 </header>
-<div class="statusbar"><div class="dot" id="nasDot" title="Stato NAS"></div><span id="nasLine">NAS non configurato</span></div>
+<div class="statusbar">
+  <div class="st" id="stConn"><i class="dot" id="nasDot"></i><span id="nasLine">Destinazione non configurata</span></div>
+  <div class="st" id="stSync"><i class="dot" id="syncDot"></i><span id="syncLine">Elenco non ancora letto</span></div>
+</div>
 <main id="view"></main>
 <nav id="nav">
   <button data-v="acquisisci"><span>📷</span>Acquisisci</button>
@@ -402,11 +408,23 @@ async function claudeRead(files){
    NAS: lettura archivio e salvataggio
    ========================================================= */
 let nasState = "unknown"; // unknown | on | off
-function setNasState(s, msg){
-  nasState = s; const d = $("#nasDot"); d.className = "dot" + (s === "on" ? " on" : s === "off" ? " off" : "");
-  const def = !archivioScelto() ? "Archivio non configurato: scegli dove salvare in Impostazioni"
-            : archivioScelto() === "nas" && !nasReady() ? "NAS non configurato" : etichettaArchivio();
-  $("#nasLine").textContent = msg || def;
+/* Indicatore 1: collegamento alla destinazione (verde = online) */
+function setNasState(s){
+  nasState = s; $("#nasDot").className = "dot" + (s === "on" ? " on" : s === "off" ? " off" : s === "run" ? " run" : "");
+  const m = archivioScelto(), nome = {nas:"NAS", gdrive:"Google Drive", locale:"Cartella"}[m] || "Archivio";
+  let t;
+  if(!m) t = "Destinazione non configurata";
+  else if(!archivioPronto()) t = nome + " da configurare";
+  else t = s === "on" ? nome + (m === "locale" ? " disponibile" : " online") : s === "off" ? nome + " non raggiungibile" : s === "run" ? "Collegamento…" : nome;
+  $("#nasLine").textContent = t;
+  $("#stConn").title = archivioPronto() ? etichettaArchivio() : "";
+}
+/* Indicatore 2: elenco degli acquisti (verde = aggiornato, blu = in aggiornamento, arancio = vecchio) */
+function setSync(s){
+  const last = settings().ultimoAggiornamento, ora = last ? new Date(last) : null;
+  const quando = !ora ? "" : (ora.toDateString() === new Date().toDateString() ? ora.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"}) : ora.toLocaleDateString("it-IT", {day:"2-digit", month:"2-digit"}) + " " + ora.toLocaleTimeString("it-IT", {hour:"2-digit", minute:"2-digit"}));
+  $("#syncDot").className = "dot" + (s === "ok" ? " on" : s === "run" ? " run" : s === "old" ? " old" : "");
+  $("#syncLine").textContent = s === "run" ? "Aggiornamento elenco…" : !ora ? "Elenco non ancora letto" : (s === "ok" ? "Aggiornato alle " : "Elenco del ") + quando;
 }
 function entryFromFolder(f){
   const parts = f.path.split("/").filter(Boolean), last = parts[parts.length - 1] || "";
@@ -422,9 +440,10 @@ function entryFromFolder(f){
   return e;
 }
 async function refreshFromNas(quiet){
-  if(!archivioPronto()){ setNasState("unknown"); return false; }
+  if(!archivioPronto()){ setNasState("unknown"); setSync("none"); return false; }
   // se il collegamento è già verde resta verde: cambia solo la scritta
-  setNasState(nasState === "on" ? "on" : "unknown", etichettaArchivio() + " · aggiorno l'elenco…");
+  if(nasState !== "on") setNasState("run");
+  setSync("run");
   try{
     const folders = JSON.parse(await call("nasList"));
     const old = await allAcquisti(), keep = old.filter(a => a.daCaricare);
@@ -434,13 +453,13 @@ async function refreshFromNas(quiet){
     for(const a of keep) s2.put(a);
     await new Promise(r => { s2.transaction.oncomplete = r; s2.transaction.onerror = r; });
     saveSettings({ultimoAggiornamento:new Date().toISOString()});
-    setNasState("on", `${etichettaArchivio()} · ${folders.length} acquisti`);
+    setNasState("on"); setSync("ok");
     if(keep.length) await uploadPending(true);
     syncReminders(); updateBadge();
     if(!quiet) toast(`Archivio aggiornato: ${folders.length} acquisti.`);
     return true;
   }catch(e){
-    setNasState("off", `${nomeArchivio()[0].toUpperCase() + nomeArchivio().slice(1)} non raggiungibile — dati dell'ultimo aggiornamento`);
+    setNasState("off"); setSync("old");
     if(!quiet) toast(e.message, true);
     return false;
   }
@@ -494,8 +513,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.5.1";
+const VERSIONE = "v1.5.2";
 const CRONOLOGIA = [
+  {v:"v1.5.2", d:"18/11/2026", n:[
+    "In alto due indicatori distinti: collegamento (NAS online / non raggiungibile) e aggiornamento dell'elenco (aggiornato alle…, in aggiornamento, elenco vecchio)",
+    "Grafici in modalità \"N° acquisti\": numeri al posto degli importi a zero"]},
   {v:"v1.5.1", d:"18/11/2026", n:[
     "Grafici anche senza prezzi: si può scegliere tra \"€ Spesa\" e \"N° acquisti\" (in automatico se mancano i prezzi)",
     "Il grafico nel tempo conta tutti gli acquisti con data, non solo quelli con prezzo",
@@ -1025,8 +1047,9 @@ async function renderGrafici(){
     <div class="periodo" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">📅 ${esc(titoloPeriodo)}
       <span style="margin-left:auto" class="chips" id="gMis"><button class="chip${misura === "euro" ? " on" : ""}" data-m="euro">€ Spesa</button><button class="chip${misura === "n" ? " on" : ""}" data-m="n">N° acquisti</button></span></div>
     <div class="kpis">
-      <div class="kpi wide"><div class="kv">${euro0(tot)}</div><div class="kl">Totale spese</div></div>
-      <div class="kpi"><div class="kv">${list.length}</div><div class="kl">Acquisti</div></div>
+      ${misura === "euro"
+        ? `<div class="kpi wide"><div class="kv">${euro0(tot)}</div><div class="kl">Totale spese</div></div><div class="kpi"><div class="kv">${list.length}</div><div class="kl">Acquisti</div></div>`
+        : `<div class="kpi wide"><div class="kv">${list.length}</div><div class="kl">Acquisti nel periodo</div></div><div class="kpi"><div class="kv">${tot ? euro0(tot) : "—"}</div><div class="kl">Spesa</div></div>`}
       <div class="kpi"><div class="kv">${conPrezzo.length ? euro0(tot / conPrezzo.length) : "—"}</div><div class="kl">Spesa media</div></div>
       <div class="kpi"><div class="kv">${Object.keys(negozi).length}</div><div class="kl">Negozi</div></div>
     </div>
@@ -1034,9 +1057,9 @@ async function renderGrafici(){
     <div class="card">
       <h2>🏪 ${misura === "euro" ? "Spesa" : "Acquisti"} per negozio</h2>
       ${righe.length ? righe.map(r => `<div class="hb" data-tip="${esc(r.nome)}: ${euro0(r.euro)} · ${r.n} acquist${r.n > 1 ? "i" : "o"}">
-          <div class="hbl"><span>${esc(r.nome)}</span><b>${euro0(r.euro)}</b></div>
+          <div class="hbl"><span>${esc(r.nome)}</span><b>${misura === "euro" ? euro0(r.euro) : r.n}</b></div>
           <div class="hbt"><div class="hbf${r.altri ? " alt" : ""}" style="width:${Math.max(val(r) / maxNeg * 100, val(r) ? 1.5 : 0)}%"></div></div>
-          <div class="hbn">${r.n} acquist${r.n > 1 ? "i" : "o"}</div></div>`).join("") : `<p class="muted">Nessun acquisto nel periodo.</p>`}
+          <div class="hbn">${misura === "euro" ? `${r.n} acquist${r.n > 1 ? "i" : "o"}` : (r.euro ? euro0(r.euro) : "acquist" + (r.n > 1 ? "i" : "o"))}</div></div>`).join("") : `<p class="muted">Nessun acquisto nel periodo.</p>`}
     </div>
     <div class="card">
       <h2>📅 ${misura === "euro" ? "Spesa" : "Acquisti"} ${perGiorno ? "per giorno · " + MESI_LUNGHI[Number(meseUnico.slice(5, 7)) - 1] + " " + annoUnico : perMese ? "per mese · " + annoUnico : "per anno"}</h2>
@@ -1372,18 +1395,19 @@ async function collegaArchivio(forzaElenco){
   if(!archivioPronto()) return;
   const n = (await allAcquisti()).length;
   if(A.nasPing){
-    setNasState(nasState === "on" ? "on" : "unknown", etichettaArchivio() + " · collegamento…");
-    try{ await call("nasPing"); ultimoPing = Date.now(); setNasState("on", etichettaArchivio() + (n ? ` · ${n} acquisti` : "")); }
-    catch(e){ setNasState("off", `${nomeArchivio()[0].toUpperCase() + nomeArchivio().slice(1)} non raggiungibile — elenco dell'ultimo aggiornamento`); return; }
+    if(nasState !== "on") setNasState("run");
+    try{ await call("nasPing"); ultimoPing = Date.now(); setNasState("on"); }
+    catch(e){ setNasState("off"); setSync(n ? "old" : "none"); return; }
   }
   const vecchio = Date.now() - Date.parse(settings().ultimoAggiornamento || 0) > AGGIORNA_DOPO_MIN * 60 * 1000;
+  if(!vecchio && n) setSync("ok");
   if(forzaElenco || vecchio || !n){
     const ok = await refreshFromNas(true);
     if(ok && ["home","archivio","scadenze","grafici"].includes(current)) setView(current, currentArg, true);
   }else if(n && (await allAcquisti()).some(a => a.daCaricare)) uploadPending(true);
 }
 window.onAndroidResume = () => { if(archivioPronto() && Date.now() - ultimoPing > 5 * 60 * 1000) collegaArchivio(false); };
-setNasState("unknown");
+setNasState("unknown"); setSync(settings().ultimoAggiornamento ? "old" : "none");
 setView(A && !archivioPronto() ? "impostazioni" : "home");
 updateBadge();
 if(archivioPronto()) collegaArchivio(false);

@@ -360,14 +360,25 @@ function parseReceipt(text){
     if(cand) out.negozio = cand.replace(/[^\p{L}\d &'.-]/gu, "").trim().slice(0, 40);
   }
   // data
-  let best = null;
-  for(const m of all.matchAll(/\b(\d{1,2})\s?[\/.\-]\s?(\d{1,2})\s?[\/.\-]\s?(\d{2,4})\b/g)){
-    const d = +m[1], mo = +m[2], y = fixYear(+m[3]);
-    if(d >= 1 && d <= 31 && mo >= 1 && mo <= 12){
-      best = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      if(/\d{2}:\d{2}/.test(all.slice(m.index, m.index + 30)) || /(fattura|emissione|acquisto|del)\s*:?\s*$/i.test(all.slice(Math.max(0, m.index - 25), m.index))) break;
-    }
+  // date: raccoglie tutte quelle presenti (scontrino, ricevuta del bancomat…), corregge le cifre lette male (0 letto 9/8)
+  // e sceglie quella che compare più volte
+  const cifra0 = t => t.replace(/^[9834]/, "0");
+  const voti = new Map(), oggi = new Date().getFullYear();
+  for(const m of all.matchAll(/(\d{1,2})\s?[\/.\-]\s?(\d{1,2})\s?[\/.\-]\s?(\d{4}|\d{2})(?!\d)/g)){
+    let corr = 0, d = +m[1], mo = +m[2], y = +m[3];
+    if(d < 1 || d > 31){ d = +cifra0(m[1].padStart(2, "0")); corr++; }
+    if(mo < 1 || mo > 12){ mo = +cifra0(m[2].padStart(2, "0")); corr++; }
+    if(m[3].length === 4 && (y > oggi || y < 2000)){ const t = m[3][0] + "0" + m[3].slice(2); y = +t >= 2000 && +t <= oggi ? +t : fixYear(+t); corr++; }
+    else y = fixYear(y);
+    if(!(d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= oggi)) continue;
+    const prima = all.slice(Math.max(0, m.index - 25), m.index), dopo = all.slice(m.index, m.index + 30);
+    let peso = corr ? 0.5 : 1;
+    if(/(data|fattura|emissione|acquisto|del)\s*:?\s*$/i.test(prima)) peso += 0.5;
+    if(/\d{2}[:.]\d{2}/.test(dopo.slice(m[0].length))) peso += 0.25;
+    const k = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    voti.set(k, (voti.get(k) || 0) + peso);
   }
+  const best = [...voti].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   if(best) out.dataAcquisto = best;
   // totale
   const tot = all.match(new RegExp("(?:TOTALE\\s*COMPLESSIVO|TOTALE\\s*EURO|TOTALE\\s*EUR|IMPORTO\\s*PAGATO|TOTALE|TOT\\.?)\\s*(?:€|EUR|EURO)?\\s*:?\\s*" + PRICE, "i"));
@@ -385,26 +396,36 @@ function parseReceipt(text){
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
-  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGLIO|FORME DI)/i;
+  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4})/i;
   const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*(?:€|EUR|[A-Z])?$");
-  const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?$");
+  const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?(?:€|EUR)?\\s*" + PRICE + "\\s*(?:€|[A-Z])?$");
   const qtyRes = [
     [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
-    [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*" + PRICE, "i"), 2, 1]
+    [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*[€$]?\\s*" + PRICE, "i"), 2, 1]
   ];
-  const pulisci = d => d.replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
-  let pending = "", testoPrima = "";
+  const pulisci = d => d.replace(/-\s?[0-9GO]\d{5,7}\w*.*$/, "").replace(/\s+\S*_\S*/g, "").replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  const flags = raw => ({raee:/^R\s+[A-Z]/.test(raw.trim()), cod:/[-\s][0-9GO]\d{5,7}\b/.test(raw)});
+  let pending = "", testoPrima = "", prezzoEan = null;
   const inizioArticoli = Math.max(lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), lines.findIndex(l => /DOCUMENTO\s*COMMERCIALE|SCONTRINO/i.test(l)));
   for(let i = 0; i < lines.length; i++){
     const l = lines[i];
     if(SKIP.test(l)){ pending = ""; continue; }
+    // formato con codice a barre prima della descrizione (es. Bricoman): "8000061015069 €0,95" poi il nome
+    const ean = l.match(new RegExp("^\\d{8,14}(?:\\s+(?:€|EUR)\\s*" + PRICE + "|\\s+" + PRICE + "\\s*$)?"));
+    if(ean){
+      prezzoEan = ean[1] ? num(ean[1]) : (onlyPrice.test(lines[i + 1] || "") ? num(lines[++i].match(onlyPrice)[1]) : null);
+      continue;
+    }
+    if(prezzoEan && /[A-Za-z]{3,}/.test(l) && !new RegExp("(?:€|EUR)\\s*" + PRICE).test(l) && !/^(TCC|ATC|TVR|AUT|APPL|IAD|A\.?ID|TML|STAN|ESER)\b/i.test(l)){
+      out.articoli.push({descrizione:pulisci(l), quantita:1, prezzo:prezzoEan, cod:true}); prezzoEan = null; pending = ""; testoPrima = ""; continue;
+    }
     let qm = null, qi = null;
     for(const [re, pu, pq] of qtyRes){ const m = l.match(re); if(m){ qm = m; qi = [pu, pq]; break; } }
     if(qm){
       const unit = num(qm[qi[0]]), qty = parseInt(qm[qi[1]], 10);
       if(unit > 0 && qty > 0 && qty < 1000){
         const tot = Math.round(unit * qty * 100) / 100, last = out.articoli[out.articoli.length - 1];
-        if(pending){ out.articoli.push({descrizione:pulisci(pending), quantita:qty, prezzo:tot}); pending = ""; }
+        if(pending){ out.articoli.push({descrizione:pulisci(pending), quantita:qty, prezzo:tot, ...flags(pending)}); pending = ""; }
         else if(last && (last.quantita || 1) === 1 && Math.abs((last.prezzo || 0) - tot) < 0.02) last.quantita = qty;
       }
       continue;
@@ -419,11 +440,13 @@ function parseReceipt(text){
     }
     if(desc && price !== null && price > 0){
       if(qtyRes.some(([re]) => re.test(desc))){ pending = ""; continue; }
+      let fl = flags(desc);
       desc = pulisci(desc);
+      if(!/[A-Za-zÀ-ù]{3,}/.test(desc) && pending) fl = flags(pending);
       if(!/[A-Za-zÀ-ù]{3,}/.test(desc) && pending) desc = pulisci(pending);   // es. "1922% AS 24,99": il nome era sulla riga sopra
-      else if(testoPrima && /[A-Za-zÀ-ù]{3,}/.test(desc)) desc = testoPrima + " " + desc;   // descrizione su due righe
+      else if(testoPrima && !fl.raee && /[A-Za-zÀ-ù]{3,}/.test(desc)) desc = testoPrima + " " + desc;   // descrizione su due righe
       let qty = 1; const q = desc.match(/^(\d{1,2})\s*[xX*]\s+(.*)$/); if(q){ qty = +q[1]; desc = q[2]; }
-      if(desc.length >= 2) out.articoli.push({descrizione:desc, quantita:qty, prezzo:price});
+      if(desc.length >= 2) out.articoli.push({descrizione:desc, quantita:qty, prezzo:price, ...fl});
       pending = ""; testoPrima = "";
     }else if(/[A-Za-z]{3,}/.test(l) && (/\d{1,2}\s?%\s*$/.test(l) || /[\s-]0?\d{6,8}\s*$/.test(l))){ pending = l; testoPrima = ""; }
     else{
@@ -438,7 +461,9 @@ function parseReceipt(text){
   const conta = new Map(); tutti.forEach(v => conta.set(v, (conta.get(v) || 0) + 1));
   const ripetuti = [...conta].filter(([v, c]) => c >= 2).sort((a, b) => b[1] - a[1] || b[0] - a[0]);
   let totale = out.prezzo;
-  if(ripetuti.length && (!totale || (conta.get(totale) || 0) < ripetuti[0][1]) && ripetuti[0][0] >= (totale || 0)) totale = ripetuti[0][0];
+  // lo 0 viene spesso letto 8 o 9: se nel testo c'è la stessa cifra con uno 0 al posto di 8/9, è quella giusta
+  const conZero = v => { const t = v.toFixed(2); return tutti.filter(x => { const u = x.toFixed(2); return u.length === t.length && u !== t && [...u].every((c, i) => c === t[i] || (c === "0" && "89".includes(t[i]))); }).sort((a, b) => a - b)[0]; };
+  if(ripetuti.length && (!totale || (conta.get(totale) || 0) < ripetuti[0][1]) && (ripetuti[0][0] >= (totale || 0) || (ripetuti[0][1] >= 3 && ripetuti[0][0] >= totale * 0.5))) totale = ripetuti[0][0];
   const h = lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), e = lines.findIndex((l, i) => i > h && /TOTALE|SUBTOT/i.test(l));
   if(h >= 0 && e > h){
     const desc = [], prezzi = [];
@@ -454,16 +479,27 @@ function parseReceipt(text){
       }
       const testo = l.replace(new RegExp("\\s*(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?\\s*$"), "").replace(/\s*\d{1,2}\s?%\s*$/, "");
       for(const m of l.matchAll(new RegExp(PRICE, "g"))) prezzi.push(num(m[1]));
-      if(/[A-Za-z]{3,}/.test(testo)) desc.push({descrizione:pulisci(testo), quantita:1});
+      if(/[A-Za-z]{3,}/.test(testo)) desc.push({descrizione:pulisci(testo), quantita:1, ...flags(testo)});
     }
     if(desc.length >= 2 && prezzi.length >= desc.length && totale){
       const usa = prezzi.slice(0, desc.length), somma = Math.round(usa.reduce((x, y) => x + y, 0) * 100) / 100;
       const sommaAtt = Math.round(out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0) * 100) / 100;
       if(Math.abs(somma - totale) < 0.02 && Math.abs(sommaAtt - totale) >= 0.02)
-        out.articoli = desc.map((d, i) => ({descrizione:d.descrizione, quantita:d.quantita, prezzo:usa[i]})).filter(a => a.descrizione.length >= 2);
+        out.articoli = desc.map((d, i) => ({...d, prezzo:usa[i]})).filter(a => a.descrizione.length >= 2);
     }
   }
-  if(totale && out.articoli.length > 1) out.articoli = out.articoli.filter(x => Math.abs((x.prezzo || 0) - totale) >= 0.01);
+  // scontrino letto due volte (copia cliente): toglie gli articoli doppi
+  if(totale){
+    const sommaArt = out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0);
+    if(sommaArt > totale * 1.5){ const visti = new Set(); out.articoli = out.articoli.filter(a => { const k = a.descrizione.slice(0, 10) + "|" + a.prezzo; if(visti.has(k)) return false; visti.add(k); return true; }); }
+  }
+  // riga del totale presa per articolo: si toglie solo se gli altri articoli fanno già il totale
+  while(totale && out.articoli.length > 1){
+    const somma = out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0);
+    const i = out.articoli.findIndex(x => Math.abs((x.prezzo || 0) - totale) < 0.01 && Math.abs(somma - x.prezzo - totale) < 0.05);
+    if(i < 0) break;
+    out.articoli.splice(i, 1);
+  }
   // prezzi impossibili (più alti del totale, es. "296,98" invece di "6,98"): prova a togliere le cifre in più davanti
   if(totale && out.articoli.length){
     const somma = () => Math.round(out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0) * 100) / 100;
@@ -482,14 +518,25 @@ function parseReceipt(text){
     && !new RegExp(PRICE).test(l)).map(pulisci).filter(d => parola(d) && !usate.has(d) && ![...usate].some(u => u && d.startsWith(u)));
   for(const a of out.articoli) if(!parola(a.descrizione) && orfane.length) a.descrizione = orfane.shift();
   out.articoli = out.articoli.filter(a => parola(a.descrizione) || out.articoli.length === 1);
+  if(totale && conZero(totale)){
+    const z = conZero(totale), zs = z.toFixed(2).replace(".", "[.,]\\s?");
+    if(new RegExp("TOTALE[^\\n]{0,25}?" + zs).test(up)) totale = z;
+  }
   if(totale) out.prezzo = totale;
+  // nome dell'acquisto: alla Lidl gli articoli con "R" davanti sono gli apparecchi elettrici (quelli con la garanzia)
+  const righeR = lines.filter(l => /^R\s+[A-Z]{3,}/.test(l)).map(l => pulisci(l)).filter(d => /[A-Za-z]{4,}/.test(d));
+  const artR = out.articoli.filter(a => a.raee).sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0));
+  const mancante = totale ? Math.round((totale - out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0)) * 100) / 100 : 0;
+  const rSenzaPrezzo = righeR.find(d => !out.articoli.some(a => a.raee && (a.descrizione.startsWith(d.slice(0, 8)) || d.startsWith(a.descrizione.slice(0, 8)))));
+  if(rSenzaPrezzo && mancante > (artR[0]?.prezzo || 0)) out.nomeSuggerito = rSenzaPrezzo;
+  else if(artR.length) out.nomeSuggerito = artR[0].descrizione;
   return out;
 }
 function nomeDaArticoli(art){
   if(!art.length) return "";
   const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || ""));
   if(!buoni.length) return "";
-  return nomeBello([...buoni].sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione);
+  return nomeBello([...buoni].sort((a, b) => (b.raee ? 1 : 0) - (a.raee ? 1 : 0) || (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione);
 }
 const nomeBello = d => String(d || "").replace(/[-\s]*\d{4,}\s*%?\s*$/, "").replace(/\s+\d{1,2}\s?%\s*$/, "").trim().toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).split(" ").slice(0, 5).join(" ");
 
@@ -880,8 +927,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.8";
+const VERSIONE = "v3.9";
 const CRONOLOGIA = [
+  {v:"v3.9", d:"20/11/2026", n:[
+    "Lettura migliorata con 20 scontrini veri dell'archivio: date con lo 0 letto 9 o 8 (es. 97-99-2924 → 07-09-2024), totale scelto tra tutte le cifre del foglio",
+    "Lidl: il nome dell'acquisto è l'apparecchio elettrico (righe con R davanti), non l'articolo più caro della spesa",
+    "Bricoman: riconosciuti gli articoli con il codice a barre prima della descrizione; ignorate le righe della ricevuta del bancomat"
+  ]},
   {v:"v3.8", d:"20/11/2026", n:[
     "Impostazioni → Lettura scontrini → Prova sull'archivio: rilegge 20 scontrini veri e dice quanti sono stati riconosciuti bene"
   ]},
@@ -1247,7 +1299,7 @@ async function doLeggi(useClaude){
     else{
       const texts = [];
       for(const f of docs) texts.push(await call("ocr", f.data, f.mime));
-      lastOcr = texts.join("\n"); r = parseReceipt(lastOcr); r.nome = nomeDaArticoli(r.articoli);
+      lastOcr = texts.join("\n"); r = parseReceipt(lastOcr); r.nome = r.nomeSuggerito ? nomeBello(r.nomeSuggerito) : nomeDaArticoli(r.articoli);
     }
     // in modifica la lettura completa solo i campi vuoti, senza cambiare quelli già compilati
     const set = (k, v) => { if(v !== undefined && v !== null && v !== "" && !(draft._edit && draft[k])) draft[k] = v; };
@@ -1780,7 +1832,7 @@ function renderImpLett(){
       try{
         const data = await call("nasRead", a.cartella + "/" + f.name);
         r.testo = await call("ocr", data, mimeOf(f.name));
-        const p = parseReceipt(r.testo); p.nome = nomeDaArticoli(p.articoli);
+        const p = parseReceipt(r.testo); p.nome = p.nomeSuggerito ? nomeBello(p.nomeSuggerito) : nomeDaArticoli(p.articoli);
         r.letti = {negozio:p.negozio, data:p.dataAcquisto, prezzo:p.prezzo, nome:p.nome, articoli:p.articoli};
         r.negozioOk = !!p.negozio && (norm(a.negozio).includes(norm(p.negozio)) || norm(p.negozio).includes(norm(a.negozio)));
         r.dataOk = !!p.dataAcquisto && p.dataAcquisto === a.dataAcquisto;

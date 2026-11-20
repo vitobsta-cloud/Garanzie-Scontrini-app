@@ -342,9 +342,12 @@ function parseReceipt(text){
   const out = {negozio:"", dataAcquisto:"", prezzo:"", numeroScontrino:"", tipoPagamento:"", negozioIndirizzo:"", negozioCitta:"", negozioTelefono:"", articoli:[]};
   // negozio
   const noto = NEGOZI_NOTI.find(n => up.includes(n.toUpperCase()));
+  const italia = all.match(/^\s*([A-Za-z][A-Za-z&' ]{1,25}?)\s+Italia\s+S/im);
   if(noto) out.negozio = noto;
+  else if(/\bL[I1!|T]?[DO0]L\b/.test(up)) out.negozio = "Lidl";
+  else if(italia) out.negozio = italia[1].trim();
   else{
-    const cand = lines.slice(0, 6).find(l => /[A-Za-z]{3,}/.test(l) && !/(documento|commerciale|via |viale|piazza|p\.?\s?iva|partita|tel|www|http|@|srl|s\.r\.l|spa|s\.p\.a)/i.test(l));
+    const cand = lines.slice(0, 6).find(l => /[A-Za-z]{3,}/.test(l) && !/(documento|commerciale|via |viale|piazza|p\.?\s?iva|partita|tel|www|http|@|srl|s\.r\.l|spa|s\.p\.a|socio|unico|cdc|raee|vendita|prestazione)/i.test(l));
     if(cand) out.negozio = cand.replace(/[^\p{L}\d &'.-]/gu, "").trim().slice(0, 40);
   }
   // data
@@ -529,30 +532,35 @@ async function refreshFromNas(quiet){
 function htmlScheda(a, imgs, altri){
   const sc = scadenzaInfo(a), r = (k, v) => v ? `<tr><th>${k}</th><td>${v}</td></tr>` : "";
   const art = (a.articoli || []).filter(x => x.descrizione);
+  const nImg = imgs.length, hImg = nImg ? Math.floor(236 / nImg) : 0;   // tutto su un solo foglio A4
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(a.nome || "Scheda acquisto")}</title><style>
-  @page{size:A4;margin:14mm}
-  body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12pt;margin:0}
-  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A1A1A;padding-bottom:6px;margin-bottom:12px}
-  .top .b{font-size:10pt;color:#555}.top .b b{color:#0b7bc0}
-  h1{font-size:20pt;margin:0 0 2px}.neg{color:#444;margin-bottom:10px}
-  table{border-collapse:collapse;width:100%;margin:6px 0 12px}
-  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #ddd;vertical-align:top}
-  th{width:34%;color:#555;font-weight:normal}
+  @page{size:A4;margin:10mm}
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:10pt;margin:0}
+  .foglio{height:276mm;overflow:hidden;display:flex;flex-direction:column;page-break-after:avoid}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A1A1A;padding-bottom:4px;margin-bottom:8px}
+  .top .b{font-size:8.5pt;color:#555;text-align:right}.top .b b{color:#0b7bc0}
+  h1{font-size:16pt;margin:0}.neg{color:#444;font-size:11pt}
+  .corpo{display:flex;gap:7mm;flex:1;min-height:0}
+  .dati{flex:1 1 52%;min-width:0}
+  .docs{flex:1 1 48%;display:flex;flex-direction:column;align-items:center;gap:3mm;min-width:0}
+  .docs img{max-width:100%;max-height:${hImg}mm;object-fit:contain;border:1px solid #ddd}
+  table{border-collapse:collapse;width:100%;margin:4px 0 8px}
+  th,td{text-align:left;padding:3px 5px;border-bottom:1px solid #ddd;vertical-align:top}
+  th{width:38%;color:#555;font-weight:normal}
   .art td.n{text-align:right;white-space:nowrap}
-  .stato{display:inline-block;padding:3px 10px;border-radius:12px;border:1px solid #999;font-weight:bold}
-  h2{font-size:13pt;margin:14px 0 4px}
-  .doc{page-break-before:always;text-align:center}
-  .doc img{max-width:100%;max-height:250mm;object-fit:contain}
-  .doc .cap{font-size:9pt;color:#666;margin-top:4px}
-  .foot{font-size:9pt;color:#777;margin-top:16px}
-  </style></head><body>
+  .stato{display:inline-block;padding:2px 9px;border-radius:10px;border:1px solid #999;font-weight:bold;margin-bottom:4px}
+  h2{font-size:11pt;margin:8px 0 2px}
+  .foot{font-size:8pt;color:#777;margin-top:8px}
+  </style></head><body><div class="foglio">
   <div class="top"><div><h1>${esc(a.nome || "(senza nome)")}</h1><div class="neg">${esc(a.negozio || "")}</div></div><div class="b"><b>TR/software</b><br>Garanzie &amp; Scontrini</div></div>
-  <p><span class="stato">${esc(sc.label)}</span></p>
+  <div class="corpo"><div class="dati">
+  <span class="stato">${esc(sc.label)}</span>
   <table>
     ${r("Data acquisto", fmtDate(a.dataAcquisto))}
     ${r("Prezzo", esc(euro(a.prezzo)))}
     ${r("Garanzia", a.garanziaMesi ? a.garanziaMesi + " mesi" : "")}
-    ${r("Scadenza garanzia", sc.date ? fmtDate(sc.date) : "")}
+    ${r("Scadenza", sc.date ? fmtDate(sc.date) : "")}
     ${r("N. scontrino", esc(a.numeroScontrino))}
     ${r("Pagamento", esc(a.tipoPagamento))}
     ${r("Negozio", esc([a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · ")))}
@@ -560,10 +568,10 @@ function htmlScheda(a, imgs, altri){
   </table>
   ${art.length ? `<h2>Articoli</h2><table class="art">${art.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="n">${esc(euro(x.prezzo))}</td></tr>`).join("")}</table>` : ""}
   ${a.note ? `<h2>Note</h2><div style="white-space:pre-wrap">${esc(a.note)}</div>` : ""}
-  ${altri.length ? `<p class="foot">Altri documenti nella cartella (non stampati qui): ${altri.map(esc).join(", ")}</p>` : ""}
+  ${altri.length ? `<p class="foot">Altri documenti nella cartella: ${altri.map(esc).join(", ")}</p>` : ""}
   <p class="foot">Stampato il ${fmtDate(todayISO())} con Garanzie &amp; Scontrini ${esc(VERSIONE)}</p>
-  ${imgs.map(f => `<div class="doc"><img src="${f.src}"><div class="cap">${esc(f.name)}</div></div>`).join("")}
-  </body></html>`;
+  </div>${nImg ? `<div class="docs">${imgs.map(f => `<img src="${f.src}">`).join("")}</div>` : ""}</div>
+  </div></body></html>`;
 }
 async function stampaScheda(a, imgs, altri){
   const html = htmlScheda(a, imgs || [], altri || []), titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
@@ -712,8 +720,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.3";
+const VERSIONE = "v2.4";
 const CRONOLOGIA = [
+  {v:"v2.4", d:"20/11/2026", n:[
+    "Stampa su un solo foglio A4: dati e articoli a sinistra, foto dello scontrino a destra"
+  ]},
   {v:"v2.3", d:"20/11/2026", n:[
     "Lettura scontrini: totale corretto anche quando l'IVA è vicina alla scritta TOTALE",
     "Lettura scontrini: prezzi abbinati agli articoli giusti anche quando la foto li sposta di una riga (es. Lidl)"

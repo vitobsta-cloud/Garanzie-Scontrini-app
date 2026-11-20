@@ -583,14 +583,14 @@ function htmlScheda(a, imgs, altri){
 window.onStampa = st => {
   let b = document.getElementById("stampaBadge");
   if(!b){ b = document.createElement("div"); b.id = "stampaBadge"; document.body.appendChild(b); }
-  const T = {iprint:["🖨️", "Scheda aperta in Epson iPrint: premi STAMPA.", "ok"], aperta:["🖨️", "Scheda pronta: scegli Epson iPrint e premi Stampa. Se si apre un lettore PDF, usa Condividi → Epson iPrint.", "ok"], prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
+  const T = {scegli:["🖨️", "Scegli l'app della tua stampante (HP Smart, Canon PRINT, Epson iPrint…) e premi Stampa.", "ok"], iprint:["🖨️", "Scheda aperta in Epson iPrint: premi STAMPA.", "ok"], aperta:["🖨️", "Scheda aperta come PDF: tocca ⋮ → Condividi → l'app della stampante.", "ok"], prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
     bloccata:["⚠️", "Stampa bloccata: controlla stampante accesa, carta e stessa rete Wi-Fi. Oppure \"Apri PDF\" e stampa con Epson iPrint.", "warn"],
     fatta:["✅", "Inviata alla stampante", "ok"], errore:["❌", "Stampa non riuscita. Con \"Apri PDF\" puoi stamparla con Epson iPrint.", "err"], annullata:["✖️", "Stampa annullata", "warn"]}[st] || ["🖨️", st, "run"];
   const pdf = ["errore", "bloccata"].includes(st) && A && A.apriPdf;
   b.className = "stb " + T[2]; b.innerHTML = `<span>${T[0]}</span><span>${esc(T[1])}</span>${pdf ? `<button class="pdf">Apri PDF</button>` : ""}<button class="x" aria-label="Chiudi">✕</button>`;
   b.querySelector(".x").onclick = () => b.remove();
   if(pdf) b.querySelector(".pdf").onclick = () => { A.apriPdf(); b.remove(); };
-  clearTimeout(b._t); if(["fatta", "annullata", "aperta", "iprint"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
+  clearTimeout(b._t); if(["fatta", "annullata", "aperta", "iprint", "scegli"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
 };
 function datiScheda(a, imgs, altri){
   const sc = scadenzaInfo(a), righe = [];
@@ -662,11 +662,17 @@ async function stampaScheda(a, imgs, altri){
   imgs = imgs || []; altri = altri || [];
   const titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
   // metodo principale: la scheda va direttamente in Epson iPrint (come Condividi → Epson iPrint), basta premere STAMPA
+  if(modoStampa() === "pdf" && A && A.openFile){
+    window.onStampa("prepara");
+    A.openFile(titolo.replace(/[^\w\- ]+/g, "_") + ".pdf", "application/pdf", await pdfScheda(datiScheda(a, imgs, altri), imgs.map(f => f.src)));
+    window.onStampa("aperta"); return;
+  }
+  if(modoStampa() === "android" && A && A.stampaPdf){ window.onStampa("prepara"); await call("stampaPdf", JSON.stringify(datiScheda(a, imgs, altri)), titolo); return; }
   if(A && A.stampaIPrint){
     window.onStampa("prepara");
     const b64 = await pdfScheda(datiScheda(a, imgs, altri), imgs.map(f => f.src));
     const r = await call("stampaIPrint", b64, titolo);
-    window.onStampa(r === "iprint" ? "iprint" : "aperta");
+    window.onStampa(r === "iprint" ? "iprint" : "scegli");
     return;
   }
   // app non ancora aggiornata: la stampa diretta arriva con l'aggiornamento dell'app
@@ -807,7 +813,7 @@ async function uploadPending(quiet){
    Navigazione
    ========================================================= */
 let current = "";
-const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni"};
+const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni", impStampa:"Stampa"};
 let currentArg, navStack = [];
 function setView(v, arg, isBack){
   if(!isBack){
@@ -823,7 +829,7 @@ function setView(v, arg, isBack){
   document.querySelector("header").classList.toggle("sub", v !== "home");
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
   window.scrollTo(0, 0);
-  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo})[v](arg);
+  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa})[v](arg);
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
 $("#hBack").onclick = () => window.onAndroidBack();
@@ -832,8 +838,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.2";
+const VERSIONE = "v3.3";
 const CRONOLOGIA = [
+  {v:"v3.3", d:"20/11/2026", n:[
+    "Stampa per tutte le stampanti: se non c'è Epson iPrint la scheda si apre nell'app della propria stampante (HP Smart, Canon PRINT, Brother…)",
+    "Nuova voce Impostazioni → Stampa: app della stampante, apri come PDF (poi Condividi) oppure finestra di stampa del telefono"
+  ]},
   {v:"v3.2", d:"20/11/2026", n:[
     "Stampa con un tocco: la scheda si apre direttamente in Epson iPrint, basta premere STAMPA (come Condividi → Epson iPrint)"
   ]},
@@ -1518,11 +1528,28 @@ function renderImpostazioni(){
     ${rigaMenu("impDest", "📁", "#e6eef8", "Destinazione file", esc(descrDestinazione()))}
     ${rigaMenu("impGar", "🧾", "#edf3e4", "Garanzie e avvisi", `${s.mesiDefault} mesi predefiniti · avviso ${s.giorniAvviso} giorni prima`)}
     ${rigaMenu("impLett", "🔎", "#f8e6dc", "Lettura scontrini", s.apiKey ? "OCR sul telefono + Claude" : "OCR sul telefono, gratuito")}
+    ${rigaMenu("impStampa", "🖨️", "#e9eef3", "Stampa", {android:"Finestra di stampa del telefono", pdf:"Apri come PDF, poi Condividi", app:"App della stampante (Epson iPrint, HP Smart, Canon…)"}[modoStampa()])}
     ${rigaMenu("impBackup", "💾", "#e8f4f1", "Backup e ripristino", "Esporta o importa le impostazioni, elenco acquisti in Excel")}
     ${rigaMenu("impInfo", "ℹ️", "#ece7f4", "Informazioni e aggiornamenti", `Versione ${VERSIONE} · cronologia`)}`;
   document.querySelectorAll(".tile").forEach(t => t.onclick = () => setView(t.dataset.v));
 }
 const esito = (el, ok, msg) => { el.innerHTML = ok === null ? `<span class="spinner"></span>${esc(msg)}` : `<div class="${ok ? "okline" : "koline"}">${ok ? "✅" : "❌"} ${esc(msg)}</div>`; };
+
+/* ---------- Stampa ---------- */
+function modoStampa(){ const m = settings().stampaCon; return m === "android" || m === "pdf" ? m : "app"; }
+function renderImpStampa(){
+  const m = modoStampa(), ip = !!(A && A.haIPrint && A.haIPrint());
+  const opt = (k, ic, bg, t1, t2) => `<div class="scelta${m === k ? " on" : ""}" data-k="${k}"><div class="ic" style="background:${bg}">${ic}</div><div class="tx"><div class="t1">${t1}</div><div class="t2">${t2}</div></div><div class="rd"></div></div>`;
+  $("#view").innerHTML = `
+    <div class="card">
+      <h2>🖨️ Come stampare la scheda</h2>
+      <p class="muted">Il tasto Stampa crea la scheda A4 dell'acquisto (dati, articoli e foto dello scontrino) e la manda alla stampante.</p>
+      ${opt("app", "📲", "#e6eef8", "App della stampante (consigliato)", ip ? "Trovata Epson iPrint: la scheda si apre lì, premi STAMPA." : "La scheda si apre nell'app della tua stampante (HP Smart, Canon PRINT, Brother, Epson iPrint…): sceglila dall'elenco e premi Stampa.")}
+      ${opt("pdf", "📕", "#f8e6dc", "Apri come PDF", "La scheda si apre nel lettore PDF del telefono: da lì Condividi → app della stampante, oppure inviala per WhatsApp o email.")}
+      ${opt("android", "📄", "#edf3e4", "Finestra di stampa del telefono", "La stampa standard di Android. Funziona se il telefono vede già la stampante (servizio di stampa della marca o Mopria).")}
+    </div>`;
+  document.querySelectorAll(".scelta").forEach(el => el.onclick = () => { saveSettings({stampaCon: el.dataset.k}); renderImpStampa(); toast({android:"Stampa: finestra del telefono", pdf:"Stampa: apri come PDF", app:"Stampa: app della stampante"}[el.dataset.k]); });
+}
 
 /* ---------- Destinazione file ---------- */
 function demoGoogle(){ return new Promise(r => setTimeout(() => r("nome.cognome@gmail.com"), 700)); }

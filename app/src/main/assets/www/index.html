@@ -845,8 +845,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.4";
+const VERSIONE = "v3.5";
 const CRONOLOGIA = [
+  {v:"v3.5", d:"20/11/2026", n:[
+    "Stampa: il tasto Stampa crea la scheda e la apre come PDF; da lì Condividi → app della stampante (Epson iPrint, HP Smart…), WhatsApp o email"
+  ]},
   {v:"v3.4", d:"20/11/2026", n:[
     "Aggiornamento dell'app dal tasto Stampa più affidabile: scarica e apre la conferma di Android, con avviso di avanzamento"
   ]},
@@ -1546,7 +1549,7 @@ function renderImpostazioni(){
 const esito = (el, ok, msg) => { el.innerHTML = ok === null ? `<span class="spinner"></span>${esc(msg)}` : `<div class="${ok ? "okline" : "koline"}">${ok ? "✅" : "❌"} ${esc(msg)}</div>`; };
 
 /* ---------- Stampa ---------- */
-function modoStampa(){ const m = settings().stampaCon; return m === "android" || m === "pdf" ? m : "app"; }
+function modoStampa(){ const m = settings().stampaCon; return m === "android" || m === "app" ? m : "pdf"; }   // predefinito: apri come PDF, poi Condividi
 function renderImpStampa(){
   const m = modoStampa(), ip = !!(A && A.haIPrint && A.haIPrint());
   const opt = (k, ic, bg, t1, t2) => `<div class="scelta${m === k ? " on" : ""}" data-k="${k}"><div class="ic" style="background:${bg}">${ic}</div><div class="tx"><div class="t1">${t1}</div><div class="t2">${t2}</div></div><div class="rd"></div></div>`;
@@ -1554,8 +1557,8 @@ function renderImpStampa(){
     <div class="card">
       <h2>🖨️ Come stampare la scheda</h2>
       <p class="muted">Il tasto Stampa crea la scheda A4 dell'acquisto (dati, articoli e foto dello scontrino) e la manda alla stampante.</p>
-      ${opt("app", "📲", "#e6eef8", "App della stampante (consigliato)", ip ? "Trovata Epson iPrint: la scheda si apre lì, premi STAMPA." : "La scheda si apre nell'app della tua stampante (HP Smart, Canon PRINT, Brother, Epson iPrint…): sceglila dall'elenco e premi Stampa.")}
-      ${opt("pdf", "📕", "#f8e6dc", "Apri come PDF", "La scheda si apre nel lettore PDF del telefono: da lì Condividi → app della stampante, oppure inviala per WhatsApp o email.")}
+      ${opt("pdf", "📕", "#f8e6dc", "Apri come PDF (predefinito)", "La scheda si apre nel lettore PDF del telefono: da lì Condividi → app della stampante, oppure inviala per WhatsApp o email.")}
+      ${opt("app", "📲", "#e6eef8", "App della stampante (diretto)", ip ? "Trovata Epson iPrint: la scheda si apre lì, premi STAMPA." : "La scheda si apre nell'app della tua stampante (HP Smart, Canon PRINT, Brother, Epson iPrint…): sceglila dall'elenco e premi Stampa.")}
       ${opt("android", "📄", "#edf3e4", "Finestra di stampa del telefono", "La stampa standard di Android. Funziona se il telefono vede già la stampante (servizio di stampa della marca o Mopria).")}
     </div>`;
   document.querySelectorAll(".scelta").forEach(el => el.onclick = () => { saveSettings({stampaCon: el.dataset.k}); renderImpStampa(); toast({android:"Stampa: finestra del telefono", pdf:"Stampa: apri come PDF", app:"Stampa: app della stampante"}[el.dataset.k]); });

@@ -328,7 +328,7 @@ async function prepareFile(file){
 /* =========================================================
    Lettura scontrino: testo OCR -> dati
    ========================================================= */
-const NEGOZI_NOTI = ["Leroy Merlin","Bricoman","Brico io","Bricocenter","Obi","Tecnomat","MediaWorld","Unieuro","Euronics","Expert","Trony","Comet","Ikea","Decathlon","Lidl","Aldi","Esselunga","Carrefour","Coop","Conad","Iper","Eurospin","Tigota","Acqua & Sapone","Amazon","Maisons du Monde","Mondo Convenienza","Camping Sport","Brico Center","Self","Toys","Norauto","Euronics","Apple","Samsung","Zara","H&M","OVS","Bennet","Famila","Penny","Pam","Tuodì","Action","Kasanova","Coin","Sportland","Cisalfa","Agrieuro","Mondial","Castorama","Hornbach","Würth","Wuerth"];
+const NEGOZI_NOTI = ["Leroy Merlin","Bricoman","Brico io","Bricocenter","Obi","Tecnomat","MediaWorld","Unieuro","Euronics","Expert","Trony","Comet","Ikea","Decathlon","Lidl","Aldi","Esselunga","Carrefour","Coop","Conad","Iper","Eurospin","Tigotà","Acqua & Sapone","Amazon","Maisons du Monde","Mondo Convenienza","Camping Sport","Brico Center","Self","Toys","Norauto","Euronics","Apple","Samsung","Zara","H&M","OVS","Bennet","Famila","Penny","Pam","Tuodì","Action","Kasanova","Coin","Sportland","Cisalfa","Agrieuro","Mondial","Castorama","Hornbach","Würth","Wuerth"];
 const num = s => { const v = parseFloat(String(s).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")); return isNaN(v) ? null : v; };
 const PRICE = "(-?\\d{1,5}(?:\\.\\d{3})*\\s?[,.]\\s?\\d{2})";
 function fixYear(y){
@@ -348,7 +348,9 @@ function parseReceipt(text){
   const all = lines.join("\n"), up = all.toUpperCase();
   const out = {negozio:"", dataAcquisto:"", prezzo:"", numeroScontrino:"", tipoPagamento:"", negozioIndirizzo:"", negozioCitta:"", negozioTelefono:"", articoli:[]};
   // negozio
-  const noto = NEGOZI_NOTI.find(n => up.includes(n.toUpperCase()));
+  const senzaAccenti = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const upN = senzaAccenti(all);
+  const noto = NEGOZI_NOTI.find(n => new RegExp("(^|[^A-Z])" + senzaAccenti(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^A-Z]|$)").test(upN));
   const italia = all.match(/^\s*([A-Za-z][A-Za-z&' ]{1,25}?)\s+Italia\s+S/im);
   if(noto) out.negozio = noto;
   else if(/\bL[I1!|T]?[DO0]L\b/.test(up)) out.negozio = "Lidl";
@@ -361,7 +363,10 @@ function parseReceipt(text){
   let best = null;
   for(const m of all.matchAll(/\b(\d{1,2})\s?[\/.\-]\s?(\d{1,2})\s?[\/.\-]\s?(\d{2,4})\b/g)){
     const d = +m[1], mo = +m[2], y = fixYear(+m[3]);
-    if(d >= 1 && d <= 31 && mo >= 1 && mo <= 12){ best = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`; if(/\d{2}:\d{2}/.test(all.slice(m.index, m.index + 30))) break; }
+    if(d >= 1 && d <= 31 && mo >= 1 && mo <= 12){
+      best = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if(/\d{2}:\d{2}/.test(all.slice(m.index, m.index + 30)) || /(fattura|emissione|acquisto|del)\s*:?\s*$/i.test(all.slice(Math.max(0, m.index - 25), m.index))) break;
+    }
   }
   if(best) out.dataAcquisto = best;
   // totale
@@ -381,14 +386,15 @@ function parseReceipt(text){
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
   const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGLIO|FORME DI)/i;
-  const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*[A-Z]?$");
+  const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*(?:€|EUR|[A-Z])?$");
   const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?$");
   const qtyRes = [
     [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
     [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*" + PRICE, "i"), 2, 1]
   ];
-  const pulisci = d => d.replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
-  let pending = "";
+  const pulisci = d => d.replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  let pending = "", testoPrima = "";
+  const inizioArticoli = Math.max(lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), lines.findIndex(l => /DOCUMENTO\s*COMMERCIALE|SCONTRINO/i.test(l)));
   for(let i = 0; i < lines.length; i++){
     const l = lines[i];
     if(SKIP.test(l)){ pending = ""; continue; }
@@ -408,15 +414,23 @@ function parseReceipt(text){
     else if(/[A-Za-z]{3,}/.test(l) && lines[i + 1] && onlyPrice.test(lines[i + 1]) && !SKIP.test(lines[i + 1])){
       desc = l; price = num(lines[i + 1].match(onlyPrice)[1]); i++;
     }
+    else if(/[A-Za-z]{3,}/.test(l) && /^\d{1,2}\s?%$/.test(lines[i + 1] || "") && onlyPrice.test(lines[i + 2] || "") && !SKIP.test(lines[i + 2] || "")){
+      desc = l; price = num(lines[i + 2].match(onlyPrice)[1]); i += 2;   // descrizione / IVA / prezzo su tre righe
+    }
     if(desc && price !== null && price > 0){
       if(qtyRes.some(([re]) => re.test(desc))){ pending = ""; continue; }
       desc = pulisci(desc);
       if(!/[A-Za-zÀ-ù]{3,}/.test(desc) && pending) desc = pulisci(pending);   // es. "1922% AS 24,99": il nome era sulla riga sopra
+      else if(testoPrima && /[A-Za-zÀ-ù]{3,}/.test(desc)) desc = testoPrima + " " + desc;   // descrizione su due righe
       let qty = 1; const q = desc.match(/^(\d{1,2})\s*[xX*]\s+(.*)$/); if(q){ qty = +q[1]; desc = q[2]; }
       if(desc.length >= 2) out.articoli.push({descrizione:desc, quantita:qty, prezzo:price});
+      pending = ""; testoPrima = "";
+    }else if(/[A-Za-z]{3,}/.test(l) && (/\d{1,2}\s?%\s*$/.test(l) || /[\s-]0?\d{6,8}\s*$/.test(l))){ pending = l; testoPrima = ""; }
+    else{
       pending = "";
-    }else if(/[A-Za-z]{3,}/.test(l) && (/\d{1,2}\s?%\s*$/.test(l) || /[\s-]0?\d{6,8}\s*$/.test(l))) pending = l;
-    else pending = "";
+      // riga di solo testo dopo l'intestazione degli articoli: può essere la prima parte di una descrizione lunga
+      testoPrima = i > inizioArticoli && /^[A-Z0-9À-Ù"'.,\/ -]{6,}$/.test(l) && /[A-Z]{3,}/.test(l) && !new RegExp(PRICE).test(l) && !/S\.?R\.?L|S\.?P\.?A|SNC|VIA |DOCUMENTO|COMMERCIALE|SCONTRINO/i.test(l) ? l : "";
+    }
   }
   // Scontrini letti "a colonne" (prezzi spostati di una riga): rifà l'abbinamento in ordine
   // e lo tiene solo se la somma torna con il totale
@@ -866,8 +880,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.6";
+const VERSIONE = "v3.7";
 const CRONOLOGIA = [
+  {v:"v3.7", d:"20/11/2026", n:[
+    "Lettura scontrini provata su 15 tipi diversi (Leroy Merlin, MediaWorld, Unieuro, Esselunga, Bricoman, Decathlon, Lidl, Ikea, Euronics, Obi, Brico io, Tigotà, Expert, fatture Amazon, negozi sconosciuti)",
+    "Riconosce articoli su più righe, IVA e prezzo su righe separate, date delle fatture e nomi dei negozi con accenti"
+  ]},
   {v:"v3.6", d:"20/11/2026", n:[
     "Stampa: in alto il negozio in grassetto come intestazione, sotto il nome dell'acquisto",
     "Nome dell'acquisto: di default l'articolo più caro; si cambia con la spunta \"Nome\" accanto a ogni articolo",

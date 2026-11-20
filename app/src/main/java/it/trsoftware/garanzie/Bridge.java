@@ -481,6 +481,56 @@ public class Bridge {
         });
     }
 
+    /** true se sul telefono c'è Epson iPrint. */
+    @JavascriptInterface
+    public boolean haIPrint() {
+        try {
+            act.getPackageManager().getPackageInfo("epson.print", 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Stampa con l'app della stampante: la scheda PDF (creata dall'interfaccia) viene passata
+     * direttamente a Epson iPrint, che mostra l'anteprima con il tasto Stampa.
+     * Se iPrint non c'è, si apre la scelta delle app che possono stampare il PDF.
+     */
+    @JavascriptInterface
+    public void stampaIPrint(String id, String base64, String nome) {
+        async(pool, id, () -> {
+            File dir = new File(act.getCacheDir(), "stampa");
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            String n = (nome == null || nome.isEmpty()) ? "Scheda acquisto" : nome.replaceAll("[\\\\/:*?\"<>|]", "_");
+            File f = new File(dir, n + ".pdf");
+            try (FileOutputStream out = new FileOutputStream(f)) {
+                out.write(Base64.decode(base64, Base64.DEFAULT));
+            }
+            Uri uri = FileProvider.getUriForFile(act, act.getPackageName() + ".files", f);
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("application/pdf");
+            i.putExtra(Intent.EXTRA_STREAM, uri);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            boolean iprint = haIPrint();
+            if (iprint) i.setPackage("epson.print");
+            Intent avvio = iprint ? i : Intent.createChooser(i, "Stampa con…").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            act.runOnUiThread(() -> {
+                try {
+                    act.startActivity(avvio);
+                } catch (Exception e) {
+                    try {
+                        act.startActivity(Intent.createChooser(i.setPackage(null), "Stampa con…").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception e2) {
+                        toast("Nessuna app per stampare il PDF.");
+                    }
+                }
+            });
+            return iprint ? "iprint" : "scelta";
+        });
+    }
+
     /** Apre l'ultima scheda PDF creata (per stamparla con un'altra app, es. Epson iPrint, o condividerla). */
     @JavascriptInterface
     public void apriPdf() {

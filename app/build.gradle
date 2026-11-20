@@ -10,8 +10,8 @@ android {
         applicationId "it.trsoftware.garanzie"
         minSdk 29
         targetSdk 34
-        versionCode 13
-        versionName "2.8"
+        versionCode 14
+        versionName "3.2"
     }
 
     signingConfigs {

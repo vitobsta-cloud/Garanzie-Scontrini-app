@@ -583,14 +583,14 @@ function htmlScheda(a, imgs, altri){
 window.onStampa = st => {
   let b = document.getElementById("stampaBadge");
   if(!b){ b = document.createElement("div"); b.id = "stampaBadge"; document.body.appendChild(b); }
-  const T = {aperta:["🖨️", "Scheda pronta: scegli Epson iPrint e premi Stampa. Se si apre un lettore PDF, usa Condividi → Epson iPrint.", "ok"], prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
+  const T = {iprint:["🖨️", "Scheda aperta in Epson iPrint: premi STAMPA.", "ok"], aperta:["🖨️", "Scheda pronta: scegli Epson iPrint e premi Stampa. Se si apre un lettore PDF, usa Condividi → Epson iPrint.", "ok"], prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
     bloccata:["⚠️", "Stampa bloccata: controlla stampante accesa, carta e stessa rete Wi-Fi. Oppure \"Apri PDF\" e stampa con Epson iPrint.", "warn"],
     fatta:["✅", "Inviata alla stampante", "ok"], errore:["❌", "Stampa non riuscita. Con \"Apri PDF\" puoi stamparla con Epson iPrint.", "err"], annullata:["✖️", "Stampa annullata", "warn"]}[st] || ["🖨️", st, "run"];
   const pdf = ["errore", "bloccata"].includes(st) && A && A.apriPdf;
   b.className = "stb " + T[2]; b.innerHTML = `<span>${T[0]}</span><span>${esc(T[1])}</span>${pdf ? `<button class="pdf">Apri PDF</button>` : ""}<button class="x" aria-label="Chiudi">✕</button>`;
   b.querySelector(".x").onclick = () => b.remove();
   if(pdf) b.querySelector(".pdf").onclick = () => { A.apriPdf(); b.remove(); };
-  clearTimeout(b._t); if(["fatta", "annullata", "aperta"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
+  clearTimeout(b._t); if(["fatta", "annullata", "aperta", "iprint"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
 };
 function datiScheda(a, imgs, altri){
   const sc = scadenzaInfo(a), righe = [];
@@ -661,7 +661,21 @@ async function pdfScheda(d, imgSrc){
 async function stampaScheda(a, imgs, altri){
   imgs = imgs || []; altri = altri || [];
   const titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
-  // metodo principale: finestra di stampa di Android (come in tutte le app)
+  // metodo principale: la scheda va direttamente in Epson iPrint (come Condividi → Epson iPrint), basta premere STAMPA
+  if(A && A.stampaIPrint){
+    window.onStampa("prepara");
+    const b64 = await pdfScheda(datiScheda(a, imgs, altri), imgs.map(f => f.src));
+    const r = await call("stampaIPrint", b64, titolo);
+    window.onStampa(r === "iprint" ? "iprint" : "aperta");
+    return;
+  }
+  // app non ancora aggiornata: la stampa diretta arriva con l'aggiornamento dell'app
+  if(A && (A.aggiornaOra || A.installApk) && await conferma("Per stampare con un tocco serve aggiornare l'app (solo questa volta).\n\nAggiorno adesso?", "Aggiorna")){
+    toast("Aggiorno l'app…");
+    try{ const r = await call(A.aggiornaOra ? "aggiornaOra" : "installApk"); if(r === "permesso") toast("Consenti \"Installa app\" per Garanzie e Scontrini, poi riprova.", true); }catch(e){ toast(e.message, true); }
+    return;
+  }
+  // finestra di stampa di Android
   if(A && A.stampaPdf){ window.onStampa("prepara"); await call("stampaPdf", JSON.stringify(datiScheda(a, imgs, altri)), titolo); return; }
   // app vecchie senza stampa diretta: PDF aperto con un'app di stampa
   if(A && A.openFile){
@@ -818,8 +832,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.1";
+const VERSIONE = "v3.2";
 const CRONOLOGIA = [
+  {v:"v3.2", d:"20/11/2026", n:[
+    "Stampa con un tocco: la scheda si apre direttamente in Epson iPrint, basta premere STAMPA (come Condividi → Epson iPrint)"
+  ]},
   {v:"v3.1", d:"20/11/2026", n:[
     "Stampa: un tocco su Stampa apre direttamente la finestra di stampa del telefono (scegli la stampante e premi Stampa)"
   ]},

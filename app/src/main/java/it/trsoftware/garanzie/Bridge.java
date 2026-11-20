@@ -425,6 +425,46 @@ public class Bridge {
     // tenuta in memoria finché Android non ha preparato la stampa
     private WebView printView;
 
+    /** Stampa la scheda A4 creata come PDF (metodo principale, dalla v2.6). */
+    @JavascriptInterface
+    public void stampaPdf(String id, String json, String titolo) {
+        async(pool, id, () -> {
+            File f = SchedaPdf.crea(new File(act.getCacheDir(), "stampa"), json);
+            String nome = (titolo == null || titolo.isEmpty()) ? "Scheda acquisto" : titolo.replaceAll("[\\\\/:*?\"<>|]", "_");
+            act.runOnUiThread(() -> {
+                try {
+                    PrintManager pm = (PrintManager) act.getSystemService(Context.PRINT_SERVICE);
+                    PrintJob job = pm.print(nome, new SchedaPdf.Adapter(f, nome), new PrintAttributes.Builder()
+                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                            .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                            .build());
+                    seguiStampa(job);
+                } catch (Exception e) {
+                    toast("Stampa non riuscita: " + e.getMessage());
+                }
+            });
+            return "ok";
+        });
+    }
+
+    /** Apre l'ultima scheda PDF creata (per stamparla con un'altra app, es. Epson iPrint, o condividerla). */
+    @JavascriptInterface
+    public void apriPdf() {
+        File f = new File(new File(act.getCacheDir(), "stampa"), "scheda.pdf");
+        if (!f.exists()) { toast("Nessuna scheda da aprire."); return; }
+        Uri uri = FileProvider.getUriForFile(act, act.getPackageName() + ".files", f);
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(uri, "application/pdf");
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        act.runOnUiThread(() -> {
+            try {
+                act.startActivity(Intent.createChooser(i, "Apri la scheda con…").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (ActivityNotFoundException e) {
+                toast("Nessuna app per aprire i PDF.");
+            }
+        });
+    }
+
     /** Segue il lavoro di stampa e ne comunica lo stato all'interfaccia (badge "stampa in corso"). */
     private void seguiStampa(PrintJob job) {
         final Handler h = new Handler(Looper.getMainLooper());

@@ -128,6 +128,7 @@ textarea{min-height:64px;resize:vertical}
 #stampaBadge{position:fixed;left:12px;right:12px;bottom:16px;z-index:60;display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:14px;color:#fff;font-size:14.5px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 #stampaBadge span:nth-child(2){flex:1;line-height:1.35}
 #stampaBadge button{background:transparent;border:0;color:#fff;font-size:16px;padding:2px 4px}
+#stampaBadge button.pdf{border:1px solid #fff;border-radius:8px;padding:6px 10px;font-size:13.5px;white-space:nowrap}
 #stampaBadge.run{background:#2563eb}#stampaBadge.ok{background:#16a34a}#stampaBadge.warn{background:#d97706}#stampaBadge.err{background:#dc2626}
 .artline{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
 .artline span{color:var(--muted);font-size:13px}
@@ -582,15 +583,32 @@ function htmlScheda(a, imgs, altri){
 window.onStampa = st => {
   let b = document.getElementById("stampaBadge");
   if(!b){ b = document.createElement("div"); b.id = "stampaBadge"; document.body.appendChild(b); }
-  const T = {scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
-    bloccata:["⚠️", "Stampa bloccata: controlla che la stampante sia accesa, con carta e sulla stessa rete Wi-Fi. Vedi la notifica di Android.", "warn"],
-    fatta:["✅", "Inviata alla stampante", "ok"], errore:["❌", "Stampa non riuscita: apri la notifica di Android per il motivo, oppure riprova scegliendo \"Salva come PDF\".", "err"], annullata:["✖️", "Stampa annullata", "warn"]}[st] || ["🖨️", st, "run"];
-  b.className = "stb " + T[2]; b.innerHTML = `<span>${T[0]}</span><span>${esc(T[1])}</span><button aria-label="Chiudi">✕</button>`;
-  b.querySelector("button").onclick = () => b.remove();
+  const T = {prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
+    bloccata:["⚠️", "Stampa bloccata: controlla stampante accesa, carta e stessa rete Wi-Fi. Oppure \"Apri PDF\" e stampa con Epson iPrint.", "warn"],
+    fatta:["✅", "Inviata alla stampante", "ok"], errore:["❌", "Stampa non riuscita. Con \"Apri PDF\" puoi stamparla con Epson iPrint.", "err"], annullata:["✖️", "Stampa annullata", "warn"]}[st] || ["🖨️", st, "run"];
+  const pdf = ["errore", "bloccata"].includes(st) && A && A.apriPdf;
+  b.className = "stb " + T[2]; b.innerHTML = `<span>${T[0]}</span><span>${esc(T[1])}</span>${pdf ? `<button class="pdf">Apri PDF</button>` : ""}<button class="x" aria-label="Chiudi">✕</button>`;
+  b.querySelector(".x").onclick = () => b.remove();
+  if(pdf) b.querySelector(".pdf").onclick = () => { A.apriPdf(); b.remove(); };
   clearTimeout(b._t); if(["fatta", "annullata"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
 };
+function datiScheda(a, imgs, altri){
+  const sc = scadenzaInfo(a), righe = [];
+  const r = (k, v) => { if(v) righe.push([k, String(v)]); };
+  r("Data acquisto", a.dataAcquisto ? fmtDate(a.dataAcquisto) : ""); r("Prezzo", euro(a.prezzo)); r("Garanzia", a.garanziaMesi ? a.garanziaMesi + " mesi" : "");
+  r("Scadenza", sc.date ? fmtDate(sc.date) : ""); r("N. scontrino", a.numeroScontrino); r("Pagamento", a.tipoPagamento);
+  r("Negozio", [a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · "));
+  r("Cartella", (a.cartella || folderFor(a)).replace(/\//g, "\\"));
+  return {nome:a.nome || "(senza nome)", negozio:a.negozio || "", stato:sc.label || "", righe,
+    articoli:(a.articoli || []).filter(x => x.descrizione).map(x => [(x.quantita > 1 ? x.quantita + " × " : "") + x.descrizione, euro(x.prezzo)]),
+    note:a.note || "", piede:(altri.length ? "Altri documenti: " + altri.join(", ") + "\n" : "") + `Stampato il ${fmtDate(todayISO())} con Garanzie & Scontrini ${VERSIONE}`,
+    immagini:imgs.map(f => f.src.split(",")[1])};
+}
 async function stampaScheda(a, imgs, altri){
-  const html = htmlScheda(a, imgs || [], altri || []), titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
+  imgs = imgs || []; altri = altri || [];
+  const titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
+  if(A && A.stampaPdf){ window.onStampa("prepara"); await call("stampaPdf", JSON.stringify(datiScheda(a, imgs, altri)), titolo); return; }
+  const html = htmlScheda(a, imgs, altri);
   if(A && A.stampa){ A.stampa(html, titolo); return; }
   if(A && A.openFile){
     A.openFile(titolo.replace(/[^\w\- ]+/g, "_") + ".html", "text/html", btoa(unescape(encodeURIComponent(html))));
@@ -736,8 +754,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.5";
+const VERSIONE = "v2.6";
 const CRONOLOGIA = [
+  {v:"v2.6", d:"20/11/2026", n:[
+    "Stampa rifatta: la scheda viene creata come PDF A4 e passata alla stampante (più affidabile)",
+    "Se la stampante non risponde: tasto \"Apri PDF\" per stamparla con Epson iPrint o condividerla"
+  ]},
   {v:"v2.5", d:"20/11/2026", n:[
     "Stampa: riquadro con lo stato (in coda, in corso, inviata, bloccata, non riuscita)",
     "Lettura scontrini: tolta la riga del totale finita per errore tra gli articoli"
@@ -1727,8 +1749,8 @@ setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e 
 
 /* Aggiornamento dell'app Android (APK): la grafica si aggiorna da sola, ma alcune novità
    (es. la stampa) richiedono di reinstallare l'app sopra quella attuale. */
-const APK_MINIMO = 11, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
-function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.installApk ? 10 : A.stampa ? 9 : 8; }
+const APK_MINIMO = 12, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.stampaPdf ? 12 : A.installApk ? 10 : A.stampa ? 9 : 8; }
 function proponiApk(forza){
   if(versioneApk() >= APK_MINIMO) return false;
   if(!forza){ try{ if(localStorage.getItem("gs_apk_rinvio") === todayISO()) return true; }catch(e){} }

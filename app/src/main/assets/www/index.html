@@ -754,8 +754,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.6";
+const VERSIONE = "v2.7";
 const CRONOLOGIA = [
+  {v:"v2.7", d:"20/11/2026", n:[
+    "Aggiornamenti: un solo messaggio. Se serve aggiornare l'app, non chiede prima anche la grafica (l'app nuova contiene già tutto)",
+    "Dopo un aggiornamento non lo ripropone subito; in Informazioni si vede anche la versione dell'app Android"
+  ]},
   {v:"v2.6", d:"20/11/2026", n:[
     "Stampa rifatta: la scheda viene creata come PDF A4 e passata alla stampante (più affidabile)",
     "Se la stampante non risponde: tasto \"Apri PDF\" per stamparla con Epson iPrint o condividerla"
@@ -1692,6 +1696,7 @@ function renderImpInfo(){
       <h2>ℹ️ Garanzie & Scontrini</h2>
       <table class="items">
         <tr><td>Versione</td><td class="num">${VERSIONE}</td></tr>
+        <tr><td>App Android</td><td class="num">${A ? "build " + versioneApk() + (versioneApk() < APK_MINIMO ? " (da aggiornare)" : " ✓") : "—"}</td></tr>
         <tr><td>Ultimo aggiornamento</td><td class="num">${ultimo.d}</td></tr>
         <tr><td>Sviluppo</td><td class="num">TR/software</td></tr>
       </table>
@@ -1730,6 +1735,7 @@ function leggiNovita(html){
 function occupato(){ return (current === "acquisisci" && draft && ((draft.pendingFiles || []).length || draft.nome || draft.negozio)) || document.querySelector(".modal"); }
 function proponiAggiornamento(){
   if(!A || !A.getPendingUpdate || updRinviato) return;
+  if(typeof versioneApk === "function" && versioneApk() < APK_MINIMO){ proponiApk(false); return; }   // un solo aggiornamento: l'app nuova contiene già tutto
   const html = A.getPendingUpdate(); if(!html) return;
   if(occupato()){ updInAttesa = true; return; }      // lo propone appena torni alla pagina iniziale
   updInAttesa = false;
@@ -1753,12 +1759,12 @@ const APK_MINIMO = 12, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Sc
 function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.stampaPdf ? 12 : A.installApk ? 10 : A.stampa ? 9 : 8; }
 function proponiApk(forza){
   if(versioneApk() >= APK_MINIMO) return false;
-  if(!forza){ try{ if(localStorage.getItem("gs_apk_rinvio") === todayISO()) return true; }catch(e){} }
+  if(!forza){ try{ if(localStorage.getItem("gs_apk_rinvio") === todayISO()) return true; const t = +localStorage.getItem("gs_apk_tentato") || 0; if(Date.now() - t < 10 * 60 * 1000) return true; }catch(e){} }
   if(occupato() || document.querySelector(".modal")){ if(!forza) setTimeout(() => proponiApk(false), 60000); return true; }
   const auto = !!(A && A.installApk);
   const m = document.createElement("div"); m.className = "modal";
-  m.innerHTML = `<div class="box"><h2>🔄 Aggiornamento dell'app</h2>
-    <p style="margin:4px 0 8px;line-height:1.5">È disponibile una versione nuova dell'app. Dati e impostazioni restano.</p>
+  m.innerHTML = `<div class="box"><h2>🔄 Aggiornamento disponibile</h2>
+    <p style="margin:4px 0 8px;line-height:1.5">È disponibile una versione nuova dell'app. Un solo passaggio: dati e impostazioni restano.</p>
     <p class="muted" id="apkMsg" style="margin:0 0 8px">${auto ? "Premi <b>Aggiorna ora</b> e poi <b>Aggiorna</b> nella finestra di Android." : "Tocca <b>Scarica</b>, apri il file scaricato e scegli <b>Aggiorna</b>."}</p>
     <div class="btns"><button class="btn" id="apkDopo">Più tardi</button><button class="btn primary" id="apkOra">${auto ? "Aggiorna ora" : "⬇️ Scarica"}</button></div></div>`;
   document.body.appendChild(m);
@@ -1767,6 +1773,7 @@ function proponiApk(forza){
     if(!auto){ m.remove(); location.href = APK_LINK; return; }
     const b = $("#apkOra"), msg = $("#apkMsg"); b.disabled = true; b.textContent = "⏳ Scarico…"; msg.textContent = "Scarico la nuova versione da GitHub (qualche secondo)…";
     try{
+      try{ localStorage.setItem("gs_apk_tentato", String(Date.now())); }catch(e){}
       const r = await call("installApk");
       if(r === "permesso"){ msg.innerHTML = "Solo la prima volta: attiva <b>Consenti da questa fonte</b>, torna qui e premi di nuovo <b>Aggiorna ora</b>."; b.disabled = false; b.textContent = "Aggiorna ora"; return; }
       m.remove();

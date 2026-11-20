@@ -135,6 +135,8 @@ textarea{min-height:64px;resize:vertical}
 .artline .q{width:58px}
 .artline .p{width:92px}
 .artline .btn.small{padding:6px 10px}
+.artnome{display:flex;align-items:center;gap:5px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;color:var(--text);margin:0}
+.artnome input{width:18px;height:18px;margin:0}
 .entry{display:flex;gap:12px;align-items:center;padding:14px;background:var(--card);border:1.5px solid #dcdcdc;border-radius:16px;margin-bottom:8px}
 .entry .ico{width:46px;height:46px;flex:none;border-radius:9px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:21px}
 .entry .txt{flex:1;min-width:0}
@@ -385,7 +387,7 @@ function parseReceipt(text){
     [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
     [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*" + PRICE, "i"), 2, 1]
   ];
-  const pulisci = d => d.replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  const pulisci = d => d.replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
   let pending = "";
   for(let i = 0; i < lines.length; i++){
     const l = lines[i];
@@ -409,6 +411,7 @@ function parseReceipt(text){
     if(desc && price !== null && price > 0){
       if(qtyRes.some(([re]) => re.test(desc))){ pending = ""; continue; }
       desc = pulisci(desc);
+      if(!/[A-Za-zÀ-ù]{3,}/.test(desc) && pending) desc = pulisci(pending);   // es. "1922% AS 24,99": il nome era sulla riga sopra
       let qty = 1; const q = desc.match(/^(\d{1,2})\s*[xX*]\s+(.*)$/); if(q){ qty = +q[1]; desc = q[2]; }
       if(desc.length >= 2) out.articoli.push({descrizione:desc, quantita:qty, prezzo:price});
       pending = "";
@@ -447,16 +450,34 @@ function parseReceipt(text){
     }
   }
   if(totale && out.articoli.length > 1) out.articoli = out.articoli.filter(x => Math.abs((x.prezzo || 0) - totale) >= 0.01);
+  // prezzi impossibili (più alti del totale, es. "296,98" invece di "6,98"): prova a togliere le cifre in più davanti
+  if(totale && out.articoli.length){
+    const somma = () => Math.round(out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0) * 100) / 100;
+    for(const a of out.articoli){
+      if(!(a.prezzo > totale)) continue;
+      const t = a.prezzo.toFixed(2), alt = [];
+      for(let i = 1; i < t.length - 3; i++) alt.push(Number(t.slice(i)));
+      const resto = Math.round((totale - (somma() - a.prezzo)) * 100) / 100;
+      a.prezzo = alt.find(v => Math.abs(v - resto) < 0.02) ?? alt.find(v => v > 0 && v <= totale) ?? a.prezzo;
+    }
+  }
+  // descrizioni senza parole (es. "1922% AS"): usa la riga con il nome rimasta senza prezzo, se c'è
+  const parola = d => /[A-Za-zÀ-ù]{3,}/.test(String(d || "").replace(/^(cad|pz)\b/i, ""));
+  const usate = new Set(out.articoli.map(a => a.descrizione));
+  const orfane = lines.filter((l, i) => i > h && (e < 0 || i < e) && !SKIP.test(l) && parola(l) && !qtyRes.some(([re]) => re.test(l))
+    && !new RegExp(PRICE).test(l)).map(pulisci).filter(d => parola(d) && !usate.has(d) && ![...usate].some(u => u && d.startsWith(u)));
+  for(const a of out.articoli) if(!parola(a.descrizione) && orfane.length) a.descrizione = orfane.shift();
+  out.articoli = out.articoli.filter(a => parola(a.descrizione) || out.articoli.length === 1);
   if(totale) out.prezzo = totale;
   return out;
 }
 function nomeDaArticoli(art){
   if(!art.length) return "";
-  const buoni = art.filter(a => /[A-Za-z]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || ""));
+  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || ""));
   if(!buoni.length) return "";
-  const top = [...buoni].sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione;
-  return top.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).split(" ").slice(0, 4).join(" ");
+  return nomeBello([...buoni].sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione);
 }
+const nomeBello = d => String(d || "").replace(/[-\s]*\d{4,}\s*%?\s*$/, "").replace(/\s+\d{1,2}\s?%\s*$/, "").trim().toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).split(" ").slice(0, 5).join(" ");
 
 /* Claude (facoltativo) */
 async function claudeRead(files){
@@ -627,8 +648,8 @@ async function pdfScheda(d, imgSrc){
   const block = (t, x, y, sz, b, c, w) => { const ls = wrap(t, sz, b, w); ls.forEach((l, i) => txt(l, x, y + i * sz * 1.25, sz, b, c)); return ls.length * sz * 1.25; };
   const line = (x1, y1, x2, y2, c, lw) => { cs += `${col(c)} RG ${lw} w ${x1} ${H - y1} m ${x2} ${H - y2} l S\n`; };
   let y = M;
-  y += block(d.nome, M, y, 17, true, 0x111111, W - 2 * M - 120);
-  y += block(d.negozio, M, y, 11, false, 0x444444, W - 2 * M - 120);
+  y += block(d.negozio || d.nome, M, y, 19, true, 0x111111, W - 2 * M - 120);
+  if(d.negozio) y += block(d.nome, M, y + 2, 12.5, true, 0x333333, W - 2 * M - 120) + 2;
   txt("TR/software", W - M, y - 24, 8.5, true, 0x0B7BC0, true); txt("Garanzie & Scontrini", W - M, y - 13, 8.5, false, 0x555555, true);
   y += 4; line(M, y, W - M, y, 0x1A1A1A, 1.6); y += 10; const top = y;
   if(d.stato){ const tw = wid(d.stato, 9.5, true); cs += `${col(0x999999)} RG 0.8 w ${M} ${H - y - 17} ${tw + 16} 17 re S\n`; txt(d.stato, M + 8, y + 4, 9.5, true); y += 24; }
@@ -845,8 +866,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.5";
+const VERSIONE = "v3.6";
 const CRONOLOGIA = [
+  {v:"v3.6", d:"20/11/2026", n:[
+    "Stampa: in alto il negozio in grassetto come intestazione, sotto il nome dell'acquisto",
+    "Nome dell'acquisto: di default l'articolo più caro; si cambia con la spunta \"Nome\" accanto a ogni articolo",
+    "Lettura scontrini: corretti prezzi impossibili (es. 296,98 invece di 6,98), codici articolo attaccati al nome e righe senza descrizione"
+  ]},
   {v:"v3.5", d:"20/11/2026", n:[
     "Stampa: il tasto Stampa crea la scheda e la apre come PDF; da lì Condividi → app della stampante (Epson iPrint, HP Smart…), WhatsApp o email"
   ]},
@@ -1163,14 +1189,13 @@ function drawItems(){
      <div class="artline">
        <span>Q.tà</span><input class="q" type="number" min="1" inputmode="numeric" value="${esc(it.quantita ?? 1)}">
        <span>€</span><input class="p" type="number" step="0.01" inputmode="decimal" value="${esc(it.prezzo ?? "")}" placeholder="0,00">
-       <button class="btn small" data-nome="${i}" title="Usa come nome oggetto">⭐ Nome</button>
+       <label class="artnome" title="Usa come nome dell'acquisto"><input type="radio" name="artNome" data-nome="${i}" ${nomeBello(it.descrizione) && nomeBello(it.descrizione) === nomeBello(draft.nome) ? "checked" : ""}> Nome</label>
        <button class="btn small" data-rm="${i}" title="Togli">✕</button>
      </div></td></tr>`).join("") || `<tr><td class="muted">Nessun articolo.</td></tr>`;
   $("#itemsTbl").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { readForm(); draft.articoli.splice(+b.dataset.rm, 1); drawItems(); });
-  $("#itemsTbl").querySelectorAll("[data-nome]").forEach(b => b.onclick = () => {
+  $("#itemsTbl").querySelectorAll("[data-nome]").forEach(b => b.onchange = () => {
     readForm(); const it = draft.articoli[+b.dataset.nome]; if(!it || !it.descrizione) return;
-    draft.nome = it.descrizione.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()); $("#fNome").value = draft.nome; updPreview();
-    toast("Nome oggetto: " + draft.nome);
+    draft.nome = nomeBello(it.descrizione); $("#fNome").value = draft.nome; updPreview();
   });
 }
 async function addFiles(list){

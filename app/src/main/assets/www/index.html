@@ -583,14 +583,14 @@ function htmlScheda(a, imgs, altri){
 window.onStampa = st => {
   let b = document.getElementById("stampaBadge");
   if(!b){ b = document.createElement("div"); b.id = "stampaBadge"; document.body.appendChild(b); }
-  const T = {prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
+  const T = {aperta:["🖨️", "Scheda pronta: scegli Epson iPrint e premi Stampa. Se si apre un lettore PDF, usa Condividi → Epson iPrint.", "ok"], prepara:["⏳", "Preparo la scheda…", "run"], scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
     bloccata:["⚠️", "Stampa bloccata: controlla stampante accesa, carta e stessa rete Wi-Fi. Oppure \"Apri PDF\" e stampa con Epson iPrint.", "warn"],
     fatta:["✅", "Inviata alla stampante", "ok"], errore:["❌", "Stampa non riuscita. Con \"Apri PDF\" puoi stamparla con Epson iPrint.", "err"], annullata:["✖️", "Stampa annullata", "warn"]}[st] || ["🖨️", st, "run"];
   const pdf = ["errore", "bloccata"].includes(st) && A && A.apriPdf;
   b.className = "stb " + T[2]; b.innerHTML = `<span>${T[0]}</span><span>${esc(T[1])}</span>${pdf ? `<button class="pdf">Apri PDF</button>` : ""}<button class="x" aria-label="Chiudi">✕</button>`;
   b.querySelector(".x").onclick = () => b.remove();
   if(pdf) b.querySelector(".pdf").onclick = () => { A.apriPdf(); b.remove(); };
-  clearTimeout(b._t); if(["fatta", "annullata"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
+  clearTimeout(b._t); if(["fatta", "annullata", "aperta"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
 };
 function datiScheda(a, imgs, altri){
   const sc = scadenzaInfo(a), righe = [];
@@ -604,9 +604,71 @@ function datiScheda(a, imgs, altri){
     note:a.note || "", piede:(altri.length ? "Altri documenti: " + altri.join(", ") + "\n" : "") + `Stampato il ${fmtDate(todayISO())} con Garanzie & Scontrini ${VERSIONE}`,
     immagini:imgs.map(f => f.src.split(",")[1])};
 }
+/* ---------- PDF A4 creato direttamente nell'app (si apre con Epson iPrint o un'altra app di stampa) ---------- */
+const WINANSI = {"€":0x80,"‚":0x82,"„":0x84,"…":0x85,"‘":0x91,"’":0x92,"“":0x93,"”":0x94,"•":0x95,"–":0x96,"—":0x97};
+function pdfStr(t){
+  let o = "";
+  for(const ch of String(t)){ let c = WINANSI[ch] ?? ch.charCodeAt(0); if(c > 255) c = 63; const x = String.fromCharCode(c); o += (x === "(" || x === ")" || x === "\\") ? "\\" + x : x; }
+  return o;
+}
+async function jpegPerPdf(src){
+  const img = await loadImage(src), max = 1800, k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  return {w:c.width, h:c.height, bin:atob(c.toDataURL("image/jpeg", 0.85).split(",")[1])};
+}
+async function pdfScheda(d, imgSrc){
+  const W = 595, H = 842, M = 30, COL = 300, meas = document.createElement("canvas").getContext("2d");
+  const wid = (t, sz, b) => { meas.font = `${b ? "bold " : ""}${sz}px Helvetica, Arial, sans-serif`; return meas.measureText(t).width; };
+  const wrap = (t, sz, b, w) => { const out = []; for(const par of String(t || "").split("\n")){ let line = ""; for(const word of par.split(/\s+/)){ const p = line ? line + " " + word : word; if(wid(p, sz, b) > w && line){ out.push(line); line = word; } else line = p; } out.push(line); } return out; };
+  let cs = "";
+  const col = c => `${((c >> 16) & 255) / 255} ${((c >> 8) & 255) / 255} ${(c & 255) / 255}`;
+  const txt = (t, x, y, sz, b, c, dx) => { cs += `BT /${b ? "F2" : "F1"} ${sz} Tf ${col(c || 0x111111)} rg ${(x - (dx ? wid(t, sz, b) : 0)).toFixed(1)} ${(H - y - sz).toFixed(1)} Td (${pdfStr(t)}) Tj ET\n`; };
+  const block = (t, x, y, sz, b, c, w) => { const ls = wrap(t, sz, b, w); ls.forEach((l, i) => txt(l, x, y + i * sz * 1.25, sz, b, c)); return ls.length * sz * 1.25; };
+  const line = (x1, y1, x2, y2, c, lw) => { cs += `${col(c)} RG ${lw} w ${x1} ${H - y1} m ${x2} ${H - y2} l S\n`; };
+  let y = M;
+  y += block(d.nome, M, y, 17, true, 0x111111, W - 2 * M - 120);
+  y += block(d.negozio, M, y, 11, false, 0x444444, W - 2 * M - 120);
+  txt("TR/software", W - M, y - 24, 8.5, true, 0x0B7BC0, true); txt("Garanzie & Scontrini", W - M, y - 13, 8.5, false, 0x555555, true);
+  y += 4; line(M, y, W - M, y, 0x1A1A1A, 1.6); y += 10; const top = y;
+  if(d.stato){ const tw = wid(d.stato, 9.5, true); cs += `${col(0x999999)} RG 0.8 w ${M} ${H - y - 17} ${tw + 16} 17 re S\n`; txt(d.stato, M + 8, y + 4, 9.5, true); y += 24; }
+  for(const [k, v] of d.righe){ const h = Math.max(block(k, M + 2, y + 3, 9.5, false, 0x666666, 95), block(v, M + 100, y + 3, 9.5, false, 0x111111, COL - 104)); y += h + 6; line(M, y, M + COL, y, 0xDDDDDD, 0.6); }
+  if(d.articoli.length){ y += 10; y += block("Articoli", M, y, 11, true, 0x111111, COL) + 2;
+    for(const [ds, pr] of d.articoli){ if(y > H - 80) break; const h = block(ds, M + 2, y + 3, 9.5, false, 0x111111, COL - 70); txt(pr, M + COL - 2, y + 3, 9.5, false, 0x111111, true); y += h + 6; line(M, y, M + COL, y, 0xDDDDDD, 0.6); } }
+  if(d.note && y < H - 90){ y += 10; y += block("Note", M, y, 11, true, 0x111111, COL) + 2; y += block(d.note, M, y, 9.5, false, 0x111111, COL); }
+  y += 12; block(d.piede, M, Math.min(y, H - M - 20), 7.5, false, 0x777777, COL);
+  const imgs = []; for(const src of imgSrc){ try{ imgs.push(await jpegPerPdf(src)); }catch(e){} }
+  if(imgs.length){ const x0 = M + COL + 16, bw = W - M - x0, each = (H - M - top - 6 * (imgs.length - 1)) / imgs.length; let yy = top;
+    imgs.forEach((im, i) => { const s = Math.min(bw / im.w, each / im.h), iw = im.w * s, ih = im.h * s, ix = x0 + (bw - iw) / 2;
+      cs += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ix.toFixed(2)} ${(H - yy - ih).toFixed(2)} cm /Im${i} Do Q\n${col(0xDDDDDD)} RG 0.6 w ${ix.toFixed(2)} ${(H - yy - ih).toFixed(2)} ${iw.toFixed(2)} ${ih.toFixed(2)} re S\n`; yy += ih + 6; }); }
+  // assemblaggio del file PDF
+  const objs = [];
+  objs.push("<< /Type /Catalog /Pages 2 0 R >>");
+  objs.push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  const xo = imgs.map((_, i) => `/Im${i} ${7 + i} 0 R`).join(" ");
+  objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << ${xo} >> >> /Contents 6 0 R >>`);
+  objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  objs.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  objs.push(`<< /Length ${cs.length} >>\nstream\n${cs}endstream`);
+  imgs.forEach(im => objs.push(`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bin.length} >>\nstream\n${im.bin}\nendstream`));
+  let out = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"; const off = [];
+  objs.forEach((o, i) => { off.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+  const xref = out.length;
+  out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + off.map(n => String(n).padStart(10, "0") + " 00000 n \n").join("");
+  out += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return btoa(out);   // la stringa è già "binaria" (un carattere = un byte)
+}
 async function stampaScheda(a, imgs, altri){
   imgs = imgs || []; altri = altri || [];
   const titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
+  // metodo principale: PDF aperto con l'app della stampante (Epson iPrint), che funziona sempre
+  if(A && A.openFile){
+    window.onStampa("prepara");
+    const b64 = await pdfScheda(datiScheda(a, imgs, altri), imgs.map(f => f.src));
+    A.openFile(titolo.replace(/[^\w\- ]+/g, "_") + ".pdf", "application/pdf", b64);
+    window.onStampa("aperta");
+    return;
+  }
   if(A && A.stampaPdf){ window.onStampa("prepara"); await call("stampaPdf", JSON.stringify(datiScheda(a, imgs, altri)), titolo); return; }
   const html = htmlScheda(a, imgs, altri);
   if(A && A.stampa){ A.stampa(html, titolo); return; }
@@ -754,8 +816,14 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.8";
+const VERSIONE = "v3.0";
 const CRONOLOGIA = [
+  {v:"v3.0", d:"20/11/2026", n:[
+    "Aggiornamenti come nelle altre app: un solo avviso, \"Aggiorna ora\" e basta. Non viene più chiesto di scaricare o reinstallare l'app"
+  ]},
+  {v:"v2.9", d:"20/11/2026", n:[
+    "Stampa: la scheda A4 viene creata come PDF e aperta con Epson iPrint (o un'altra app di stampa), che vede sempre la stampante"
+  ]},
   {v:"v2.8", d:"20/11/2026", n:[
     "Aggiornamenti dell'app completamente automatici: scaricati in sottofondo e installati quando esci dall'app, senza domande (Android 12 e successivi)"
   ]},
@@ -1699,7 +1767,7 @@ function renderImpInfo(){
       <h2>ℹ️ Garanzie & Scontrini</h2>
       <table class="items">
         <tr><td>Versione</td><td class="num">${VERSIONE}</td></tr>
-        <tr><td>App Android</td><td class="num">${A ? "build " + versioneApk() + (versioneApk() < APK_MINIMO ? " (da aggiornare)" : " ✓") : "—"}</td></tr>
+        <tr><td>App Android</td><td class="num">${A ? "build " + versioneApk() : "—"}</td></tr>
         <tr><td>Ultimo aggiornamento</td><td class="num">${ultimo.d}</td></tr>
         <tr><td>Sviluppo</td><td class="num">TR/software</td></tr>
       </table>
@@ -1758,7 +1826,7 @@ setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e 
 
 /* Aggiornamento dell'app Android (APK): la grafica si aggiorna da sola, ma alcune novità
    (es. la stampa) richiedono di reinstallare l'app sopra quella attuale. */
-const APK_MINIMO = 13, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+const APK_MINIMO = 1, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
 function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.aggiornaInSilenzio ? 13 : A.stampaPdf ? 12 : A.installApk ? 10 : A.stampa ? 9 : 8; }
 let aggSilenzioAvviato = false;
 function proponiApk(forza){

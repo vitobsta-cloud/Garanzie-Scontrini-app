@@ -142,7 +142,7 @@ TOTALE COMPLESSIVO 147,00
 PAGATO CON CARTA 147,00
 07/07/2026 09:30
 DOCUMENTO N. 0003-0045`,
-  exp:{negozio:"FERRAMENTA ROSSI SNC", data:"2026-07-07", prezzo:147.00, numero:"0003-0045", pagamento:"Carta", nome:"Motosega Elettrica"} },
+  exp:{negozio:"Ferramenta Rossi", data:"2026-07-07", prezzo:147.00, numero:"0003-0045", pagamento:"Carta", nome:"Motosega Elettrica"} },
 { id:"Anno sbagliato OCR", t:`OBI
 OBI Italia S.r.l.
 DOCUMENTO COMMERCIALE

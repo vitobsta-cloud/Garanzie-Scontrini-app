@@ -336,9 +336,9 @@ function fixYear(y){
   if(y < 100) y += 2000;
   if(y > now){ // errore di lettura (es. 2076 invece di 2026): prende l'anno plausibile più vicino
     const s = String(y), alts = new Set();
-    const sw = {"0":["9","8"],"9":["6","0"],"5":["6"],"6":["5","9","8"],"8":["6","0","3"],"7":["2","1"],"3":["8"],"1":["7"],"2":["7"]};
-    for(let i = 0; i < 4; i++) for(const c of (sw[s[i]] || [])) alts.add(+(s.slice(0, i) + c + s.slice(i + 1)));
-    const ok = [...alts].filter(v => v <= now && v >= 1990).sort((a, b) => b - a);
+    const sw = {"0":["9","8"],"9":["0","6"],"5":["6"],"6":["5","9","8"],"8":["0","6","3"],"7":["2","1"],"3":["0","8"],"1":["7"],"2":["7"]};
+    for(let i = 3; i >= 0; i--) for(const c of (sw[s[i]] || [])) alts.add(+(s.slice(0, i) + c + s.slice(i + 1)));
+    const ok = [...alts].filter(v => v <= now && v >= 1990);   // in ordine: prima lo 0 letto male (tipico Lidl)
     y = ok.length ? ok[0] : now;
   }
   return y;
@@ -367,11 +367,19 @@ function parseReceipt(text){
   };
   const testaLettere = senzaAccenti(lines.slice(0, 12).join(" ")).replace(/[^A-Z]/g, "");
   const quasi = noto ? null : [...NEGOZI_NOTI].sort((a, b) => b.length - a.length).find(n => { const w = senzaAccenti(n).replace(/[^A-Z]/g, ""); return w.length >= 7 && vicino(testaLettere, w); });
+  // ragione sociale: "MIRA Srl", "Sinica Management Group SRL", "TIM Retail S.r.l."…
+  let ditta = "";
+  for(const l of lines.slice(0, 12)){ for(const seg of l.split(/\s{2,}|\|/)){
+    const m = seg.match(/^\W*([A-Za-zÀ-ù&'][\wÀ-ù&'. -]{2,40}?)\s*,?\s+(?:S\.?\s?R\.?\s?L|S\.?\s?P\.?\s?A|S\.?\s?N\.?\s?C|S\.?\s?A\.?\s?S)\.?\b/i);
+    if(m && /[A-Za-z]{3,}/.test(m[1]) && !/TELECOM|^(?:LA|IL|DI)\s*$/i.test(m[1])){ ditta = m[1].replace(/^(?:Pago\s?BANCOMAT|ACQUISTO|BANCOMAT|VENDITA)\s+/i, "").trim(); break; }
+  } if(ditta) break; }
+  if(ditta && ditta === ditta.toUpperCase()) ditta = ditta.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
   if(noto) out.negozio = noto;
   else if(quasi) out.negozio = quasi;
   else if(/[CG]E+N+T+E+R+\s?C?A+S+A/.test(testaLettere)) out.negozio = "Center Casa";
   else if(/\bL[I1!|T]?[DO0]L\b/.test(up)) out.negozio = "Lidl";
   else if(italia) out.negozio = italia[1].trim();
+  else if(ditta) out.negozio = ditta;
   else{
     const cand = lines.slice(0, 6).find(l => /[A-Za-z]{3,}/.test(l) && !/(documento|commerciale|via |viale|piazza|p\.?\s?iva|partita|tel|www|http|@|srl|s\.r\.l|spa|s\.p\.a|socio|unico|cdc|raee|vendita|prestazione)/i.test(l));
     if(cand) out.negozio = cand.replace(/[^\p{L}\d &'.-]/gu, "").trim().slice(0, 40);
@@ -386,9 +394,10 @@ function parseReceipt(text){
     if(d < 1 || d > 31){ d = +cifra0(m[1].padStart(2, "0")); corr++; }
     if(mo < 1 || mo > 12){ mo = +cifra0(m[2].padStart(2, "0")); corr++; }
     if(m[3].length === 4 && (y > oggi || y < 2000)){ const t = m[3][0] + "0" + m[3].slice(2); y = +t >= 2000 && +t <= oggi ? +t : fixYear(+t); corr++; }
-    else y = fixYear(y);
+    else { const y0 = y < 100 ? y + 2000 : y; y = fixYear(y); if(y !== y0) corr++; }
     if(!(d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= oggi)) continue;
     if(new Date(y, mo - 1, d).getDate() !== d) continue;   // es. 29 febbraio inesistente
+    if(new Date(y, mo - 1, d) > new Date()) continue;        // nel futuro: letta male
     const prima = all.slice(Math.max(0, m.index - 25), m.index), dopo = all.slice(m.index, m.index + 30);
     let peso = corr ? 0.5 : 1;
     if(/(data|fattura|emissione|acquisto|del)\s*:?\s*$/i.test(prima)) peso += 0.5;
@@ -399,8 +408,9 @@ function parseReceipt(text){
   const best = [...voti].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   if(best) out.dataAcquisto = best;
   // totale
-  const tot = all.match(new RegExp("(?:TOTALE\\s*COMPLESSIVO|TOTALE\\s*EURO|TOTALE\\s*EUR|IMPORTO\\s*PAGATO|TOTALE|TOT\\.?)\\s*(?:€|EUR|EURO)?\\s*:?\\s*" + PRICE, "i"));
+  const tot = all.match(new RegExp("(?:TOTALE\\s*CO[MN]?P?L?E?S+[A-Z0-9]{0,4}|TOTALE\\s*COMPLESSIVO|TOTALE\\s*EURO|TOTALE\\s*EUR|IMPORTO\\s*PAGATO|TOTALE|TOT\\.?)\\s*(?:€|EUR|EURO)?\\s*:?\\s*" + PRICE, "i"));
   if(tot) out.prezzo = num(tot[1]);
+  else { const t2 = all.match(new RegExp("(?:^|\\n)\\s*" + PRICE + "\\s*€?\\s*\\n\\s*[IT1l]otale\\s*(?:\\n|$)", "i")); if(t2) out.prezzo = num(t2[1]); }
   // numero documento
   const nd = all.match(/(?:DOCUMENTO\s*N\.?|DOC\.?\s*N\.?|SCONTRINO\s*N\.?|FATTURA\s*N\.?|N\.\s*DOC\.?)\s*[:°]?\s*([\w\-\/]{3,})/i);
   if(nd) out.numeroScontrino = nd[1];
@@ -414,7 +424,7 @@ function parseReceipt(text){
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
-  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4}|[IHM]{0,2}P[O0]RT[O0]\s*E|IMPORT[O0]|COD\.|FISCAL|LESSIVO|AUTH|RESP\.|DUMMY|(?:^|\s)(?<![-\/])\d{5}\s*-?\s*[A-Z]{4,}(?:\s*\(?[A-Z]{2}\)?)?\s*$|TRANSAZ|AUTORIZ|A\.?R\.?Q\.?C|\bTML\b|\bSTAN\b|C\.\s?ABI|\bAPPL\b|PAGO\s?BAN|RICEVUTA|\bPOS\b|ONLINE|CTLS|\bICC\b|CREDITO|VAL[OU]RE\s*SC|[IT]OTALE|TOT\.|\bIAD\b|\bATC\b|\bTCC\b|\bTVR\b|PAN:|EXP:|\bAUT\.|OPER\.|ESER|A\.?I\.?I\.?C|CARTA|\bNOTE\b|TICKET|ACQUISTO|ESERC|CVM|MATRICOLA|FIRMA|NUMERO DI|SERIE|TASS[OE]|ARTICOL[OI]\/|REPARTO|RETTIFICA)/i;
+  const SKIP = /(^\s*I?NOTE\s*$|SMALTIMENTO|APPROVAT|C\.?\s?CREDI\s?TO|INCASSO\s*E-?COMM|RICHIAMATA|NESSUN METODO|ARTICOL[OI]|\bARTI\s?COLO|^\s*IUA\b|^\s*[IT]OTALE|TOTALE|SUBTOTALE|(?<![A-Z])IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4}|[IHM]{0,2}P[O0]RT[O0]\s*E|IMPORT[O0]|COD\.|FISCAL|LESSIVO|AUTH|RESP\.|DUMMY|(?:^|\s)(?<![-\/])\d{5}\s*-?\s*[A-Z]{4,}(?:\s*\(?[A-Z]{2}\)?)?\s*$|TRANSAZ|AUTORIZ|A\.?R\.?Q\.?C|\bTML\b|\bSTAN\b|C\.\s?ABI|\bAPPL\b|PAGO\s?BAN|RICEVUTA|\bPOS\b|ONLINE|CTLS|\bICC\b|CREDITO|VAL[OU]RE\s*SC|[IT]OTALE|TOT\.|\bIAD\b|\bATC\b|\bTCC\b|\bTVR\b|PAN:|EXP:|\bAUT\.|OPER\.|ESER|A\.?I\.?I\.?C|CARTA|\bNOTE\b|TICKET|ACQUISTO|ESERC|CVM|MATRICOLA|FIRMA|NUMERO DI|SERIE|TASS[OE]|ARTICOL[OI]\/|REPARTO|RETTIFICA)/i;
   const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*(?:€|EUR|[A-Z])?$");
   const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?(?:€|EUR)?\\s*" + PRICE + "\\s*(?:€|[A-Z])?$");
   const qtyRes = [
@@ -427,8 +437,9 @@ function parseReceipt(text){
   const inizioArticoli = Math.max(lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), lines.findIndex(l => /DOCUMENTO\s*COMMERCIALE|SCONTRINO/i.test(l)));
   for(let i = 0; i < lines.length; i++){
     const l = lines[i];
-    if(prezzoEan && /[A-Za-z]{3,}/.test(l) && !/^\d{8,14}/.test(l) && !new RegExp("(?:€|EUR)\\s*" + PRICE).test(l) && !/^(TCC|ATC|TVR|AUT|APPL|IAD|A\.?ID|TML|STAN|ESER|COPIA)\b/i.test(l)){
-      out.articoli.push({descrizione:pulisci(l.replace(/\s+(N\.?\s?CARTA|C\.?\s?ABI|APPL|ATC|TCC|IAD|IMPORTO).*$/i, "")), quantita:1, prezzo:prezzoEan, cod:true}); prezzoEan = null; pending = ""; testoPrima = ""; continue;
+    if(prezzoEan && /[A-Z]{3,}/.test(l) && !SKIP.test(l) && !/^\d{8,14}/.test(l) && !new RegExp("(?:€|EUR)\\s*" + PRICE).test(l) && !/^(TCC|ATC|TVR|AUT|APPL|IAD|A\.?ID|TML|STAN|ESER|COPIA)\b/i.test(l)){
+      const mm = l.match(/(?:^|\s)([A-Z][A-Z0-9."'\/+,-]{2,}(?:\s+[A-Z0-9][A-Z0-9."'\/+,-]*)*)\s*$/), col = mm && /\b[a-z]{4,}\b.*\b[a-z]{4,}/.test(l.slice(0, mm.index)) ? mm[1] : null;   // colonna di testo pulita dopo i caratteri a caso
+      out.articoli.push({descrizione:pulisci((col || l).replace(/\s+(N\.?\s?CARTA|C\.?\s?ABI|APPL|ATC|TCC|IAD|IMPORTO).*$/i, "")), quantita:1, prezzo:prezzoEan, cod:true}); prezzoEan = null; pending = ""; testoPrima = ""; continue;
     }
     if(SKIP.test(l)){ pending = ""; continue; }
     // formato Decathlon: descrizione, poi "codice  1x 35.99"
@@ -438,13 +449,27 @@ function parseReceipt(text){
       if(/[A-Za-z]{3,}/.test(prec) && !SKIP.test(prec)){ const q = +dec[1] || 1, u = num(dec[2]); out.articoli.push({descrizione:pulisci(prec), quantita:q, prezzo:Math.round(u * q * 100) / 100, cod:true}); if(/^\s*\d+[.,]\d{2}\s*€/.test(lines[i + 1] || "")) i++; }
       pending = ""; testoPrima = ""; continue;
     }
+    // formato Leroy Merlin: descrizione, poi "J 8003341094105  3,99"
+    const lm = l.match(new RegExp("^[JjKk]{1,2}\\s*\\d{12,13}(?:\\s+" + PRICE + ")?\\s*$"));
+    if(lm){
+      const prec = (lines[i - 1] || "").trim();
+      if(lm[1] && /[A-Za-z]{3,}/.test(prec) && !SKIP.test(prec)) out.articoli.push({descrizione:pulisci(prec), quantita:1, prezzo:num(lm[1]), cod:true});
+      pending = ""; testoPrima = ""; continue;
+    }
+    // formato Decathlon: descrizione, poi "1x 2.49  2.49 € A"
+    const dx = l.match(new RegExp("^(?:\\d{5,10}\\s+)?(\\d{1,3})\\s*[xX]\\s*" + PRICE + "\\s+" + PRICE + "\\s*€"));
+    if(dx){
+      const prec = (lines[i - 1] || "").replace(/\s+Senza\s+tagl\s?i\s?a\s*$/i, "").trim();
+      if(/[A-Za-z]{3,}/.test(prec) && !SKIP.test(prec) && !/^Numero di serie/i.test(prec)) out.articoli.push({descrizione:pulisci(prec), quantita:+dx[1] || 1, prezzo:num(dx[3]), cod:true});
+      pending = ""; testoPrima = ""; continue;
+    }
     // formato con codice a barre prima della descrizione (es. Bricoman): "8000061015069 €0,95" poi il nome
     const ean = l.match(new RegExp("^\\d{8,14}(?:\\s+(?:€|EUR)\\s*" + PRICE + "|\\s+" + PRICE + "\\s*$)?"));
     if(ean){
       prezzoEan = ean[1] ? num(ean[1]) : (onlyPrice.test(lines[i + 1] || "") ? num(lines[++i].match(onlyPrice)[1]) : null);
       continue;
     }
-    if(prezzoEan && /[A-Za-z]{3,}/.test(l) && !new RegExp("(?:€|EUR)\\s*" + PRICE).test(l) && !/^(TCC|ATC|TVR|AUT|APPL|IAD|A\.?ID|TML|STAN|ESER)\b/i.test(l)){
+    if(prezzoEan && /[A-Z]{3,}/.test(l) && !new RegExp("(?:€|EUR)\\s*" + PRICE).test(l) && !/^(TCC|ATC|TVR|AUT|APPL|IAD|A\.?ID|TML|STAN|ESER)\b/i.test(l)){
       out.articoli.push({descrizione:pulisci(l), quantita:1, prezzo:prezzoEan, cod:true}); prezzoEan = null; pending = ""; testoPrima = ""; continue;
     }
     let qm = null, qi = null;
@@ -483,6 +508,8 @@ function parseReceipt(text){
       testoPrima = i > inizioArticoli && /^[A-Z0-9À-Ù"'.,\/ -]{6,}$/.test(l) && /[A-Z]{3,}/.test(l) && !new RegExp(PRICE).test(l) && !/S\.?R\.?L|S\.?P\.?A|SNC|VIA |DOCUMENTO|COMMERCIALE|SCONTRINO/i.test(l) ? l : "";
     }
   }
+  const aCaso = d => /[a-z][A-Z]\S*[a-z][A-Z]\S*[a-z][A-Z]/.test(d) || d.split(/\s+/).some(w => w.length >= 14 && /[a-z]/.test(w) && /[A-Z]/.test(w) && /\d/.test(w));
+  out.articoli = out.articoli.filter(a => !aCaso(a.descrizione || ""));   // firma elettronica / caratteri a caso
   // Scontrini letti "a colonne" (prezzi spostati di una riga): rifà l'abbinamento in ordine
   // e lo tiene solo se la somma torna con il totale
   const tutti = [...all.matchAll(new RegExp(PRICE, "g"))].map(m => num(m[1])).filter(v => v > 0);
@@ -562,7 +589,7 @@ function parseReceipt(text){
 }
 function nomeDaArticoli(art){
   if(!art.length) return "";
-  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || "") && !/SHOPPER|BORS[AE] RIUTIL|SACCH|BUSTA|TRANSAZ|AUTORIZ|[IT]OTALE|PAGOB|BANCOMAT|CARTE?\b|\d{5}\s*-|^\W*\w{1,3}\W*$/i.test(a.descrizione || ""));
+  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || "") && !/[a-z][A-Z]\S*[a-z][A-Z]\S*[a-z][A-Z]/.test(a.descrizione || "") && !/SHOPPER|BORS[AE] RIUTIL|SACCH|BUSTA|TRANSAZ|AUTORIZ|[IT]OTALE|PAGOB|BANCOMAT|CARTE?\b|^ABI\b|ARTI\s?COLO|SMALTIM|^INOTE$|\bVIA\s|MINISTRATIV|\b[LI1]VA\s+AL\b|DESCR|\d{5}\s*-|^\W*\w{1,3}\W*$/i.test(a.descrizione || ""));
   if(!buoni.length) return "";
   return nomeBello([...buoni].sort((a, b) => (b.raee ? 1 : 0) - (a.raee ? 1 : 0) || (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione);
 }
@@ -955,8 +982,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.1";
+const VERSIONE = "v4.2";
 const CRONOLOGIA = [
+  {v:"v4.2", d:"20/11/2026", n:[
+    "Date più giuste: corregge gli anni letti male (es. 2029 → 2020) e scarta le date nel futuro",
+    "Negozi sconosciuti: usa la ragione sociale (es. TIM Retail, Mira, Sinica) invece di righe a caso",
+    "Leggi meglio Leroy Merlin, Decathlon e Bricoman; il nome non prende più firme elettroniche, indirizzi o costi di smaltimento"
+  ]},
   {v:"v4.1", d:"20/11/2026", n:[
     "Lettura scontrini migliorata con 100 scontrini veri del tuo archivio",
     "Riconosce meglio il negozio anche con scritte rovinate (es. Center Casa)",

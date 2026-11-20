@@ -50,6 +50,20 @@ public class MainActivity extends Activity {
 
     private Result treeResult, authResult;
     static final String HOST = "appassets.androidplatform.net";
+    /** true mentre l'app è sullo schermo (serve all'aggiornamento automatico). */
+    static volatile boolean inPrimoPiano;
+
+    @Override
+    protected void onPause() {
+        inPrimoPiano = false;
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        Updater.seInAttesa(this);   // aggiornamento scaricato: si installa ora che l'app non è in uso
+    }
     /** L'interfaccia viene aggiornata da qui: basta caricare index.html su GitHub. */
     static final String WEB_URL =
             "https://raw.githubusercontent.com/vitobsta-cloud/Garanzie-Scontrini-app/main/app/src/main/assets/www/index.html";
@@ -268,6 +282,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        inPrimoPiano = true;
         if (web != null) web.evaluateJavascript("window.onAndroidResume && window.onAndroidResume()", null);
         checkWebUpdate(false);
     }

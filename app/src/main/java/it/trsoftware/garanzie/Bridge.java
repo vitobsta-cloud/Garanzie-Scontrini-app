@@ -412,6 +412,40 @@ public class Bridge {
         });
     }
 
+    /** Scarica l'aggiornamento in sottofondo: verrà installato da solo quando si esce dall'app. */
+    @JavascriptInterface
+    public void aggiornaInSilenzio(String id) {
+        async(pool, id, () -> {
+            if (!act.getPackageManager().canRequestPackageInstalls()) return "permesso";
+            Updater.pronto = Updater.scarica(act);
+            return "pronto";
+        });
+    }
+
+    /** Aggiorna subito (tasto "Cerca aggiornamenti"). */
+    @JavascriptInterface
+    public void aggiornaOra(String id) {
+        async(pool, id, () -> {
+            if (!act.getPackageManager().canRequestPackageInstalls()) {
+                Intent s = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + act.getPackageName()));
+                s.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                act.runOnUiThread(() -> act.startActivity(s));
+                return "permesso";
+            }
+            Updater.installa(act, Updater.scarica(act));
+            return "ok";
+        });
+    }
+
+    /** Ultimo errore dell'aggiornamento automatico (e lo cancella). */
+    @JavascriptInterface
+    public String erroreAggiornamento() {
+        SharedPreferences p = act.getSharedPreferences("agg", Context.MODE_PRIVATE);
+        String e = p.getString("errore", "");
+        p.edit().remove("errore").apply();
+        return e;
+    }
+
     /** Versione dell'APK installato: l'interfaccia la usa per proporre la reinstallazione quando serve. */
     @JavascriptInterface
     public int getVersionCode() {

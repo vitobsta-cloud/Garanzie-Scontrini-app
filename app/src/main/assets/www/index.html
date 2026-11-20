@@ -754,8 +754,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.7";
+const VERSIONE = "v2.8";
 const CRONOLOGIA = [
+  {v:"v2.8", d:"20/11/2026", n:[
+    "Aggiornamenti dell'app completamente automatici: scaricati in sottofondo e installati quando esci dall'app, senza domande (Android 12 e successivi)"
+  ]},
   {v:"v2.7", d:"20/11/2026", n:[
     "Aggiornamenti: un solo messaggio. Se serve aggiornare l'app, non chiede prima anche la grafica (l'app nuova contiene già tutto)",
     "Dopo un aggiornamento non lo ripropone subito; in Informazioni si vede anche la versione dell'app Android"
@@ -1755,9 +1758,28 @@ setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e 
 
 /* Aggiornamento dell'app Android (APK): la grafica si aggiorna da sola, ma alcune novità
    (es. la stampa) richiedono di reinstallare l'app sopra quella attuale. */
-const APK_MINIMO = 12, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
-function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.stampaPdf ? 12 : A.installApk ? 10 : A.stampa ? 9 : 8; }
+const APK_MINIMO = 13, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.aggiornaInSilenzio ? 13 : A.stampaPdf ? 12 : A.installApk ? 10 : A.stampa ? 9 : 8; }
+let aggSilenzioAvviato = false;
 function proponiApk(forza){
+  if(versioneApk() >= APK_MINIMO) return false;
+  // app che sa aggiornarsi da sola: niente domande. Scarica in sottofondo e installa quando esci dall'app
+  if(A && A.aggiornaInSilenzio){
+    let err = ""; try{ err = A.erroreAggiornamento() || ""; }catch(e){}
+    if(forza && A.aggiornaOra){
+      toast("Aggiorno l'app… si chiuderà e sarà subito pronta.");
+      call("aggiornaOra").then(r => { if(r === "permesso") toast("Consenti \"Installa app\" per Garanzie e Scontrini, poi torna e riprova.", true); }).catch(e => toast(e.message, true));
+      return true;
+    }
+    if(!err){
+      if(!aggSilenzioAvviato){ aggSilenzioAvviato = true; call("aggiornaInSilenzio").then(r => { if(r === "permesso"){ aggSilenzioAvviato = false; proponiApkDialogo(); } }).catch(() => { aggSilenzioAvviato = false; }); }
+      return true;
+    }
+    // se l'installazione automatica non è riuscita si torna al messaggio con il tasto
+  }
+  return proponiApkDialogo(forza);
+}
+function proponiApkDialogo(forza){
   if(versioneApk() >= APK_MINIMO) return false;
   if(!forza){ try{ if(localStorage.getItem("gs_apk_rinvio") === todayISO()) return true; const t = +localStorage.getItem("gs_apk_tentato") || 0; if(Date.now() - t < 10 * 60 * 1000) return true; }catch(e){} }
   if(occupato() || document.querySelector(".modal")){ if(!forza) setTimeout(() => proponiApk(false), 60000); return true; }

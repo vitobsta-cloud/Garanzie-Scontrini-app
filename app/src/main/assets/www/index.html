@@ -680,8 +680,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.0";
+const VERSIONE = "v2.1";
 const CRONOLOGIA = [
+  {v:"v2.1", d:"20/11/2026", n:[
+    "Avviso automatico quando serve installare la nuova versione dell'app (APK): un tocco su Scarica, si installa sopra e i dati restano"
+  ]},
   {v:"v2.0", d:"20/11/2026", n:[
     "Tasto 🖨️ Stampa nella scheda acquisto e in Acquisisci: scheda A4 con dati, articoli e foto dello scontrino (stampante o PDF)",
     "Lettura scontrini migliorata: le righe \"Cad 3,49 Pz. 2\" diventano la quantità dell'articolo sopra, tolti i codici articolo",
@@ -1606,6 +1609,7 @@ function renderImpInfo(){
   $("#iCron").onclick = showCronologia;
   $("#iCheck").onclick = () => {
     if(A && A.getPendingUpdate && A.getPendingUpdate()){ updRinviato = false; proponiAggiornamento(); return; }
+    if(proponiApk(true)) return;
     if(A && A.checkUpdateNow){ A.checkUpdateNow(); esito($("#iOut"), null, "Controllo su GitHub…"); setTimeout(() => { if(!document.querySelector(".modal")) esito($("#iOut"), true, "Hai già l'ultima versione."); }, 6000); }
     else esito($("#iOut"), true, "Anteprima: nell'app qui controlla se c'è una versione nuova.");
   };
@@ -1650,6 +1654,26 @@ function proponiAggiornamento(){
 window.onWebUpdate = proponiAggiornamento;
 try{ if(sessionStorage.getItem("gs_aggiornata")){ sessionStorage.removeItem("gs_aggiornata"); setTimeout(() => toast("✅ App aggiornata alla " + VERSIONE), 600); } }catch(e){}
 setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e non ancora applicata
+
+/* Aggiornamento dell'app Android (APK): la grafica si aggiorna da sola, ma alcune novità
+   (es. la stampa) richiedono di reinstallare l'app sopra quella attuale. */
+const APK_MINIMO = 9, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.stampa ? 9 : 8; }
+function proponiApk(forza){
+  if(versioneApk() >= APK_MINIMO) return false;
+  if(!forza){ try{ if(localStorage.getItem("gs_apk_rinvio") === todayISO()) return true; }catch(e){} }
+  if(occupato() || document.querySelector(".modal")){ if(!forza) setTimeout(() => proponiApk(false), 60000); return true; }
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box"><h2>📲 Nuova versione dell'app</h2>
+    <p style="margin:4px 0 8px;line-height:1.5">C'è una versione nuova dell'app da installare (serve per la stampa e per le prossime novità).</p>
+    <p class="muted" style="margin:0 0 8px">Tocca <b>Scarica</b>, apri il file scaricato e scegli <b>Installa</b>/<b>Aggiorna</b>. Si installa sopra quella attuale: dati e impostazioni restano.</p>
+    <div class="btns"><button class="btn" id="apkDopo">Più tardi</button><button class="btn primary" id="apkOra">⬇️ Scarica</button></div></div>`;
+  document.body.appendChild(m);
+  $("#apkDopo").onclick = () => { try{ localStorage.setItem("gs_apk_rinvio", todayISO()); }catch(e){} m.remove(); toast("Te lo ricordo domani."); };
+  $("#apkOra").onclick = () => { m.remove(); location.href = APK_LINK; };
+  return true;
+}
+setTimeout(() => proponiApk(false), 4000);
 if(A && A.setArchivio && archivioScelto()) A.setArchivio(archivioScelto());
 /* Collegamento all'archivio: prima un controllo veloce (pallino verde subito),
    poi, solo se serve, l'aggiornamento dell'elenco in sottofondo. I documenti si scaricano quando li apri. */

@@ -355,6 +355,16 @@ public class Bridge {
         });
     }
 
+    /** Versione dell'APK installato: l'interfaccia la usa per proporre la reinstallazione quando serve. */
+    @JavascriptInterface
+    public int getVersionCode() {
+        try {
+            return (int) act.getPackageManager().getPackageInfo(act.getPackageName(), 0).getLongVersionCode();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     // tenuta in memoria finché Android non ha preparato la stampa
     private WebView printView;
 

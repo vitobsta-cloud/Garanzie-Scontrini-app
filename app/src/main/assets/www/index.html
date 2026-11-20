@@ -125,6 +125,11 @@ textarea{min-height:64px;resize:vertical}
 .items td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
 .items td.num{text-align:right}
 .items input{padding:6px;font-size:13.5px}
+.artline{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.artline span{color:var(--muted);font-size:13px}
+.artline .q{width:58px}
+.artline .p{width:92px}
+.artline .btn.small{padding:6px 10px}
 .entry{display:flex;gap:12px;align-items:center;padding:14px;background:var(--card);border:1.5px solid #dcdcdc;border-radius:16px;margin-bottom:8px}
 .entry .ico{width:46px;height:46px;flex:none;border-radius:9px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:21px}
 .entry .txt{flex:1;min-width:0}
@@ -361,30 +366,54 @@ function parseReceipt(text){
   else if(/CONTANT/i.test(all)) out.tipoPagamento = "Contanti";
   // indirizzo, città, telefono
   const ind = lines.find(l => /^(via|viale|piazza|piazzale|corso|largo|strada|s\.?s\.?|sp|loc\.?)\b/i.test(l)); if(ind) out.negozioIndirizzo = ind.slice(0, 60);
-  const cap = all.match(/\b\d{5}\s*[-–]?\s*([A-Z][A-Za-zÀ-ù' ]{2,30})/); if(cap) out.negozioCitta = cap[1].trim();
+  const cap = all.match(/\b\d{5}\s*[-–]?\s*([A-Z][A-Za-zÀ-ù' ]{2,30})/); if(cap && !/^(via|viale|piazza|corso|largo|strada|loc)\b/i.test(cap[1].trim()) && /[A-Za-zÀ-ù]{3,}/.test(cap[1])) out.negozioCitta = cap[1].trim().replace(/\s+[A-Za-z]$/, "");
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
-  // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga o prezzo sulla riga dopo
-  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZIONE)/i;
+  // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
+  // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
+  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZIONE|DETTAGLIO|FORME DI)/i;
   const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*[A-Z]?$");
   const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?$");
+  const qtyRes = [
+    [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
+    [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*" + PRICE, "i"), 2, 1]
+  ];
+  const pulisci = d => d.replace(/\s+\d{1,2}\s?%.*$/, "").replace(/[\s-]+0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  let pending = "";
   for(let i = 0; i < lines.length; i++){
-    const l = lines[i]; if(SKIP.test(l)) continue;
+    const l = lines[i];
+    if(SKIP.test(l)){ pending = ""; continue; }
+    let qm = null, qi = null;
+    for(const [re, pu, pq] of qtyRes){ const m = l.match(re); if(m){ qm = m; qi = [pu, pq]; break; } }
+    if(qm){
+      const unit = num(qm[qi[0]]), qty = parseInt(qm[qi[1]], 10);
+      if(unit > 0 && qty > 0 && qty < 1000){
+        const tot = Math.round(unit * qty * 100) / 100, last = out.articoli[out.articoli.length - 1];
+        if(pending){ out.articoli.push({descrizione:pulisci(pending), quantita:qty, prezzo:tot}); pending = ""; }
+        else if(last && (last.quantita || 1) === 1 && Math.abs((last.prezzo || 0) - tot) < 0.02) last.quantita = qty;
+      }
+      continue;
+    }
     let m = l.match(lineRe), desc, price;
     if(m){ desc = m[1]; price = num(m[2]); }
     else if(/[A-Za-z]{3,}/.test(l) && lines[i + 1] && onlyPrice.test(lines[i + 1]) && !SKIP.test(lines[i + 1])){
       desc = l; price = num(lines[i + 1].match(onlyPrice)[1]); i++;
     }
     if(desc && price !== null && price > 0){
-      desc = desc.replace(/\s+\d{1,2}\s?%$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").trim();
+      if(qtyRes.some(([re]) => re.test(desc))){ pending = ""; continue; }
+      desc = pulisci(desc);
       let qty = 1; const q = desc.match(/^(\d{1,2})\s*[xX*]\s+(.*)$/); if(q){ qty = +q[1]; desc = q[2]; }
       if(desc.length >= 2) out.articoli.push({descrizione:desc, quantita:qty, prezzo:price});
-    }
+      pending = "";
+    }else if(/[A-Za-z]{3,}/.test(l) && (/\d{1,2}\s?%\s*$/.test(l) || /[\s-]0?\d{6,8}\s*$/.test(l))) pending = l;
+    else pending = "";
   }
   return out;
 }
 function nomeDaArticoli(art){
   if(!art.length) return "";
-  const top = [...art].sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione;
+  const buoni = art.filter(a => /[A-Za-z]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || ""));
+  if(!buoni.length) return "";
+  const top = [...buoni].sort((a, b) => (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione;
   return top.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()).split(" ").slice(0, 4).join(" ");
 }
 
@@ -463,6 +492,57 @@ async function refreshFromNas(quiet){
     if(!quiet) toast(e.message, true);
     return false;
   }
+}
+/* ---------- Stampa scheda A4 (come il programma Windows) ---------- */
+function htmlScheda(a, imgs, altri){
+  const sc = scadenzaInfo(a), r = (k, v) => v ? `<tr><th>${k}</th><td>${v}</td></tr>` : "";
+  const art = (a.articoli || []).filter(x => x.descrizione);
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(a.nome || "Scheda acquisto")}</title><style>
+  @page{size:A4;margin:14mm}
+  body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12pt;margin:0}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A1A1A;padding-bottom:6px;margin-bottom:12px}
+  .top .b{font-size:10pt;color:#555}.top .b b{color:#0b7bc0}
+  h1{font-size:20pt;margin:0 0 2px}.neg{color:#444;margin-bottom:10px}
+  table{border-collapse:collapse;width:100%;margin:6px 0 12px}
+  th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #ddd;vertical-align:top}
+  th{width:34%;color:#555;font-weight:normal}
+  .art td.n{text-align:right;white-space:nowrap}
+  .stato{display:inline-block;padding:3px 10px;border-radius:12px;border:1px solid #999;font-weight:bold}
+  h2{font-size:13pt;margin:14px 0 4px}
+  .doc{page-break-before:always;text-align:center}
+  .doc img{max-width:100%;max-height:250mm;object-fit:contain}
+  .doc .cap{font-size:9pt;color:#666;margin-top:4px}
+  .foot{font-size:9pt;color:#777;margin-top:16px}
+  </style></head><body>
+  <div class="top"><div><h1>${esc(a.nome || "(senza nome)")}</h1><div class="neg">${esc(a.negozio || "")}</div></div><div class="b"><b>TR/software</b><br>Garanzie &amp; Scontrini</div></div>
+  <p><span class="stato">${esc(sc.label)}</span></p>
+  <table>
+    ${r("Data acquisto", fmtDate(a.dataAcquisto))}
+    ${r("Prezzo", esc(euro(a.prezzo)))}
+    ${r("Garanzia", a.garanziaMesi ? a.garanziaMesi + " mesi" : "")}
+    ${r("Scadenza garanzia", sc.date ? fmtDate(sc.date) : "")}
+    ${r("N. scontrino", esc(a.numeroScontrino))}
+    ${r("Pagamento", esc(a.tipoPagamento))}
+    ${r("Negozio", esc([a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · ")))}
+    ${r("Cartella", esc((a.cartella || (typeof folderFor === "function" ? folderFor(a) : "")).replace(/\//g, "\\")))}
+  </table>
+  ${art.length ? `<h2>Articoli</h2><table class="art">${art.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="n">${esc(euro(x.prezzo))}</td></tr>`).join("")}</table>` : ""}
+  ${a.note ? `<h2>Note</h2><div style="white-space:pre-wrap">${esc(a.note)}</div>` : ""}
+  ${altri.length ? `<p class="foot">Altri documenti nella cartella (non stampati qui): ${altri.map(esc).join(", ")}</p>` : ""}
+  <p class="foot">Stampato il ${fmtDate(todayISO())} con Garanzie &amp; Scontrini ${esc(VERSIONE)}</p>
+  ${imgs.map(f => `<div class="doc"><img src="${f.src}"><div class="cap">${esc(f.name)}</div></div>`).join("")}
+  </body></html>`;
+}
+async function stampaScheda(a, imgs, altri){
+  const html = htmlScheda(a, imgs || [], altri || []), titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
+  if(A && A.stampa){ A.stampa(html, titolo); return; }
+  if(A && A.openFile){
+    A.openFile(titolo.replace(/[^\w\- ]+/g, "_") + ".html", "text/html", btoa(unescape(encodeURIComponent(html))));
+    toast("Scheda aperta nel browser: stampala dal menu ⋮ → Condividi → Stampa. Per stampare direttamente reinstalla l'app dal link (non serve disinstallare).");
+    return;
+  }
+  const w = window.open("", "_blank"); if(!w) throw new Error("Stampa non disponibile qui.");
+  w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400);
 }
 /* ---------- Import dal programma Windows (CSV "Esporta CSV" o catalogo JSON) ---------- */
 function decodificaTesto(bytes){
@@ -600,8 +680,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v1.9";
+const VERSIONE = "v2.0";
 const CRONOLOGIA = [
+  {v:"v2.0", d:"20/11/2026", n:[
+    "Tasto 🖨️ Stampa nella scheda acquisto e in Acquisisci: scheda A4 con dati, articoli e foto dello scontrino (stampante o PDF)",
+    "Lettura scontrini migliorata: le righe \"Cad 3,49 Pz. 2\" diventano la quantità dell'articolo sopra, tolti i codici articolo",
+    "Articoli più comodi da correggere: descrizione a tutta larghezza e tasto ⭐ Nome per usarlo come nome oggetto"
+  ]},
   {v:"v1.9", d:"19/11/2026", n:[
     "Backup: nuova funzione \"Dati dal programma Windows\" per portare nell'app prezzi, note e altri dati inseriti sul PC",
     "I dati importati vengono salvati nei file garanzia.json delle cartelle: grafici con la spesa in euro"
@@ -804,6 +889,7 @@ async function renderAcquisisci(edit){
       <p class="muted" id="destPreview"></p>
       <div class="btns">
         ${isEdit ? `<button class="btn" id="bAnnulla">Annulla</button>` : `<button class="btn" id="bReset">Svuota</button>`}
+        <button class="btn" id="bStampaA">🖨️ Stampa</button>
         <button class="btn primary" id="bSalva">💾 Salva</button>
       </div>
     </div>`;
@@ -818,6 +904,17 @@ async function renderAcquisisci(edit){
   if($("#bClaude")) $("#bClaude").onclick = () => doLeggi(true);
   $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
   $("#bSalva").onclick = doSalva;
+  $("#bStampaA").onclick = async () => {
+    readForm();
+    const b = $("#bStampaA"); b.disabled = true;
+    try{
+      const imgs = draft.pendingFiles.filter(f => f.mime.startsWith("image/")).map(f => ({name:f.name, src:dataUrl(f)}));
+      const altri = draft.pendingFiles.filter(f => !f.mime.startsWith("image/")).map(f => f.name);
+      if(draft._edit) for(const f of (draft.files || [])){ if(isImg(f.name)){ try{ imgs.push({name:f.name, src:`data:${mimeOf(f.name)};base64,` + await call("nasRead", draft.cartella + "/" + f.name)}); }catch(e){ altri.push(f.name); } } else if(f.name !== "garanzia.json") altri.push(f.name); }
+      await stampaScheda(draft, imgs, altri);
+    }catch(e){ toast(e.message, true); }
+    b.disabled = false;
+  };
   if($("#bReset")) $("#bReset").onclick = async () => { if(await conferma("Svuotare il modulo?", "Svuota")){ draft = newDraft(); lastOcr = ""; renderAcquisisci(); } };
   if($("#bAnnulla")) $("#bAnnulla").onclick = () => { draft = null; window.onAndroidBack(); };
 }
@@ -846,12 +943,20 @@ function drawThumbs(){
   $("#thumbs").querySelectorAll(".thumb[data-i]").forEach(t => t.onclick = () => showLocal(draft.pendingFiles[+t.dataset.i]));
 }
 function drawItems(){
-  $("#itemsTbl").innerHTML = draft.articoli.map((it, i) => `<tr data-i="${i}">
-     <td><input class="d" value="${esc(it.descrizione)}" placeholder="Descrizione"></td>
-     <td style="width:50px"><input class="q" type="number" min="1" value="${esc(it.quantita ?? 1)}"></td>
-     <td style="width:84px"><input class="p" type="number" step="0.01" value="${esc(it.prezzo ?? "")}" placeholder="€"></td>
-     <td style="width:34px"><button class="btn small" data-rm="${i}">✕</button></td></tr>`).join("") || `<tr><td class="muted">Nessun articolo.</td></tr>`;
+  $("#itemsTbl").innerHTML = draft.articoli.map((it, i) => `<tr data-i="${i}"><td>
+     <input class="d" value="${esc(it.descrizione)}" placeholder="Descrizione articolo">
+     <div class="artline">
+       <span>Q.tà</span><input class="q" type="number" min="1" inputmode="numeric" value="${esc(it.quantita ?? 1)}">
+       <span>€</span><input class="p" type="number" step="0.01" inputmode="decimal" value="${esc(it.prezzo ?? "")}" placeholder="0,00">
+       <button class="btn small" data-nome="${i}" title="Usa come nome oggetto">⭐ Nome</button>
+       <button class="btn small" data-rm="${i}" title="Togli">✕</button>
+     </div></td></tr>`).join("") || `<tr><td class="muted">Nessun articolo.</td></tr>`;
   $("#itemsTbl").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { readForm(); draft.articoli.splice(+b.dataset.rm, 1); drawItems(); });
+  $("#itemsTbl").querySelectorAll("[data-nome]").forEach(b => b.onclick = () => {
+    readForm(); const it = draft.articoli[+b.dataset.nome]; if(!it || !it.descrizione) return;
+    draft.nome = it.descrizione.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()); $("#fNome").value = draft.nome; updPreview();
+    toast("Nome oggetto: " + draft.nome);
+  });
 }
 async function addFiles(list){
   if(!draft) draft = newDraft();
@@ -1012,6 +1117,7 @@ async function renderDettaglio(id){
       <div class="thumbs" id="dThumbs">${files.map((f, i) => `<div class="thumb" data-i="${i}">${f.local && f.mime.startsWith("image/") ? `<img src="${dataUrl(f)}">` : (isImg(f.name) ? "🖼️" : "📄") + "<br>" + esc(f.name.slice(0, 22))}</div>`).join("") || `<span class="muted">Nessuno.</span>`}</div>
       <div class="btns">
         <button class="btn" id="bEdit">✏️ Modifica</button>
+        <button class="btn" id="bPrint">🖨️ Stampa</button>
         <button class="btn danger" id="bDel">🗑️ Elimina</button>
       </div>
       ${a.hasInfo ? "" : `<p class="muted">Dati ricavati dal nome della cartella. Con "Modifica" puoi aggiungere prezzo, mesi di garanzia e note: vengono salvati nel file garanzia.json della cartella.</p>`}
@@ -1025,6 +1131,19 @@ async function renderDettaglio(id){
     t.style.opacity = 1;
   });
   $("#bEdit").onclick = () => { draft = null; setView("acquisisci", a); };
+  $("#bPrint").onclick = async () => {
+    const b = $("#bPrint"); b.disabled = true; b.textContent = "⏳ Preparo…";
+    try{
+      const imgs = [], altri = [];
+      for(const f of files){
+        if(f.local){ if(f.mime.startsWith("image/")) imgs.push({name:f.name, src:dataUrl(f)}); else altri.push(f.name); continue; }
+        if(isImg(f.name)){ try{ imgs.push({name:f.name, src:`data:${mimeOf(f.name)};base64,` + await call("nasRead", a.cartella + "/" + f.name)}); }catch(e){ altri.push(f.name); } }
+        else if(f.name !== "garanzia.json") altri.push(f.name);
+      }
+      await stampaScheda(a, imgs, altri);
+    }catch(e){ toast(e.message, true); }
+    b.disabled = false; b.textContent = "🖨️ Stampa";
+  };
   $("#bDel").onclick = async () => {
     if(a.daCaricare && !(a.files || []).length){
       if(!(await conferma("Eliminare questo acquisto non ancora caricato?", "Elimina", true))) return;

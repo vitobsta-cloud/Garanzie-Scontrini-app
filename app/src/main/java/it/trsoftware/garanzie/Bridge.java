@@ -8,7 +8,12 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
@@ -346,6 +351,44 @@ public class Bridge {
                 view(name, mime, Base64.decode(base64, Base64.DEFAULT));
             } catch (Exception e) {
                 toast(Nas.friendly(e));
+            }
+        });
+    }
+
+    // tenuta in memoria finché Android non ha preparato la stampa
+    private WebView printView;
+
+    /** Stampa (o salva in PDF) una scheda A4 preparata dall'interfaccia. */
+    @JavascriptInterface
+    public void stampa(String html, String titolo) {
+        act.runOnUiThread(() -> {
+            try {
+                WebView w = new WebView(act);
+                w.getSettings().setJavaScriptEnabled(false);
+                w.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return true; }
+
+                    @Override
+                    public void onPageFinished(WebView v, String url) {
+                        if (printView != v) return;
+                        try {
+                            String nome = (titolo == null || titolo.isEmpty()) ? "Scheda acquisto" : titolo;
+                            PrintManager pm = (PrintManager) act.getSystemService(Context.PRINT_SERVICE);
+                            PrintDocumentAdapter ad = v.createPrintDocumentAdapter(nome);
+                            pm.print(nome, ad, new PrintAttributes.Builder()
+                                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                    .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
+                                    .build());
+                        } catch (Exception e) {
+                            toast("Stampa non riuscita: " + e.getMessage());
+                        }
+                    }
+                });
+                printView = w;
+                w.loadDataWithBaseURL("https://appassets.androidplatform.net/", html, "text/html", "UTF-8", null);
+            } catch (Exception e) {
+                toast("Stampa non riuscita: " + e.getMessage());
             }
         });
     }

@@ -927,8 +927,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.9";
+const VERSIONE = "v4.0";
 const CRONOLOGIA = [
+  {v:"v4.0", d:"20/11/2026", n:[
+    "Prova sull'archivio su 100 scontrini invece di 20"
+  ]},
   {v:"v3.9", d:"20/11/2026", n:[
     "Lettura migliorata con 20 scontrini veri dell'archivio: date con lo 0 letto 9 o 8 (es. 97-99-2924 → 07-09-2024), totale scelto tra tutte le cifre del foglio",
     "Lidl: il nome dell'acquisto è l'apparecchio elettrico (righe con R davanti), non l'articolo più caro della spesa",
@@ -1802,8 +1805,8 @@ function renderImpLett(){
     </div>
     <div class="card">
       <h2>🧪 Prova sull'archivio</h2>
-      <p class="muted">Rilegge 20 scontrini veri già salvati nell'archivio e controlla se negozio, data e importo vengono riconosciuti. Alla fine crea il file <b>prova_lettura</b> nella cartella Download: mandalo nella chat per migliorare la lettura.</p>
-      <div class="btns"><button class="btn primary" id="tProva">🧪 Avvia la prova</button></div>
+      <p class="muted">Rilegge fino a 100 scontrini veri già salvati nell'archivio (circa 5-10 minuti: tieni l'app aperta e lo schermo acceso) e controlla se negozio, data e importo vengono riconosciuti. Alla fine crea il file <b>prova_lettura</b> nella cartella Download: mandalo nella chat per migliorare la lettura.</p>
+      <div class="btns"><button class="btn primary" id="tProva">🧪 Avvia la prova (100 scontrini)</button></div>
       <div id="tOut"></div>
     </div>
     <div class="card">
@@ -1823,7 +1826,7 @@ function renderImpLett(){
     const docOk = f => /\.(jpe?g|png|webp|pdf)$/i.test(f.name) && f.name !== "garanzia.json";
     const tutti = (await allAcquisti()).filter(a => !a.daCaricare && (a.files || []).some(docOk));
     if(!tutti.length){ esito(o, false, "Nell'archivio non ci sono scontrini da provare."); return; }
-    const scelti = tutti.sort(() => Math.random() - 0.5).slice(0, 20);
+    const scelti = tutti.sort(() => Math.random() - 0.5).slice(0, 100);
     b.disabled = true; const risultati = []; let neg = 0, dat = 0, tot = 0, totNoti = 0;
     for(let i = 0; i < scelti.length; i++){
       const a = scelti[i], f = a.files.find(docOk);

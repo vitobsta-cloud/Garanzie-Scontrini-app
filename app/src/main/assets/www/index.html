@@ -370,14 +370,14 @@ function parseReceipt(text){
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
-  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZIONE|DETTAGLIO|FORME DI)/i;
+  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGLIO|FORME DI)/i;
   const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*[A-Z]?$");
   const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?$");
   const qtyRes = [
     [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
     [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*" + PRICE, "i"), 2, 1]
   ];
-  const pulisci = d => d.replace(/\s+\d{1,2}\s?%.*$/, "").replace(/[\s-]+0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  const pulisci = d => d.replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
   let pending = "";
   for(let i = 0; i < lines.length; i++){
     const l = lines[i];
@@ -407,6 +407,38 @@ function parseReceipt(text){
     }else if(/[A-Za-z]{3,}/.test(l) && (/\d{1,2}\s?%\s*$/.test(l) || /[\s-]0?\d{6,8}\s*$/.test(l))) pending = l;
     else pending = "";
   }
+  // Scontrini letti "a colonne" (prezzi spostati di una riga): rifà l'abbinamento in ordine
+  // e lo tiene solo se la somma torna con il totale
+  const tutti = [...all.matchAll(new RegExp(PRICE, "g"))].map(m => num(m[1])).filter(v => v > 0);
+  const conta = new Map(); tutti.forEach(v => conta.set(v, (conta.get(v) || 0) + 1));
+  const ripetuti = [...conta].filter(([v, c]) => c >= 2).sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+  let totale = out.prezzo;
+  if(ripetuti.length && (!totale || (conta.get(totale) || 0) < ripetuti[0][1]) && ripetuti[0][0] >= (totale || 0)) totale = ripetuti[0][0];
+  const h = lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), e = lines.findIndex((l, i) => i > h && /TOTALE|SUBTOT/i.test(l));
+  if(h >= 0 && e > h){
+    const desc = [], prezzi = [];
+    const hp = lines[h].match(new RegExp(PRICE + "\\s*$")); if(hp) prezzi.push(num(hp[1]));
+    for(let i = h + 1; i < e; i++){
+      const l = lines[i];
+      let qm = null; for(const [re, pu, pq] of qtyRes){ const m = l.match(re); if(m){ qm = [m, pu, pq]; break; } }
+      if(qm){
+        if(desc.length) desc[desc.length - 1].quantita = parseInt(qm[0][qm[2]], 10) || 1;
+        const resto = l.slice(qm[0].index + qm[0][0].length);
+        for(const m of resto.matchAll(new RegExp(PRICE, "g"))) prezzi.push(num(m[1]));
+        continue;
+      }
+      const testo = l.replace(new RegExp("\\s*(?:\\d{1,2}\\s?%\\s*)?" + PRICE + "\\s*[A-Z]?\\s*$"), "").replace(/\s*\d{1,2}\s?%\s*$/, "");
+      for(const m of l.matchAll(new RegExp(PRICE, "g"))) prezzi.push(num(m[1]));
+      if(/[A-Za-z]{3,}/.test(testo)) desc.push({descrizione:pulisci(testo), quantita:1});
+    }
+    if(desc.length >= 2 && prezzi.length >= desc.length && totale){
+      const usa = prezzi.slice(0, desc.length), somma = Math.round(usa.reduce((x, y) => x + y, 0) * 100) / 100;
+      const sommaAtt = Math.round(out.articoli.reduce((x, a) => x + (a.prezzo || 0), 0) * 100) / 100;
+      if(Math.abs(somma - totale) < 0.02 && Math.abs(sommaAtt - totale) >= 0.02)
+        out.articoli = desc.map((d, i) => ({descrizione:d.descrizione, quantita:d.quantita, prezzo:usa[i]})).filter(a => a.descrizione.length >= 2);
+    }
+  }
+  if(totale) out.prezzo = totale;
   return out;
 }
 function nomeDaArticoli(art){
@@ -680,8 +712,15 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.1";
+const VERSIONE = "v2.3";
 const CRONOLOGIA = [
+  {v:"v2.3", d:"20/11/2026", n:[
+    "Lettura scontrini: totale corretto anche quando l'IVA è vicina alla scritta TOTALE",
+    "Lettura scontrini: prezzi abbinati agli articoli giusti anche quando la foto li sposta di una riga (es. Lidl)"
+  ]},
+  {v:"v2.2", d:"20/11/2026", n:[
+    "Aggiornamento dell'app direttamente dall'app: \"Aggiorna ora\" scarica e installa da solo, basta confermare (niente più download da cercare)"
+  ]},
   {v:"v2.1", d:"20/11/2026", n:[
     "Avviso automatico quando serve installare la nuova versione dell'app (APK): un tocco su Scarica, si installa sopra e i dati restano"
   ]},
@@ -1657,20 +1696,29 @@ setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e 
 
 /* Aggiornamento dell'app Android (APK): la grafica si aggiorna da sola, ma alcune novità
    (es. la stampa) richiedono di reinstallare l'app sopra quella attuale. */
-const APK_MINIMO = 9, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
-function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.stampa ? 9 : 8; }
+const APK_MINIMO = 10, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.installApk ? 10 : A.stampa ? 9 : 8; }
 function proponiApk(forza){
   if(versioneApk() >= APK_MINIMO) return false;
   if(!forza){ try{ if(localStorage.getItem("gs_apk_rinvio") === todayISO()) return true; }catch(e){} }
   if(occupato() || document.querySelector(".modal")){ if(!forza) setTimeout(() => proponiApk(false), 60000); return true; }
+  const auto = !!(A && A.installApk);
   const m = document.createElement("div"); m.className = "modal";
-  m.innerHTML = `<div class="box"><h2>📲 Nuova versione dell'app</h2>
-    <p style="margin:4px 0 8px;line-height:1.5">C'è una versione nuova dell'app da installare (serve per la stampa e per le prossime novità).</p>
-    <p class="muted" style="margin:0 0 8px">Tocca <b>Scarica</b>, apri il file scaricato e scegli <b>Installa</b>/<b>Aggiorna</b>. Si installa sopra quella attuale: dati e impostazioni restano.</p>
-    <div class="btns"><button class="btn" id="apkDopo">Più tardi</button><button class="btn primary" id="apkOra">⬇️ Scarica</button></div></div>`;
+  m.innerHTML = `<div class="box"><h2>🔄 Aggiornamento dell'app</h2>
+    <p style="margin:4px 0 8px;line-height:1.5">È disponibile una versione nuova dell'app. Dati e impostazioni restano.</p>
+    <p class="muted" id="apkMsg" style="margin:0 0 8px">${auto ? "Premi <b>Aggiorna ora</b> e poi <b>Aggiorna</b> nella finestra di Android." : "Tocca <b>Scarica</b>, apri il file scaricato e scegli <b>Aggiorna</b>."}</p>
+    <div class="btns"><button class="btn" id="apkDopo">Più tardi</button><button class="btn primary" id="apkOra">${auto ? "Aggiorna ora" : "⬇️ Scarica"}</button></div></div>`;
   document.body.appendChild(m);
   $("#apkDopo").onclick = () => { try{ localStorage.setItem("gs_apk_rinvio", todayISO()); }catch(e){} m.remove(); toast("Te lo ricordo domani."); };
-  $("#apkOra").onclick = () => { m.remove(); location.href = APK_LINK; };
+  $("#apkOra").onclick = async () => {
+    if(!auto){ m.remove(); location.href = APK_LINK; return; }
+    const b = $("#apkOra"), msg = $("#apkMsg"); b.disabled = true; b.textContent = "⏳ Scarico…"; msg.textContent = "Scarico la nuova versione da GitHub (qualche secondo)…";
+    try{
+      const r = await call("installApk");
+      if(r === "permesso"){ msg.innerHTML = "Solo la prima volta: attiva <b>Consenti da questa fonte</b>, torna qui e premi di nuovo <b>Aggiorna ora</b>."; b.disabled = false; b.textContent = "Aggiorna ora"; return; }
+      m.remove();
+    }catch(e){ msg.textContent = e.message; b.disabled = false; b.textContent = "Riprova"; }
+  };
   return true;
 }
 setTimeout(() => proponiApk(false), 4000);

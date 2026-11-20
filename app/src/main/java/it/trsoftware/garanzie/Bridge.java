@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.print.PrintAttributes;
@@ -352,6 +353,59 @@ public class Bridge {
             } catch (Exception e) {
                 toast(Nas.friendly(e));
             }
+        });
+    }
+
+    private static final String APK_URL = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+
+    /**
+     * Scarica l'ultima versione dell'app da GitHub e apre direttamente l'installazione
+     * (Android chiede solo la conferma "Aggiorna"). Risponde "permesso" se prima bisogna
+     * consentire l'installazione di app da questa app.
+     */
+    @JavascriptInterface
+    public void installApk(String id) {
+        async(pool, id, () -> {
+            if (!act.getPackageManager().canRequestPackageInstalls()) {
+                Intent s = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + act.getPackageName()));
+                s.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                act.runOnUiThread(() -> act.startActivity(s));
+                return "permesso";
+            }
+            File dir = new File(act.getCacheDir(), "aggiornamento");
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            File f = new File(dir, "GaranzieScontrini.apk");
+            String url = APK_URL;
+            HttpURLConnection c = null;
+            for (int i = 0; i < 6; i++) {
+                c = (HttpURLConnection) new URL(url).openConnection();
+                c.setInstanceFollowRedirects(false);
+                c.setConnectTimeout(20000);
+                c.setReadTimeout(60000);
+                int code = c.getResponseCode();
+                if (code >= 300 && code < 400 && c.getHeaderField("Location") != null) {
+                    url = new URL(new URL(url), c.getHeaderField("Location")).toString();
+                    c.disconnect();
+                    continue;
+                }
+                if (code != 200) throw new Exception("Download non riuscito (codice " + code + ")");
+                break;
+            }
+            try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(f)) {
+                byte[] b = new byte[65536];
+                int n;
+                while ((n = in.read(b)) > 0) out.write(b, 0, n);
+            } finally {
+                c.disconnect();
+            }
+            if (f.length() < 100000) throw new Exception("File scaricato non valido, riprova.");
+            Uri uri = FileProvider.getUriForFile(act, act.getPackageName() + ".files", f);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "application/vnd.android.package-archive");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            act.runOnUiThread(() -> act.startActivity(i));
+            return "ok";
         });
     }
 

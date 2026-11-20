@@ -9,7 +9,10 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.os.Handler;
+import android.os.Looper;
 import android.print.PrintAttributes;
+import android.print.PrintJob;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.webkit.WebResourceRequest;
@@ -422,6 +425,38 @@ public class Bridge {
     // tenuta in memoria finché Android non ha preparato la stampa
     private WebView printView;
 
+    /** Segue il lavoro di stampa e ne comunica lo stato all'interfaccia (badge "stampa in corso"). */
+    private void seguiStampa(PrintJob job) {
+        final Handler h = new Handler(Looper.getMainLooper());
+        final long inizio = System.currentTimeMillis();
+        final String[] ultimo = {""};
+        h.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                String st;
+                try {
+                    if (job.isCompleted()) st = "fatta";
+                    else if (job.isFailed()) st = "errore";
+                    else if (job.isCancelled()) st = "annullata";
+                    else if (job.isBlocked()) st = "bloccata";
+                    else if (job.isStarted()) st = "incorso";
+                    else if (job.isQueued()) st = "coda";
+                    else st = "scelta";   // finestra di stampa ancora aperta
+                } catch (Exception e) {
+                    st = "errore";
+                }
+                if (!st.equals(ultimo[0])) {
+                    ultimo[0] = st;
+                    final String js = "window.onStampa && window.onStampa('" + st + "')";
+                    web.evaluateJavascript(js, null);
+                }
+                boolean finito = st.equals("fatta") || st.equals("errore") || st.equals("annullata");
+                if (finito) printView = null;
+                else if (System.currentTimeMillis() - inizio < 15 * 60 * 1000L) h.postDelayed(this, 1000);
+            }
+        }, 800);
+    }
+
     /** Stampa (o salva in PDF) una scheda A4 preparata dall'interfaccia. */
     @JavascriptInterface
     public void stampa(String html, String titolo) {
@@ -440,10 +475,11 @@ public class Bridge {
                             String nome = (titolo == null || titolo.isEmpty()) ? "Scheda acquisto" : titolo;
                             PrintManager pm = (PrintManager) act.getSystemService(Context.PRINT_SERVICE);
                             PrintDocumentAdapter ad = v.createPrintDocumentAdapter(nome);
-                            pm.print(nome, ad, new PrintAttributes.Builder()
+                            PrintJob job = pm.print(nome, ad, new PrintAttributes.Builder()
                                     .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
                                     .setColorMode(PrintAttributes.COLOR_MODE_COLOR)
                                     .build());
+                            seguiStampa(job);
                         } catch (Exception e) {
                             toast("Stampa non riuscita: " + e.getMessage());
                         }

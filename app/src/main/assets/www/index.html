@@ -125,6 +125,10 @@ textarea{min-height:64px;resize:vertical}
 .items td{padding:5px 4px;border-bottom:1px solid var(--line);vertical-align:top}
 .items td.num{text-align:right}
 .items input{padding:6px;font-size:13.5px}
+#stampaBadge{position:fixed;left:12px;right:12px;bottom:16px;z-index:60;display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:14px;color:#fff;font-size:14.5px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#stampaBadge span:nth-child(2){flex:1;line-height:1.35}
+#stampaBadge button{background:transparent;border:0;color:#fff;font-size:16px;padding:2px 4px}
+#stampaBadge.run{background:#2563eb}#stampaBadge.ok{background:#16a34a}#stampaBadge.warn{background:#d97706}#stampaBadge.err{background:#dc2626}
 .artline{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
 .artline span{color:var(--muted);font-size:13px}
 .artline .q{width:58px}
@@ -441,6 +445,7 @@ function parseReceipt(text){
         out.articoli = desc.map((d, i) => ({descrizione:d.descrizione, quantita:d.quantita, prezzo:usa[i]})).filter(a => a.descrizione.length >= 2);
     }
   }
+  if(totale && out.articoli.length > 1) out.articoli = out.articoli.filter(x => Math.abs((x.prezzo || 0) - totale) >= 0.01);
   if(totale) out.prezzo = totale;
   return out;
 }
@@ -573,6 +578,17 @@ function htmlScheda(a, imgs, altri){
   </div>${nImg ? `<div class="docs">${imgs.map(f => `<img src="${f.src}">`).join("")}</div>` : ""}</div>
   </div></body></html>`;
 }
+/* Badge con lo stato della stampa (lo aggiorna la parte Android) */
+window.onStampa = st => {
+  let b = document.getElementById("stampaBadge");
+  if(!b){ b = document.createElement("div"); b.id = "stampaBadge"; document.body.appendChild(b); }
+  const T = {scelta:["⏳", "Scegli la stampante e premi l'icona di stampa", "run"], coda:["🖨️", "Stampa in coda…", "run"], incorso:["🖨️", "Stampa in corso…", "run"],
+    bloccata:["⚠️", "Stampa bloccata: controlla che la stampante sia accesa, con carta e sulla stessa rete Wi-Fi. Vedi la notifica di Android.", "warn"],
+    fatta:["✅", "Inviata alla stampante", "ok"], errore:["❌", "Stampa non riuscita: apri la notifica di Android per il motivo, oppure riprova scegliendo \"Salva come PDF\".", "err"], annullata:["✖️", "Stampa annullata", "warn"]}[st] || ["🖨️", st, "run"];
+  b.className = "stb " + T[2]; b.innerHTML = `<span>${T[0]}</span><span>${esc(T[1])}</span><button aria-label="Chiudi">✕</button>`;
+  b.querySelector("button").onclick = () => b.remove();
+  clearTimeout(b._t); if(["fatta", "annullata"].includes(st)) b._t = setTimeout(() => b.remove(), 6000);
+};
 async function stampaScheda(a, imgs, altri){
   const html = htmlScheda(a, imgs || [], altri || []), titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
   if(A && A.stampa){ A.stampa(html, titolo); return; }
@@ -720,8 +736,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v2.4";
+const VERSIONE = "v2.5";
 const CRONOLOGIA = [
+  {v:"v2.5", d:"20/11/2026", n:[
+    "Stampa: riquadro con lo stato (in coda, in corso, inviata, bloccata, non riuscita)",
+    "Lettura scontrini: tolta la riga del totale finita per errore tra gli articoli"
+  ]},
   {v:"v2.4", d:"20/11/2026", n:[
     "Stampa su un solo foglio A4: dati e articoli a sinistra, foto dello scontrino a destra"
   ]},
@@ -1707,7 +1727,7 @@ setTimeout(proponiAggiornamento, 1500);   // versione scaricata in precedenza e 
 
 /* Aggiornamento dell'app Android (APK): la grafica si aggiorna da sola, ma alcune novità
    (es. la stampa) richiedono di reinstallare l'app sopra quella attuale. */
-const APK_MINIMO = 10, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
+const APK_MINIMO = 11, APK_LINK = "https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk";
 function versioneApk(){ if(!A) return 999; try{ if(A.getVersionCode) return Number(A.getVersionCode()) || 0; }catch(e){} return A.installApk ? 10 : A.stampa ? 9 : 8; }
 function proponiApk(forza){
   if(versioneApk() >= APK_MINIMO) return false;

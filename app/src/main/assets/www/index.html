@@ -328,7 +328,7 @@ async function prepareFile(file){
 /* =========================================================
    Lettura scontrino: testo OCR -> dati
    ========================================================= */
-const NEGOZI_NOTI = ["Leroy Merlin","Bricoman","Brico io","Bricocenter","Obi","Tecnomat","MediaWorld","Unieuro","Euronics","Expert","Trony","Comet","Ikea","Decathlon","Lidl","Aldi","Esselunga","Carrefour","Coop","Conad","Iper","Eurospin","Tigotà","Acqua & Sapone","Amazon","Maisons du Monde","Mondo Convenienza","Camping Sport","Brico Center","Self","Toys","Norauto","Euronics","Apple","Samsung","Zara","H&M","OVS","Bennet","Famila","Penny","Pam","Tuodì","Action","Kasanova","Coin","Sportland","Cisalfa","Agrieuro","Mondial","Castorama","Hornbach","Würth","Wuerth"];
+const NEGOZI_NOTI = ["Leroy Merlin","Bricoman","Brico io","Bricocenter","Obi","Tecnomat","MediaWorld","Unieuro","Euronics","Expert","Trony","Comet","Ikea","Decathlon","Lidl","Aldi","Esselunga","Carrefour","Coop","Conad","Iper","Eurospin","Tigotà","Acqua & Sapone","Amazon","Maisons du Monde","Mondo Convenienza","Camping Sport","Brico Center","Self","Toys","Norauto","Euronics","Apple","Samsung","Zara","H&M","OVS","Bennet","Famila","Penny","Pam","Tuodì","Action","Kasanova","Coin","Sportland","Cisalfa","Agrieuro","Mondial","Castorama","Hornbach","Würth","Wuerth","Center Casa","Carpisa","Camping Life","Happy Casa","Kärcher","Bricofer","Mi Store","Xiaomi","Leroy","Brico Ok","Globo","Pittarello","Primark","Bricolife","Risparmio Casa","Tedi","Mercatone","Chateau d'Ax","Unipolsai"];
 const num = s => { const v = parseFloat(String(s).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")); return isNaN(v) ? null : v; };
 const PRICE = "(-?\\d{1,5}(?:\\.\\d{3})*\\s?[,.]\\s?\\d{2})";
 function fixYear(y){
@@ -352,7 +352,24 @@ function parseReceipt(text){
   const upN = senzaAccenti(all);
   const noto = NEGOZI_NOTI.find(n => new RegExp("(^|[^A-Z])" + senzaAccenti(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^A-Z]|$)").test(upN));
   const italia = all.match(/^\s*([A-Za-z][A-Za-z&' ]{1,25}?)\s+Italia\s+S/im);
+  // nomi dei negozi letti con qualche lettera sbagliata (es. "GENNTERRCASA" = Center Casa)
+  const vicino = (txt, w) => {
+    const n = w.length, maxE = n >= 8 ? 2 : 1;
+    for(let st = 0; st + n - maxE <= txt.length; st++){
+      for(let len = n - maxE; len <= n + maxE; len++){
+        const sub = txt.substr(st, len); if(sub.length < len) continue;
+        const dp = Array.from({length:n + 1}, (_, i) => i);
+        for(let j = 1; j <= len; j++){ let prev = dp[0]; dp[0] = j; for(let i = 1; i <= n; i++){ const t = dp[i]; dp[i] = Math.min(dp[i] + 1, dp[i - 1] + 1, prev + (w[i - 1] === sub[j - 1] ? 0 : 1)); prev = t; } }
+        if(dp[n] <= maxE) return true;
+      }
+    }
+    return false;
+  };
+  const testaLettere = senzaAccenti(lines.slice(0, 12).join(" ")).replace(/[^A-Z]/g, "");
+  const quasi = noto ? null : [...NEGOZI_NOTI].sort((a, b) => b.length - a.length).find(n => { const w = senzaAccenti(n).replace(/[^A-Z]/g, ""); return w.length >= 7 && vicino(testaLettere, w); });
   if(noto) out.negozio = noto;
+  else if(quasi) out.negozio = quasi;
+  else if(/[CG]E+N+T+E+R+\s?C?A+S+A/.test(testaLettere)) out.negozio = "Center Casa";
   else if(/\bL[I1!|T]?[DO0]L\b/.test(up)) out.negozio = "Lidl";
   else if(italia) out.negozio = italia[1].trim();
   else{
@@ -371,6 +388,7 @@ function parseReceipt(text){
     if(m[3].length === 4 && (y > oggi || y < 2000)){ const t = m[3][0] + "0" + m[3].slice(2); y = +t >= 2000 && +t <= oggi ? +t : fixYear(+t); corr++; }
     else y = fixYear(y);
     if(!(d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= oggi)) continue;
+    if(new Date(y, mo - 1, d).getDate() !== d) continue;   // es. 29 febbraio inesistente
     const prima = all.slice(Math.max(0, m.index - 25), m.index), dopo = all.slice(m.index, m.index + 30);
     let peso = corr ? 0.5 : 1;
     if(/(data|fattura|emissione|acquisto|del)\s*:?\s*$/i.test(prima)) peso += 0.5;
@@ -396,20 +414,30 @@ function parseReceipt(text){
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
-  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4})/i;
+  const SKIP = /(TOTALE|SUBTOTALE|IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4}|[IHM]{0,2}P[O0]RT[O0]\s*E|IMPORT[O0]|COD\.|FISCAL|LESSIVO|AUTH|RESP\.|DUMMY|(?:^|\s)(?<![-\/])\d{5}\s*-?\s*[A-Z]{4,}(?:\s*\(?[A-Z]{2}\)?)?\s*$|TRANSAZ|AUTORIZ|A\.?R\.?Q\.?C|\bTML\b|\bSTAN\b|C\.\s?ABI|\bAPPL\b|PAGO\s?BAN|RICEVUTA|\bPOS\b|ONLINE|CTLS|\bICC\b|CREDITO|VAL[OU]RE\s*SC|[IT]OTALE|TOT\.|\bIAD\b|\bATC\b|\bTCC\b|\bTVR\b|PAN:|EXP:|\bAUT\.|OPER\.|ESER|A\.?I\.?I\.?C|CARTA|\bNOTE\b|TICKET|ACQUISTO|ESERC|CVM|MATRICOLA|FIRMA|NUMERO DI|SERIE|TASS[OE]|ARTICOL[OI]\/|REPARTO|RETTIFICA)/i;
   const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*(?:€|EUR|[A-Z])?$");
   const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?(?:€|EUR)?\\s*" + PRICE + "\\s*(?:€|[A-Z])?$");
   const qtyRes = [
     [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
     [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*[€$]?\\s*" + PRICE, "i"), 2, 1]
   ];
-  const pulisci = d => d.replace(/-\s?[0-9GO]\d{5,7}\w*.*$/, "").replace(/\s+\S*_\S*/g, "").replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  const pulisci = d => d.replace(/\s*\d{1,2}[,.]\d{2}\s?%.*$/, "").replace(/-\s?[0-9GO]\d{5,7}\w*.*$/, "").replace(/\s+\S*_\S*/g, "").replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
   const flags = raw => ({raee:/^R\s+[A-Z]/.test(raw.trim()), cod:/[-\s][0-9GO]\d{5,7}\b/.test(raw)});
   let pending = "", testoPrima = "", prezzoEan = null;
   const inizioArticoli = Math.max(lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), lines.findIndex(l => /DOCUMENTO\s*COMMERCIALE|SCONTRINO/i.test(l)));
   for(let i = 0; i < lines.length; i++){
     const l = lines[i];
+    if(prezzoEan && /[A-Za-z]{3,}/.test(l) && !/^\d{8,14}/.test(l) && !new RegExp("(?:€|EUR)\\s*" + PRICE).test(l) && !/^(TCC|ATC|TVR|AUT|APPL|IAD|A\.?ID|TML|STAN|ESER|COPIA)\b/i.test(l)){
+      out.articoli.push({descrizione:pulisci(l.replace(/\s+(N\.?\s?CARTA|C\.?\s?ABI|APPL|ATC|TCC|IAD|IMPORTO).*$/i, "")), quantita:1, prezzo:prezzoEan, cod:true}); prezzoEan = null; pending = ""; testoPrima = ""; continue;
+    }
     if(SKIP.test(l)){ pending = ""; continue; }
+    // formato Decathlon: descrizione, poi "codice  1x 35.99"
+    const dec = l.match(new RegExp("^\\d{5,8}\\s+(\\d{1,3})\\s*[xX]\\s*" + PRICE + "\\s*$"));
+    if(dec){
+      const prec = (lines[i - 1] || "").trim();
+      if(/[A-Za-z]{3,}/.test(prec) && !SKIP.test(prec)){ const q = +dec[1] || 1, u = num(dec[2]); out.articoli.push({descrizione:pulisci(prec), quantita:q, prezzo:Math.round(u * q * 100) / 100, cod:true}); if(/^\s*\d+[.,]\d{2}\s*€/.test(lines[i + 1] || "")) i++; }
+      pending = ""; testoPrima = ""; continue;
+    }
     // formato con codice a barre prima della descrizione (es. Bricoman): "8000061015069 €0,95" poi il nome
     const ean = l.match(new RegExp("^\\d{8,14}(?:\\s+(?:€|EUR)\\s*" + PRICE + "|\\s+" + PRICE + "\\s*$)?"));
     if(ean){
@@ -534,7 +562,7 @@ function parseReceipt(text){
 }
 function nomeDaArticoli(art){
   if(!art.length) return "";
-  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || ""));
+  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || "") && !/SHOPPER|BORS[AE] RIUTIL|SACCH|BUSTA|TRANSAZ|AUTORIZ|[IT]OTALE|PAGOB|BANCOMAT|CARTE?\b|\d{5}\s*-|^\W*\w{1,3}\W*$/i.test(a.descrizione || ""));
   if(!buoni.length) return "";
   return nomeBello([...buoni].sort((a, b) => (b.raee ? 1 : 0) - (a.raee ? 1 : 0) || (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione);
 }
@@ -927,8 +955,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.0";
+const VERSIONE = "v4.1";
 const CRONOLOGIA = [
+  {v:"v4.1", d:"20/11/2026", n:[
+    "Lettura scontrini migliorata con 100 scontrini veri del tuo archivio",
+    "Riconosce meglio il negozio anche con scritte rovinate (es. Center Casa)",
+    "Il nome non prende più righe di indirizzo, pagamento o codici"
+  ]},
   {v:"v4.0", d:"20/11/2026", n:[
     "Prova sull'archivio su 100 scontrini invece di 20"
   ]},

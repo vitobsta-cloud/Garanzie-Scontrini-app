@@ -661,7 +661,9 @@ async function pdfScheda(d, imgSrc){
 async function stampaScheda(a, imgs, altri){
   imgs = imgs || []; altri = altri || [];
   const titolo = ("Scheda " + (a.nome || "acquisto")).slice(0, 60);
-  // metodo principale: PDF aperto con l'app della stampante (Epson iPrint), che funziona sempre
+  // metodo principale: finestra di stampa di Android (come in tutte le app)
+  if(A && A.stampaPdf){ window.onStampa("prepara"); await call("stampaPdf", JSON.stringify(datiScheda(a, imgs, altri)), titolo); return; }
+  // app vecchie senza stampa diretta: PDF aperto con un'app di stampa
   if(A && A.openFile){
     window.onStampa("prepara");
     const b64 = await pdfScheda(datiScheda(a, imgs, altri), imgs.map(f => f.src));
@@ -816,8 +818,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v3.0";
+const VERSIONE = "v3.1";
 const CRONOLOGIA = [
+  {v:"v3.1", d:"20/11/2026", n:[
+    "Stampa: un tocco su Stampa apre direttamente la finestra di stampa del telefono (scegli la stampante e premi Stampa)"
+  ]},
   {v:"v3.0", d:"20/11/2026", n:[
     "Aggiornamenti come nelle altre app: un solo avviso, \"Aggiorna ora\" e basta. Non viene più chiesto di scaricare o reinstallare l'app"
   ]},

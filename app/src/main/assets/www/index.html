@@ -1019,8 +1019,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.5";
+const VERSIONE = "v4.6";
 const CRONOLOGIA = [
+  {v:"v4.6", d:"21/11/2026", n:[
+    "Prova di lettura su tutto l'archivio (Impostazioni → Lettura scontrini)"
+  ]},
   {v:"v4.5", d:"21/11/2026", n:[
     "Tolto il tasto \"Leggi online\": la lettura resta sul telefono, gratis e senza registrazioni"
   ]},
@@ -1924,7 +1927,7 @@ function renderImpLett(){
     <div class="card">
       <h2>🧪 Prova sull'archivio</h2>
       <p class="muted">Rilegge fino a 100 scontrini veri già salvati nell'archivio (circa 5-10 minuti: tieni l'app aperta e lo schermo acceso) e controlla se negozio, data e importo vengono riconosciuti. Alla fine crea il file <b>prova_lettura</b> nella cartella Download: mandalo nella chat per migliorare la lettura.</p>
-      <div class="btns"><button class="btn primary" id="tProva">🧪 Avvia la prova (100 scontrini)</button></div>
+      <div class="btns"><button class="btn primary" id="tProva">🧪 Avvia la prova (100 scontrini)</button><button class="btn" id="tTutto">📚 Prova su tutto l'archivio</button></div>
       <div id="tOut"></div>
     </div>
     <div class="card">
@@ -1945,25 +1948,28 @@ function renderImpLett(){
       <div id="cOut"></div>
     </div>`;
   const save = () => saveSettings({apiKey:$("#cKey").value.trim(), model:$("#cModel").value.trim() || DEFAULTS.model});
-  $("#tProva").onclick = async () => {
-    const o = $("#tOut"), b = $("#tProva");
+  $("#tTutto").onclick = () => provaArchivio(true);
+  $("#tProva").onclick = () => provaArchivio(false);
+  const provaArchivio = async (tuttoArchivio) => {
+    const o = $("#tOut"), b = $("#tProva"), b2 = $("#tTutto");
     if(!A || !A.ocr){ esito(o, false, "Disponibile solo nell'app sul telefono."); return; }
     if(!archivioPronto()){ esito(o, false, "Prima collega l'archivio (Destinazione file)."); return; }
     const norm = t => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
     const docOk = f => /\.(jpe?g|png|webp|pdf)$/i.test(f.name) && f.name !== "garanzia.json";
     const tutti = (await allAcquisti()).filter(a => !a.daCaricare && (a.files || []).some(docOk));
     if(!tutti.length){ esito(o, false, "Nell'archivio non ci sono scontrini da provare."); return; }
-    const scelti = tutti.sort(() => Math.random() - 0.5).slice(0, 100);
-    b.disabled = true; const risultati = []; let neg = 0, dat = 0, tot = 0, totNoti = 0;
+    const scelti = tuttoArchivio ? tutti : tutti.sort(() => Math.random() - 0.5).slice(0, 100);
+    b.disabled = true; b2.disabled = true; const risultati = []; let neg = 0, dat = 0, tot = 0, totNoti = 0;
     for(let i = 0; i < scelti.length; i++){
       const a = scelti[i], f = a.files.find(docOk);
-      esito(o, null, `Leggo lo scontrino ${i + 1} di ${scelti.length}: ${a.negozio} – ${a.nome}…`);
+      esito(o, null, `Leggo lo scontrino ${i + 1} di ${scelti.length}: ${a.negozio} – ${a.nome}… (tieni l'app aperta e lo schermo acceso)`);
       const r = {cartella:a.cartella, attesi:{negozio:a.negozio, data:a.dataAcquisto, prezzo:a.prezzo === "" ? null : a.prezzo}, file:f.name};
       try{
         const data = await call("nasRead", a.cartella + "/" + f.name);
         r.testo = await call("ocr", data, mimeOf(f.name));
         const p = parseReceipt(r.testo); p.nome = p.nomeSuggerito ? nomeBello(p.nomeSuggerito) : nomeDaArticoli(p.articoli);
-        r.letti = {negozio:p.negozio, data:p.dataAcquisto, prezzo:p.prezzo, nome:p.nome, articoli:p.articoli};
+        r.letti = {negozio:p.negozio, data:p.dataAcquisto, prezzo:p.prezzo, nome:p.nome, citta:p.negozioCitta, articoli:p.articoli};
+        r.attesi.nome = a.nome;
         r.negozioOk = !!p.negozio && (norm(a.negozio).includes(norm(p.negozio)) || norm(p.negozio).includes(norm(a.negozio)));
         r.dataOk = !!p.dataAcquisto && p.dataAcquisto === a.dataAcquisto;
         if(r.negozioOk) neg++; if(r.dataOk) dat++;
@@ -1971,7 +1977,7 @@ function renderImpLett(){
       }catch(e){ r.errore = e.message; }
       risultati.push(r);
     }
-    const nome = `prova_lettura_${todayISO()}.json`;
+    const nome = `prova_lettura_${tuttoArchivio ? "tutto_" : ""}${todayISO()}.json`;
     let dove = "";
     try{ dove = await salvaFile(nome, "application/json", JSON.stringify({app:"GaranzieScontrini", versione:VERSIONE, data:new Date().toISOString(), risultati}, null, 1)); }catch(e){ dove = "(file non salvato: " + e.message + ")"; }
     const n = risultati.length;
@@ -1982,7 +1988,7 @@ function renderImpLett(){
         <tr><td>Importo giusto</td><td class="num"><b>${totNoti ? tot + "/" + totNoti : "— (prezzi non presenti in archivio)"}</b></td></tr>
       </table>
       <p class="muted">Il file con i dettagli è in ${esc(dove)}. Mandalo nella chat (graffetta → File) per migliorare la lettura.</p>`;
-    b.disabled = false;
+    b.disabled = false; b2.disabled = false;
   };
   $("#cSave").onclick = () => { save(); toast("Salvato."); };
   const gSave = () => saveSettings({geminiKey:$("#gKey").value.trim()});

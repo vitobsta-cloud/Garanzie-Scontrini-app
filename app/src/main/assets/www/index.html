@@ -1057,8 +1057,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.2";
+const VERSIONE = "v5.3";
 const CRONOLOGIA = [
+  {v:"v5.3", d:"21/11/2026", n:[
+    "La chiave gratuita di Google dell'amministratore vale per tutta la famiglia (utenti di casa): arriva con l'invito e si aggiorna da sola dal NAS"
+  ]},
   {v:"v5.2", d:"21/11/2026", n:[
     "Lettura online: se Google è occupato prova da solo un altro modello gratuito",
     "Spunta \"Mostra la chiave\" nelle impostazioni di lettura"
@@ -2007,7 +2010,7 @@ function renderImpLett(){
       <div class="btns"><button class="btn primary" id="tProva">🧪 Avvia la prova (100 scontrini)</button><button class="btn" id="tTutto">📚 Prova su tutto l'archivio</button></div>
       <div id="tOut"></div>
     </div>
-    <div class="card">
+    ${io() && (utenteAttivo() || {}).ruolo !== "admin" ? `<div class="card"><h2>🌐 Lettura online gratuita</h2><p class="muted">${s.geminiKey ? "Attiva: la chiave l'ha condivisa l'amministratore di casa. In Acquisisci trovi il tasto <b>Leggi online</b>." : "Non attiva: l'amministratore di casa non ha ancora inserito la chiave di Google."}</p></div>` : `<div class="card">
       <h2>🌐 Lettura online gratuita (Google)</h2>
       <p class="muted">Il tasto <b>"Leggi online"</b> in Acquisisci manda la foto a Google Gemini, che legge meglio nomi, città e date degli scontrini rovinati. È <b>gratis</b> (con un limite giornaliero ampio) e senza carta di credito.</p>
       <p class="muted"><b>Come avere la chiave (una volta sola):</b><br>1. Tocca il link qui sotto e accedi con il tuo account Google (lo stesso del telefono).<br>2. Tocca <b>Create API key</b> (Crea chiave API) e poi copia la chiave.<br>3. Incollala qui sotto e tocca Salva.</p>
@@ -2016,7 +2019,7 @@ function renderImpLett(){
       <label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:14.5px;margin-top:6px"><input type="checkbox" id="gShow" style="width:auto;margin:0"> Mostra la chiave</label>
       <div class="btns"><button class="btn" id="gTest">▶️ Verifica</button><button class="btn primary" id="gSave">💾 Salva</button></div>
       <div id="gOut"></div>
-    </div>
+    </div>`}
     <div class="card">
       <h2>🤖 Claude (facoltativo, a pagamento)</h2>
       <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) il tasto "Leggi online" usa Claude. Serve solo se non c'è la chiave gratuita di Google.</p>
@@ -2071,8 +2074,14 @@ function renderImpLett(){
     b.disabled = false; b2.disabled = false;
   };
   $("#cSave").onclick = () => { save(); toast("Salvato."); };
-  const gSave = () => saveSettings({geminiKey:$("#gKey").value.trim()});
-  $("#gSave").onclick = () => { gSave(); esito($("#gOut"), true, "Salvata."); };
+  const gSave = () => {
+    const k = $("#gKey").value.trim(), cambiata = k !== (settings().geminiKey || "");
+    saveSettings({geminiKey:k});
+    // con gli utenti di casa attivi, l'amministratore la condivide con la famiglia (file utenti.json sul NAS)
+    if(cambiata && io() && (utenteAttivo() || {}).ruolo === "admin" && archivioScelto() === "nas") leggiUtenti().then(l => l.length && scriviUtenti(l)).catch(() => {});
+  };
+  if($("#gSave")){
+  $("#gSave").onclick = () => { gSave(); esito($("#gOut"), true, io() && (utenteAttivo() || {}).ruolo === "admin" ? "Salvata. Vale anche per la tua famiglia (utenti di casa)." : "Salvata."); };
   $("#gShow").onchange = e => { $("#gKey").type = e.target.checked ? "text" : "password"; };
   $("#gTest").onclick = async () => {
     gSave(); const o = $("#gOut");
@@ -2086,6 +2095,7 @@ function renderImpLett(){
       else esito(o, false, "Errore " + status + ": " + (j.error?.message || ""));
     }catch(e){ esito(o, false, "Nessuna risposta: controlla internet. (" + e.message + ")"); }
   };
+  }
   $("#cShow").onchange = e => { $("#cKey").type = e.target.checked ? "text" : "password"; };
   $("#cTest").onclick = async () => {
     save(); const o = $("#cOut");
@@ -2193,20 +2203,34 @@ function nuovoPerMe(a){
 function segnaVisto(id){ const v = settings().visti || []; if(!v.includes(id)){ v.push(id); saveSettings({visti:v.slice(-800)}); } }
 const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const b64dec = b => new TextDecoder("utf-8").decode(Uint8Array.from(atob(b), c => c.charCodeAt(0)));
+async function leggiUtentiDoc(){
+  try{ return JSON.parse(b64dec(await call("nasRead", UTENTI_FILE))); }
+  catch(e){ if(/non trovat|not found|no such|STATUS_OBJECT_NAME_NOT_FOUND|does not exist|0xc0000034/i.test(e.message || "")) return {}; throw e; }
+}
 async function leggiUtenti(){
   try{ const d = JSON.parse(b64dec(await call("nasRead", UTENTI_FILE))); return Array.isArray(d.utenti) ? d.utenti : []; }
   catch(e){ if(/non trovat|not found|no such|STATUS_OBJECT_NAME_NOT_FOUND|does not exist|0xc0000034/i.test(e.message || "")) return []; throw e; }
 }
 async function scriviUtenti(list){
-  await call("nasWriteText", "", UTENTI_FILE, JSON.stringify({app:"GaranzieScontrini", tipo:"utenti", aggiornato:new Date().toISOString(), utenti:list}, null, 2));
+  let chiave = (utenteAttivo() || {}).ruolo === "admin" ? (settings().geminiKey || "") : "";
+  if(!chiave){ try{ chiave = (await leggiUtentiDoc()).chiaveGoogle || ""; }catch(e){} }
+  await call("nasWriteText", "", UTENTI_FILE, JSON.stringify({app:"GaranzieScontrini", tipo:"utenti", aggiornato:new Date().toISOString(), chiaveGoogle:chiave, utenti:list}, null, 2));
   saveSettings({utenti:list});
 }
-async function aggiornaUtenti(){ if(!io() || archivioScelto() !== "nas") return; try{ const l = await leggiUtenti(); if(l.length) saveSettings({utenti:l}); }catch(e){} }
+async function aggiornaUtenti(){
+  if(!io() || archivioScelto() !== "nas") return;
+  try{
+    const d = await leggiUtentiDoc(), l = Array.isArray(d.utenti) ? d.utenti : [];
+    if(l.length) saveSettings({utenti:l});
+    // la chiave gratuita di Google dell'amministratore vale per tutta la famiglia
+    if(d.chiaveGoogle && (utenteAttivo() || {}).ruolo !== "admin" && d.chiaveGoogle !== settings().geminiKey) saveSettings({geminiKey:d.chiaveGoogle});
+  }catch(e){}
+}
 const descrPermessi = u => u.ruolo === "admin" ? "Può fare tutto · gestisce gli utenti" : PERMESSI.filter(([k]) => (u.permessi || {})[k]).map(([, t]) => t.replace(/ \(.*\)/, "")).join(" · ") || "Può solo vedere";
 function codiceInvito(u){
   const nas = nasCfg(); delete nas.hasPassword;
   if(A && A.getNasPassword) nas.password = A.getNasPassword();
-  return "GS1-" + b64utf8(JSON.stringify({v:1, utente:u, nas})).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return "GS1-" + b64utf8(JSON.stringify({v:1, utente:u, nas, chiaveGoogle:settings().geminiKey || ""})).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 function leggiCodice(t){
   const m = String(t || "").match(/GS1-([A-Za-z0-9_-]{20,})/); if(!m) throw new Error("Codice non valido: copia tutto il messaggio dell'invito e incollalo qui.");
@@ -2307,6 +2331,7 @@ function renderInvito(){
       if(!(await conferma(`Entrare nell'archivio di casa come ${d.utente.nome}?`, "Entra"))) return;
       if(A) A.setNasConfig(JSON.stringify(d.nas));
       saveSettings({archivio:"nas", utente:{id:d.utente.id, nome:d.utente.nome}, utenti:[d.utente], utenteDal:new Date().toISOString(), visti:[], ultimoAggiornamento:""});
+      if(d.chiaveGoogle) saveSettings({geminiKey:d.chiaveGoogle});
       if(A && A.setArchivio) A.setArchivio("nas");
       esito(o, null, "Mi collego al NAS…");
       const ok = await refreshFromNas(true);

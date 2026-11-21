@@ -277,7 +277,19 @@ window.__bridgeCb = (id, ok, payload) => {
   const p = pending[id]; if(!p) return; delete pending[id];
   ok ? p.res(payload) : p.rej(new Error(payload));
 };
-function call(fn, ...args){
+// Il collegamento al NAS ogni tanto scade ("DiskShare has already been closed"): l'app lo riapre da sola e riprova
+async function call(fn, ...args){
+  try{ return await call1(fn, ...args); }
+  catch(e){
+    if(/^nas/.test(fn) && /already been closed|DiskShare|Connection.*closed|Broken pipe|reset by peer/i.test(String(e && e.message || e))){
+      await new Promise(ok => setTimeout(ok, 400));
+      try{ return await call1(fn, ...args); }
+      catch(e2){ throw new Error("Collegamento al NAS interrotto: riprova tra qualche secondo."); }
+    }
+    throw e;
+  }
+}
+function call1(fn, ...args){
   if(!A) return Promise.reject(new Error("Funzione disponibile solo nell'app Android."));
   return new Promise((res, rej) => {
     const id = "c" + Date.now() + Math.random().toString(36).slice(2);
@@ -495,7 +507,7 @@ function parseReceipt(text){
   else { const t2 = all.match(new RegExp("(?:^|\\n)\\s*" + PRICE + "\\s*€?\\s*\\n\\s*[IT1l]otale\\s*(?:\\n|$)", "i")); if(t2) out.prezzo = num(t2[1]); }
   // numero documento
   const nd = all.match(/(?:DOCUMENTO\s*N\.?|DOC\.?\s*N\.?|SCONTRINO\s*N\.?|FATTURA\s*N\.?|N\.\s*DOC\.?)\s*[:°]?\s*([\w\-\/]{3,})/i);
-  if(nd) out.numeroScontrino = nd[1];
+  if(nd) out.numeroScontrino = nd[1].replace(/^(\d{3,5}-\d{3,5})[a-zA-Z]+$/, "$1").replace(/(\d)[oO](?=\d|$)/g, "$10");
   // pagamento
   if(/BANCOMAT|PAGOBANCOMAT/i.test(all)) out.tipoPagamento = "Bancomat";
   else if(/CARTA|VISA|MASTERCARD|AMEX|MAESTRO|ELETTRONICO|POS/i.test(all)) out.tipoPagamento = "Carta";
@@ -1151,8 +1163,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.12";
+const VERSIONE = "v5.13";
 const CRONOLOGIA = [
+  {v:"v5.13", d:"21/11/2026", n:[
+    "Corretto l'errore \"DiskShare has already been closed\": se il collegamento al NAS è scaduto l'app lo riapre da sola e riprova",
+    "Numero scontrino: tolte le lettere lette per sbaglio (es. 1533-0013o)"
+  ]},
   {v:"v5.12", d:"21/11/2026", n:[
     "Guida all'uso in Impostazioni: 10 capitoli passo per passo con le immagini delle schermate e il punto da toccare evidenziato"
   ]},

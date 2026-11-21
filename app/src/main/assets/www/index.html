@@ -664,7 +664,9 @@ async function geminiRead(files){
   if(status !== 200) throw new Error("Google: " + (j.error?.message || status));
   const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
   const m = txt.match(/\{[\s\S]*\}/); if(!m) throw new Error("Risposta online non leggibile: riprova.");
-  return JSON.parse(m[0]);
+  const out = JSON.parse(m[0]);
+  if(Array.isArray(out.articoli)) out.articoli = out.articoli.map(a => Object.assign({}, a, {descrizione:senzaR(a.descrizione)}));
+  return out;
 }
 
 /* Claude (facoltativo, a pagamento) */
@@ -1057,8 +1059,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.6";
+const VERSIONE = "v5.7";
 const CRONOLOGIA = [
+  {v:"v5.7", d:"21/11/2026", n:[
+    "Lettura online: tolta la \"R\" davanti agli articoli Lidl (es. R PISTOLA SPARAPUNTI)",
+    "Il pallino \"Nome\" si accende da solo sull'articolo che dà il nome all'acquisto"
+  ]},
   {v:"v5.6", d:"21/11/2026", n:[
     "Se la lettura online non riesce, dice il motivo e c'è il tasto \"Riprova online\"",
     "Città spezzate dall'OCR ricomposte (es. \"Mont ichiari\" → Montichiari)"
@@ -1463,7 +1469,7 @@ function drawItems(){
      <div class="artline">
        <span>Q.tà</span><input class="q" type="number" min="1" inputmode="numeric" value="${esc(it.quantita ?? 1)}">
        <span>€</span><input class="p" type="number" step="0.01" inputmode="decimal" value="${esc(it.prezzo ?? "")}" placeholder="0,00">
-       <label class="artnome" title="Usa come nome dell'acquisto"><input type="radio" name="artNome" data-nome="${i}" ${nomeBello(it.descrizione) && nomeBello(it.descrizione) === nomeBello(draft.nome) ? "checked" : ""}> Nome</label>
+       <label class="artnome" title="Usa come nome dell'acquisto"><input type="radio" name="artNome" data-nome="${i}" ${stessoNome(it.descrizione, draft.nome) ? "checked" : ""}> Nome</label>
        <button class="btn small" data-rm="${i}" title="Togli">✕</button>
      </div></td></tr>`).join("") || `<tr><td class="muted">Nessun articolo.</td></tr>`;
   $("#itemsTbl").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { readForm(); draft.articoli.splice(+b.dataset.rm, 1); drawItems(); });
@@ -1480,6 +1486,12 @@ async function addFiles(list){
 $("#camInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 
+// "R PISTOLA SPARAPUNTI" e "Pistola sparapunti" sono lo stesso nome (la R di Lidl è il contributo RAEE)
+const senzaR = d => String(d || "").replace(/^R\s+(?=[A-ZÀ-Ù])/, "");
+function stessoNome(desc, nome){
+  const n = x => senzaR(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const a = n(desc), b = n(nome); return !!a && !!b && (a === b || (b.length >= 6 && a.startsWith(b)) || (a.length >= 6 && b.startsWith(a)));
+}
 /* Incrocio lettura sul telefono + lettura online (quando c'è la chiave di Google) */
 function incrocia(off, on){
   const r = Object.assign({}, off), dubbi = {};

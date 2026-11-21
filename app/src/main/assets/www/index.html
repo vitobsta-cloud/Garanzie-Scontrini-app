@@ -1057,8 +1057,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.3";
+const VERSIONE = "v5.4";
 const CRONOLOGIA = [
+  {v:"v5.4", d:"21/11/2026", n:[
+    "La chiave di Google arriva da sola anche a chi era già stato invitato"
+  ]},
   {v:"v5.3", d:"21/11/2026", n:[
     "La chiave gratuita di Google dell'amministratore vale per tutta la famiglia (utenti di casa): arriva con l'invito e si aggiorna da sola dal NAS"
   ]},
@@ -2224,6 +2227,8 @@ async function aggiornaUtenti(){
     if(l.length) saveSettings({utenti:l});
     // la chiave gratuita di Google dell'amministratore vale per tutta la famiglia
     if(d.chiaveGoogle && (utenteAttivo() || {}).ruolo !== "admin" && d.chiaveGoogle !== settings().geminiKey) saveSettings({geminiKey:d.chiaveGoogle});
+    // telefono dell'amministratore: se nel file manca la chiave (o è vecchia) la scrive, così arriva anche a chi è già stato invitato
+    else if((utenteAttivo() || {}).ruolo === "admin" && settings().geminiKey && d.chiaveGoogle !== settings().geminiKey && l.length) await scriviUtenti(l);
   }catch(e){}
 }
 const descrPermessi = u => u.ruolo === "admin" ? "Può fare tutto · gestisce gli utenti" : PERMESSI.filter(([k]) => (u.permessi || {})[k]).map(([, t]) => t.replace(/ \(.*\)/, "")).join(" · ") || "Può solo vedere";

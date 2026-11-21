@@ -1205,8 +1205,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.17";
+const VERSIONE = "v5.18";
 const CRONOLOGIA = [
+  {v:"v5.18", d:"21/11/2026", n:[
+    "Recupera i dati: la scheda dell'acquisto mostra in arancione i dati trovati e non ancora salvati, con «Salva questi dati» o «Non salvare»",
+    "Nell'elenco dei risultati c'è anche «Salva solo questo» per ogni acquisto"
+  ]},
   {v:"v5.17", d:"21/11/2026", n:[
     "Recupera i dati: scegli tu se controllare con telefono + online o solo con il telefono",
     "Nell'elenco dei risultati tocchi un acquisto e vedi tutti i dati trovati (data, prezzo, articoli…), puoi aprire lo scontrino o la scheda e togliere la spunta a quelli da non salvare",
@@ -1889,10 +1893,16 @@ async function renderDettaglio(id){
   const a = await getAcquisto(id);
   if(!a){ setView("archivio"); return; }
   if(nuovoPerMe(a)) segnaVisto(a.id);
+  const propo = (caricaRecupero().proposte || {})[a.id];
   const s = scadenzaInfo(a), files = (a.files || []).map(f => ({...f, nas:true})).concat((a.pendingFiles || []).map(f => ({...f, local:true})));
   const tr = (k, v) => v ? `<tr><td>${k}</td><td class="num">${v}</td></tr>` : "";
   $("#view").innerHTML = `
     <button class="hidden" id="bBack"></button>
+    ${propo ? `<div class="card" style="border:2px solid #e8a33d;background:#fffaf0">
+      <h2 style="font-size:16px">📥 Dati trovati, non ancora salvati</h2>
+      <p class="muted" style="margin:4px 0 6px">Il controllo «Recupera i dati» li ha letti dallo scontrino, ma finché non li salvi la scheda resta com'è.</p>
+      <table class="items">${descrProposta(propo).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${esc(v)}</td></tr>`).join("")}</table>
+      <div class="btns"><button class="btn" id="bPropNo">Non salvare</button><button class="btn primary" id="bPropSi">✅ Salva questi dati</button></div></div>` : ""}
     <div class="card">
       <h2>${esc(a.nome || "(senza nome)")}</h2>
       <div class="muted">${esc(a.negozio || "—")}</div>
@@ -1919,6 +1929,8 @@ async function renderDettaglio(id){
       ${a.hasInfo ? "" : `<p class="muted">Dati ricavati dal nome della cartella. Con "Modifica" puoi aggiungere prezzo, mesi di garanzia e note: vengono salvati nel file garanzia.json della cartella.</p>`}
     </div>`;
   $("#bBack").onclick = () => setView("archivio");
+  if($("#bPropSi")) $("#bPropSi").onclick = async () => { $("#bPropSi").disabled = true; try{ await salvaProposta(a.id); toast("Dati salvati."); syncReminders(); updateBadge(); renderDettaglio(a.id); }catch(e){ toast(e.message, true); $("#bPropSi").disabled = false; } };
+  if($("#bPropNo")) $("#bPropNo").onclick = () => { const r = caricaRecupero(); r.esclusi = r.esclusi || {}; r.esclusi[a.id] = 1; delete r.proposte[a.id]; salvaRecupero(r); toast("Non verranno salvati."); renderDettaglio(a.id); };
   $("#dThumbs").querySelectorAll(".thumb").forEach(t => t.onclick = async () => {
     const f = files[+t.dataset.i];
     if(f.local){ showLocal(f); return; }
@@ -2612,6 +2624,23 @@ async function recuperaDati(modoScelto){
   window._recuperoInCorso = ""; bottoni(); if($("#rOut")) mostraRecupero();
   if(rimandati && $("#rOut")) $("#rOut").insertAdjacentHTML("afterbegin", `<div class="g-nota att">⚠️ ${rimandati} scontrin${rimandati > 1 ? "i" : "o"} non ${rimandati > 1 ? "sono stati letti" : "è stato letto"} online${onlineKo === 99 ? " (limite gratuito di Google finito per oggi)" : " (Google era occupato)"}: non ho salvato niente per ${rimandati > 1 ? "loro" : "lui"}. ${onlineKo === 99 ? "Domani" : "Tra un po'"} tocca di nuovo <b>Controlla</b>: riprende solo da quelli.${ultimoErrore ? `<br><small>Ultimo messaggio di Google: ${esc(ultimoErrore)}</small>` : ""}</div>`);
 }
+// salva i dati trovati per un solo acquisto (solo i campi vuoti)
+async function salvaProposta(id){
+  const r = caricaRecupero(), n = (r.proposte || {})[id]; if(!n) return false;
+  const a = await getAcquisto(id); if(!a) return false;
+  const campi = [];
+  for(const [k, v] of Object.entries(n)) if(vuoto(a[k])){ a[k] = v; campi.push(k); }
+  if(campi.length){ a.datiAuto = true; a.campiAuto = campi; await call("nasWriteText", a.cartella, "garanzia.json", infoJSON(a)); a.hasInfo = true; await putAcquisto(a); }
+  delete r.proposte[id]; salvaRecupero(r); return true;
+}
+function descrProposta(n){
+  const v = [];
+  if(n.dataAcquisto) v.push(["Data acquisto", fmtDate(n.dataAcquisto)]); if(n.prezzo !== undefined) v.push(["Prezzo", euro(n.prezzo)]);
+  if(n.numeroScontrino) v.push(["N. scontrino", n.numeroScontrino]); if(n.tipoPagamento) v.push(["Pagamento", n.tipoPagamento]);
+  if(n.negozioCitta) v.push(["Città", n.negozioCitta]); if(n.negozioIndirizzo) v.push(["Indirizzo", n.negozioIndirizzo]); if(n.negozioTelefono) v.push(["Telefono", n.negozioTelefono]);
+  if(n.articoli) v.push(["Articoli", n.articoli.length + " (" + n.articoli.slice(0, 3).map(x => x.descrizione).join(", ") + (n.articoli.length > 3 ? "…" : "") + ")"]);
+  return v;
+}
 function mostraRecupero(){
   const r = caricaRecupero(), o = $("#rOut"); if(!o) return;
   r.esclusi = r.esclusi || {};
@@ -2627,7 +2656,7 @@ function mostraRecupero(){
       <tr><td>Da controllare a mano</td><td class="num">${dub.length}</td></tr>
     </table>
     ${prop.length ? `<h3 style="margin:16px 2px 4px;font-size:16px">Cosa verrebbe aggiunto</h3>
-      <p class="muted" style="margin:0 2px 6px">Tocca un acquisto per vedere tutti i dati trovati. Togli la spunta a quelli che non vuoi salvare.</p>
+      <p class="muted" style="margin:0 2px 6px"><b>Questi dati non sono ancora salvati</b>: per questo se apri la scheda la trovi ancora vuota. Tocca un acquisto per vedere tutti i dati trovati; puoi salvarlo da solo, oppure togliere la spunta a quelli che non vuoi e salvare tutti gli altri insieme con il tasto in fondo.</p>
       <div id="rElenco"></div>
       <div class="btns"><button class="btn primary" id="rSalva">✅ Salva i dati spuntati (${scelti().length})</button></div>` : ""}
     ${dub.length ? `<details style="margin-top:10px"><summary>Da controllare a mano (${dub.length})</summary><table class="items">${dub.map(([id, d]) => `<tr data-id="${esc(id)}" style="cursor:pointer"><td><b>${esc(d.nome || "")}</b> · ${esc(d.negozio || "")}<br><small class="muted">${esc(d.motivo)}</small></td></tr>`).join("")}</table></details>` : ""}
@@ -2649,13 +2678,14 @@ function mostraRecupero(){
           </table>
           ${n.articoli ? `<label>Articoli trovati</label><table class="items">${n.articoli.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="num">${euro(x.prezzo)}</td></tr>`).join("")}</table>` : ""}
           <p class="muted" style="margin:6px 0 0">Vengono aggiunti solo questi dati: quelli già presenti nell'acquisto non cambiano.</p>
-          <div class="btns"><button class="btn small rdoc">🧾 Apri lo scontrino</button><button class="btn small rscheda">📄 Apri la scheda</button></div>
+          <div class="btns"><button class="btn small rdoc">🧾 Apri lo scontrino</button><button class="btn small rscheda">📄 Apri la scheda</button><button class="btn small primary rsolo">✅ Salva solo questo</button></div>
         </div></div>`; }).join("");
     el.querySelectorAll(".rprop").forEach(d => {
       const id = d.dataset.id, a = m.get(id) || {};
       d.querySelector(".rtesta").onclick = e => { if(e.target.classList.contains("rinc")) return; d.querySelector(".rdett").classList.toggle("hidden"); d.classList.toggle("aperto"); };
       d.querySelector(".rinc").onchange = e => { if(e.target.checked) delete r.esclusi[id]; else r.esclusi[id] = 1; salvaRecupero(r); aggiornaBottone(); };
       d.querySelector(".rscheda").onclick = () => setView("dettaglio", id);
+      d.querySelector(".rsolo").onclick = async () => { const b = d.querySelector(".rsolo"); b.disabled = true; try{ await salvaProposta(id); toast("Salvato: " + (a.nome || "")); syncReminders(); updateBadge(); mostraRecupero(); }catch(e){ toast(e.message, true); b.disabled = false; } };
       d.querySelector(".rdoc").onclick = async () => { const f = (a.files || []).find(x => /\.(pdf|jpe?g|png|webp)$/i.test(x.name)); if(!f){ toast("Nessun documento.", true); return; } try{ await call("nasOpen", a.cartella + "/" + f.name); }catch(e){ toast(e.message, true); } };
     });
   });

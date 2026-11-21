@@ -993,7 +993,8 @@ const CATALOGO = "catalogo_garanzie.csv";
 function catalogoCSV(list){
   const head = ["Negozio/Categoria","Indirizzo negozio","Città negozio","Telefono negozio","Nome oggetto","Prezzo €","N. scontrino","Tipo pagamento","Data acquisto","Mesi garanzia","Scadenza","Stato","Cartella","File","Note"];
   const pulito = v => String(v ?? "").replace(/[;\r\n]+/g, " ").trim();
-  const radice = settings().radiceWindows || "";
+  // il riferimento è il NAS: \\192.168.1.13\Public\garanzie scontrini acquisti\Negozio\…
+  const c = nasCfg(), radice = c.host ? "\\\\" + c.host + "\\" + c.share + (c.folder ? "\\" + String(c.folder).replace(/[\/\\]+/g, "\\").replace(/^\\|\\$/g, "") : "") : "";
   const percorso = rel => (radice ? radice + "\\" : "") + String(rel || "").replace(/\//g, "\\");
   const stato = {ok:"attiva", warn:"in_scadenza", bad:"scaduta"};
   const righe = [...list].filter(a => !a.daCaricare).sort((x, y) => x.cartella.localeCompare(y.cartella, "it", {sensitivity:"base"})).map(a => {
@@ -1025,8 +1026,6 @@ async function importaDaWindows(testo, avanza){
     const cart = v.cartella || v.folder || v.path || "";
     const a = (cart && perCartella.get(coda(cart))) || perDati.get(k(v.negozio) + "|" + k(v.nome) + "|" + dataISO(v.dataAcquisto));
     if(!a){ nonTrovati.push(v.nome || cart || "?"); continue; }
-    // impara dove il programma Windows tiene l'archivio (es. C:/Users/…/garanzie scontrini acquisti), per riscrivere il catalogo uguale
-    if(cart && !settings().radiceWindows){ const c = cart.replace(/\\/g, "/"), rel = a.cartella.replace(/\\/g, "/"), i = c.toLowerCase().lastIndexOf("/" + rel.toLowerCase()); if(i > 0) saveSettings({radiceWindows:cart.slice(0, i)}); }
     let cambiato = false;
     const p = prezzoNum(v.prezzo);
     if(p !== "" && (a.prezzo === "" || a.prezzo == null)){ a.prezzo = p; cambiato = true; }
@@ -1094,8 +1093,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.9";
+const VERSIONE = "v5.10";
 const CRONOLOGIA = [
+  {v:"v5.10", d:"21/11/2026", n:[
+    "Catalogo CSV: le colonne Cartella e File puntano al NAS (\\\\NAS\\Public\\…), il riferimento di tutto l'archivio"
+  ]},
   {v:"v5.9", d:"21/11/2026", n:[
     "Catalogo CSV uguale a quello del programma Windows (catalogo_garanzie.csv), salvabile direttamente nell'archivio sul NAS: app e PC si scambiano i dati"
   ]},

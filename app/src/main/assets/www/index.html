@@ -619,6 +619,30 @@ async function geminiCall(body, model){
   const j = await r.json().catch(() => ({}));
   return {status:r.status, j};
 }
+async function geminiModelli(){
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {headers:{"x-goog-api-key":settings().geminiKey}});
+  const j = await r.json().catch(() => ({}));
+  const nomi = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name.replace(/^models\//, ""))
+    .filter(n => /flash/.test(n) && !/image|tts|live|audio|thinking|exp/.test(n));
+  // prima i "flash" normali più recenti, poi i "lite"; le anteprime per ultime
+  nomi.sort((a, b) => (/lite/.test(a) - /lite/.test(b)) || (/preview/.test(a) - /preview/.test(b)) || b.localeCompare(a, undefined, {numeric:true}));
+  return nomi;
+}
+// Prova il modello salvato; se Google è occupato (503/500) o il modello non c'è, prova da solo gli altri modelli gratuiti
+async function geminiSicuro(body){
+  let res = await geminiCall(body);
+  if(res.status === 200) return res;
+  const occupato = [500, 503, 404].includes(res.status) || (res.status === 400 && /model/i.test(res.j.error?.message || "")) || (res.status === 429 && !/per day|daily/i.test(res.j.error?.message || ""));
+  if(!occupato) return res;
+  let altri = [];
+  try{ altri = (await geminiModelli()).filter(m => m !== settings().geminiModel); }catch(e){}
+  for(const m of altri.slice(0, 5)){
+    const r2 = await geminiCall(body, m);
+    if(r2.status === 200){ saveSettings({geminiModel:m}); return r2; }
+    res = r2;
+  }
+  return res;
+}
 async function geminiModelloValido(){
   // se il modello predefinito non esiste più, sceglie da solo il "flash" più recente disponibile
   const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {headers:{"x-goog-api-key":settings().geminiKey}});
@@ -634,8 +658,8 @@ async function geminiRead(files){
   const parts = files.map(f => ({inline_data:{mime_type:f.mime, data:f.data}}));
   parts.push({text:PROMPT_LETTURA()});
   const body = {contents:[{role:"user", parts}], generationConfig:{temperature:0, responseMimeType:"application/json"}};
-  let {status, j} = await geminiCall(body);
-  if(status === 404 || status === 400 && /model/i.test(j.error?.message || "")){ const m = await geminiModelloValido(); ({status, j} = await geminiCall(body, m)); }
+  const {status, j} = await geminiSicuro(body);
+  if(status === 503 || status === 500) throw new Error("Google in questo momento è sovraccarico: riprova tra qualche minuto (oppure usa Leggi scontrino).");
   if(status === 429) throw new Error("Limite gratuito di Google raggiunto per oggi: riprova più tardi o domani.");
   if(status !== 200) throw new Error("Google: " + (j.error?.message || status));
   const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
@@ -1033,8 +1057,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.1";
+const VERSIONE = "v5.2";
 const CRONOLOGIA = [
+  {v:"v5.2", d:"21/11/2026", n:[
+    "Lettura online: se Google è occupato prova da solo un altro modello gratuito",
+    "Spunta \"Mostra la chiave\" nelle impostazioni di lettura"
+  ]},
   {v:"v5.1", d:"21/11/2026", n:[
     "Recupera i dati dagli scontrini (Impostazioni → Lettura scontrini): rilegge l'archivio e aggiunge solo prezzi, date, articoli e città mancanti, dopo un controllo senza salvare"
   ]},
@@ -1984,14 +2012,16 @@ function renderImpLett(){
       <p class="muted">Il tasto <b>"Leggi online"</b> in Acquisisci manda la foto a Google Gemini, che legge meglio nomi, città e date degli scontrini rovinati. È <b>gratis</b> (con un limite giornaliero ampio) e senza carta di credito.</p>
       <p class="muted"><b>Come avere la chiave (una volta sola):</b><br>1. Tocca il link qui sotto e accedi con il tuo account Google (lo stesso del telefono).<br>2. Tocca <b>Create API key</b> (Crea chiave API) e poi copia la chiave.<br>3. Incollala qui sotto e tocca Salva.</p>
       <p><a href="https://aistudio.google.com/apikey">👉 Apri aistudio.google.com/apikey</a></p>
-      <label>Chiave Google (gratuita)</label><input id="gKey" type="password" value="${esc(s.geminiKey || "")}" placeholder="AIza…" autocomplete="off">
+      <label>Chiave Google (gratuita)</label><input id="gKey" type="password" value="${esc(s.geminiKey || "")}" placeholder="AIza…" autocomplete="off" autocapitalize="off">
+      <label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:14.5px;margin-top:6px"><input type="checkbox" id="gShow" style="width:auto;margin:0"> Mostra la chiave</label>
       <div class="btns"><button class="btn" id="gTest">▶️ Verifica</button><button class="btn primary" id="gSave">💾 Salva</button></div>
       <div id="gOut"></div>
     </div>
     <div class="card">
       <h2>🤖 Claude (facoltativo, a pagamento)</h2>
       <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) il tasto "Leggi online" usa Claude. Serve solo se non c'è la chiave gratuita di Google.</p>
-      <label>Chiave API</label><input id="cKey" type="password" value="${esc(s.apiKey)}" placeholder="sk-ant-…" autocomplete="off">
+      <label>Chiave API</label><input id="cKey" type="password" value="${esc(s.apiKey)}" placeholder="sk-ant-…" autocomplete="off" autocapitalize="off">
+      <label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:14.5px;margin-top:6px"><input type="checkbox" id="cShow" style="width:auto;margin:0"> Mostra la chiave</label>
       <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
       <div class="btns"><button class="btn" id="cTest">▶️ Verifica</button><button class="btn primary" id="cSave">💾 Salva</button></div>
       <div id="cOut"></div>
@@ -2043,16 +2073,20 @@ function renderImpLett(){
   $("#cSave").onclick = () => { save(); toast("Salvato."); };
   const gSave = () => saveSettings({geminiKey:$("#gKey").value.trim()});
   $("#gSave").onclick = () => { gSave(); esito($("#gOut"), true, "Salvata."); };
+  $("#gShow").onchange = e => { $("#gKey").type = e.target.checked ? "text" : "password"; };
   $("#gTest").onclick = async () => {
     gSave(); const o = $("#gOut");
     if(!settings().geminiKey){ esito(o, false, "Incolla prima la chiave."); return; }
     esito(o, null, "Provo il collegamento a Google…");
     try{
-      let {status, j} = await geminiCall({contents:[{parts:[{text:"Rispondi solo OK"}]}]});
-      if(status === 404){ await geminiModelloValido(); ({status, j} = await geminiCall({contents:[{parts:[{text:"Rispondi solo OK"}]}]})); }
-      if(status === 200) esito(o, true, "Funziona! Ora in Acquisisci puoi usare \"Leggi online\"."); else esito(o, false, "Errore " + status + ": " + (j.error?.message || ""));
+      const {status, j} = await geminiSicuro({contents:[{parts:[{text:"Rispondi solo OK"}]}]});
+      if(status === 200) esito(o, true, "Funziona! Ora in Acquisisci puoi usare \"Leggi online\".");
+      else if(status === 503 || status === 500 || status === 429) esito(o, true, "La chiave è giusta ✔ ma Google adesso è molto occupato. Tocca Salva: la lettura online funzionerà appena si libera.");
+      else if(status === 400 || status === 403) esito(o, false, "Chiave non valida: ricopiala da aistudio.google.com/apikey.");
+      else esito(o, false, "Errore " + status + ": " + (j.error?.message || ""));
     }catch(e){ esito(o, false, "Nessuna risposta: controlla internet. (" + e.message + ")"); }
   };
+  $("#cShow").onchange = e => { $("#cKey").type = e.target.checked ? "text" : "password"; };
   $("#cTest").onclick = async () => {
     save(); const o = $("#cOut");
     if(!settings().apiKey){ esito(o, false, "Inserisci prima la chiave API."); return; }

@@ -248,7 +248,7 @@ async function delAcquisto(id){ return rq((await st("readwrite")).delete(id)); }
 /* =========================================================
    Impostazioni (NAS: password tenuta solo dalla parte Android)
    ========================================================= */
-const DEFAULTS = {mesiDefault:24, giorniAvviso:30, apiKey:"", model:"claude-sonnet-5-5", ultimoAggiornamento:""};
+const DEFAULTS = {mesiDefault:24, giorniAvviso:30, apiKey:"", model:"claude-sonnet-5-5", geminiKey:"", geminiModel:"gemini-flash-latest", ultimoAggiornamento:""};
 function settings(){ try{ return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem("gs_settings") || "{}")); }catch(e){ return Object.assign({}, DEFAULTS); } }
 function saveSettings(p){ localStorage.setItem("gs_settings", JSON.stringify(Object.assign(settings(), p))); }
 function nasCfg(){
@@ -600,7 +600,39 @@ function nomeDaArticoli(art){
 }
 const nomeBello = d => String(d || "").replace(/[-\s]*\d{4,}\s*%?\s*$/, "").replace(/\s+\d{1,2}\s?%\s*$/, "").trim().toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).split(" ").slice(0, 5).join(" ");
 
-/* Claude (facoltativo) */
+/* Lettura online gratuita con Google Gemini (chiave gratuita da aistudio.google.com) */
+const PROMPT_LETTURA = () => `Leggi lo scontrino/fattura (Italia) e rispondi SOLO con JSON: {"negozio":"nome commerciale del negozio (es. Lidl, Leroy Merlin)","nome":"nome breve dell'oggetto principale, di solito l'articolo più caro, senza codici","dataAcquisto":"AAAA-MM-GG","prezzo":numero|null,"numeroScontrino":"","tipoPagamento":"Contanti|Bancomat|Carta|","negozioIndirizzo":"via e numero","negozioCitta":"città del punto vendita","negozioTelefono":"","garanziaMesi":24,"articoli":[{"descrizione":"senza codici articolo","quantita":1,"prezzo":0}],"note":""}. Il prezzo di ogni articolo è il totale della riga. Unisci descrizioni su più righe, ignora IVA/resto/pagamenti/sconti carta. Se l'anno è nel futuro è un errore di stampa: correggilo (oggi è ${todayISO()}).`;
+async function geminiCall(body, model){
+  const s = settings();
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || s.geminiModel || DEFAULTS.geminiModel)}:generateContent`, {method:"POST", headers:{"content-type":"application/json", "x-goog-api-key":s.geminiKey}, body:JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  return {status:r.status, j};
+}
+async function geminiModelloValido(){
+  // se il modello predefinito non esiste più, sceglie da solo il "flash" più recente disponibile
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {headers:{"x-goog-api-key":settings().geminiKey}});
+  const j = await r.json().catch(() => ({}));
+  const nomi = (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes("generateContent")).map(m => m.name.replace(/^models\//, ""))
+    .filter(n => /flash/.test(n) && !/lite|image|tts|live|audio|thinking|exp/.test(n));
+  nomi.sort((a, b) => (/preview/.test(a) - /preview/.test(b)) || b.localeCompare(a, undefined, {numeric:true}));
+  if(!nomi.length) throw new Error("Nessun modello Gemini disponibile per questa chiave.");
+  saveSettings({geminiModel:nomi[0]}); return nomi[0];
+}
+async function geminiRead(files){
+  const s = settings(); if(!s.geminiKey) throw new Error("Manca la chiave gratuita di Google in Impostazioni → Lettura scontrini.");
+  const parts = files.map(f => ({inline_data:{mime_type:f.mime, data:f.data}}));
+  parts.push({text:PROMPT_LETTURA()});
+  const body = {contents:[{role:"user", parts}], generationConfig:{temperature:0, responseMimeType:"application/json"}};
+  let {status, j} = await geminiCall(body);
+  if(status === 404 || status === 400 && /model/i.test(j.error?.message || "")){ const m = await geminiModelloValido(); ({status, j} = await geminiCall(body, m)); }
+  if(status === 429) throw new Error("Limite gratuito di Google raggiunto per oggi: riprova più tardi o domani.");
+  if(status !== 200) throw new Error("Google: " + (j.error?.message || status));
+  const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
+  const m = txt.match(/\{[\s\S]*\}/); if(!m) throw new Error("Risposta online non leggibile: riprova.");
+  return JSON.parse(m[0]);
+}
+
+/* Claude (facoltativo, a pagamento) */
 async function claudeRead(files){
   const s = settings(); if(!s.apiKey) throw new Error("Nessuna chiave API di Claude in Impostazioni.");
   const content = files.map(f => f.mime === "application/pdf"
@@ -987,8 +1019,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.3";
+const VERSIONE = "v4.4";
 const CRONOLOGIA = [
+  {v:"v4.4", d:"21/11/2026", n:[
+    "Lettura online GRATUITA con Google Gemini: basta una chiave gratuita (Impostazioni → Lettura scontrini)",
+    "Il tasto \"Leggi online\" usa Google; Claude resta solo come alternativa facoltativa"
+  ]},
   {v:"v4.3", d:"21/11/2026", n:[
     "Legge la città e l'indirizzo del negozio (es. Lidl Montichiari, Via Trieste 99)",
     "Tolti i codici dai nomi degli articoli Lidl (es. \"SET CHIODI- 03851\" → \"SET CHIODI\")",
@@ -1294,8 +1330,8 @@ async function renderAcquisisci(edit){
   $("#bFile").onclick = () => $("#fileInput").click();
   $("#bLeggi").onclick = () => doLeggi(false);
   $("#bClaude").onclick = () => {
-    if(settings().apiKey) return doLeggi(true);
-    $("#leggiStatus").innerHTML = `<div class="muted" style="margin-top:8px">La lettura online usa Claude ed è più precisa con gli scontrini rovinati. Serve una chiave personale (a consumo: circa 1–2 centesimi a scontrino), da inserire una volta sola.</div><div class="btns"><button class="btn primary" id="bVaiChiave">🔑 Inserisci la chiave</button></div>`;
+    if(settings().geminiKey || settings().apiKey) return doLeggi(true);
+    $("#leggiStatus").innerHTML = `<div class="muted" style="margin-top:8px">La lettura online (gratuita, con Google Gemini) è più precisa con gli scontrini rovinati. Serve una chiave gratuita di Google, da inserire una volta sola.</div><div class="btns"><button class="btn primary" id="bVaiChiave">🔑 Inserisci la chiave gratuita</button></div>`;
     $("#bVaiChiave").onclick = () => setView("impLett");
   };
   $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
@@ -1367,7 +1403,7 @@ async function doLeggi(useClaude){
   readForm();
   const stEl = $("#leggiStatus");
   document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = true);
-  stEl.innerHTML = `<span class="spinner"></span>${useClaude ? "Claude sta leggendo lo scontrino…" : "Leggo lo scontrino…"}`;
+  stEl.innerHTML = `<span class="spinner"></span>${useClaude ? "Lettura online in corso…" : "Leggo lo scontrino…"}`;
   try{
     // in modifica, senza documenti nuovi, legge quelli già salvati nell'archivio (prima lo "scontrino")
     let docs = draft.pendingFiles;
@@ -1377,7 +1413,7 @@ async function doLeggi(useClaude){
       for(const f of ord) docs.push({name:f.name, mime:mimeOf(f.name), data: await call("nasRead", draft.cartella + "/" + f.name)});
     }
     let r;
-    if(useClaude) r = await claudeRead(docs);
+    if(useClaude) r = settings().geminiKey ? await geminiRead(docs) : await claudeRead(docs);
     else{
       const texts = [];
       for(const f of docs) texts.push(await call("ocr", f.data, f.mime));
@@ -1720,7 +1756,7 @@ function renderImpostazioni(){
   $("#view").innerHTML = `
     ${rigaMenu("impDest", "📁", "#e6eef8", "Destinazione file", esc(descrDestinazione()))}
     ${rigaMenu("impGar", "🧾", "#edf3e4", "Garanzie e avvisi", `${s.mesiDefault} mesi predefiniti · avviso ${s.giorniAvviso} giorni prima`)}
-    ${rigaMenu("impLett", "🔎", "#f8e6dc", "Lettura scontrini", s.apiKey ? "OCR sul telefono + Claude" : "OCR sul telefono, gratuito")}
+    ${rigaMenu("impLett", "🔎", "#f8e6dc", "Lettura scontrini", s.geminiKey ? "Sul telefono + online Google, gratis" : s.apiKey ? "OCR sul telefono + Claude" : "OCR sul telefono, gratuito")}
     ${rigaMenu("impStampa", "🖨️", "#e9eef3", "Stampa", {android:"Finestra di stampa del telefono", pdf:"Apri come PDF, poi Condividi", app:"App della stampante (Epson iPrint, HP Smart, Canon…)"}[modoStampa()])}
     ${rigaMenu("impBackup", "💾", "#e8f4f1", "Backup e ripristino", "Esporta o importa le impostazioni, elenco acquisti in Excel")}
     ${rigaMenu("impInfo", "ℹ️", "#ece7f4", "Informazioni e aggiornamenti", `Versione ${VERSIONE} · cronologia`)}`;
@@ -1889,8 +1925,17 @@ function renderImpLett(){
       <div id="tOut"></div>
     </div>
     <div class="card">
-      <h2>🤖 Claude (facoltativo)</h2>
-      <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) il tasto "Leggi online" legge gli scontrini difficili con Claude: più preciso su nomi, città e date.</p>
+      <h2>🌐 Lettura online gratuita (Google)</h2>
+      <p class="muted">Il tasto <b>"Leggi online"</b> in Acquisisci manda la foto a Google Gemini, che legge meglio nomi, città e date degli scontrini rovinati. È <b>gratis</b> (con un limite giornaliero ampio) e senza carta di credito.</p>
+      <p class="muted"><b>Come avere la chiave (una volta sola):</b><br>1. Tocca il link qui sotto e accedi con il tuo account Google (lo stesso del telefono).<br>2. Tocca <b>Create API key</b> (Crea chiave API) e poi copia la chiave.<br>3. Incollala qui sotto e tocca Salva.</p>
+      <p><a href="https://aistudio.google.com/apikey">👉 Apri aistudio.google.com/apikey</a></p>
+      <label>Chiave Google (gratuita)</label><input id="gKey" type="password" value="${esc(s.geminiKey || "")}" placeholder="AIza…" autocomplete="off">
+      <div class="btns"><button class="btn" id="gTest">▶️ Verifica</button><button class="btn primary" id="gSave">💾 Salva</button></div>
+      <div id="gOut"></div>
+    </div>
+    <div class="card">
+      <h2>🤖 Claude (facoltativo, a pagamento)</h2>
+      <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) il tasto "Leggi online" usa Claude. Serve solo se non c'è la chiave gratuita di Google.</p>
       <label>Chiave API</label><input id="cKey" type="password" value="${esc(s.apiKey)}" placeholder="sk-ant-…" autocomplete="off">
       <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
       <div class="btns"><button class="btn" id="cTest">▶️ Verifica</button><button class="btn primary" id="cSave">💾 Salva</button></div>
@@ -1937,6 +1982,18 @@ function renderImpLett(){
     b.disabled = false;
   };
   $("#cSave").onclick = () => { save(); toast("Salvato."); };
+  const gSave = () => saveSettings({geminiKey:$("#gKey").value.trim()});
+  $("#gSave").onclick = () => { gSave(); esito($("#gOut"), true, "Salvata."); };
+  $("#gTest").onclick = async () => {
+    gSave(); const o = $("#gOut");
+    if(!settings().geminiKey){ esito(o, false, "Incolla prima la chiave."); return; }
+    esito(o, null, "Provo il collegamento a Google…");
+    try{
+      let {status, j} = await geminiCall({contents:[{parts:[{text:"Rispondi solo OK"}]}]});
+      if(status === 404){ await geminiModelloValido(); ({status, j} = await geminiCall({contents:[{parts:[{text:"Rispondi solo OK"}]}]})); }
+      if(status === 200) esito(o, true, "Funziona! Ora in Acquisisci puoi usare \"Leggi online\"."); else esito(o, false, "Errore " + status + ": " + (j.error?.message || ""));
+    }catch(e){ esito(o, false, "Nessuna risposta: controlla internet. (" + e.message + ")"); }
+  };
   $("#cTest").onclick = async () => {
     save(); const o = $("#cOut");
     if(!settings().apiKey){ esito(o, false, "Inserisci prima la chiave API."); return; }
@@ -1991,7 +2048,7 @@ function renderImpBackup(){
     const nas = nasCfg(); delete nas.hasPassword;
     if(pass && A && A.getNasPassword) nas.password = A.getNasPassword();
     const imp = {mesiDefault:s.mesiDefault, giorniAvviso:s.giorniAvviso, archivio:archivioScelto(), localFolder:s.localFolder || "", driveAccount:s.driveAccount || "", model:s.model};
-    if(pass) imp.apiKey = s.apiKey;
+    if(pass){ imp.apiKey = s.apiKey; imp.geminiKey = s.geminiKey || ""; }
     const dati = {app:"GaranzieScontrini", tipo:"impostazioni", versioneApp:VERSIONE, creato:new Date().toISOString(), conPassword:pass, impostazioni:imp, nas};
     try{ const dove = await salvaFile(`GaranzieScontrini_impostazioni_${todayISO()}.json`, "application/json", JSON.stringify(dati, null, 2)); esito(o, true, "Salvato in " + dove); }
     catch(e){ esito(o, false, e.message); }
@@ -2005,7 +2062,7 @@ function renderImpBackup(){
       if(d.app !== "GaranzieScontrini" || d.tipo !== "impostazioni") throw new Error("Il file non è un backup delle impostazioni di Garanzie & Scontrini.");
       if(!(await conferma(`Importare le impostazioni del ${fmtDate((d.creato || "").slice(0, 10))}?\n\nQuelle attuali vengono sostituite.`, "Importa"))) return;
       const imp = d.impostazioni || {};
-      const keep = {apiKey: imp.apiKey !== undefined ? imp.apiKey : settings().apiKey};
+      const keep = {apiKey: imp.apiKey !== undefined ? imp.apiKey : settings().apiKey, geminiKey: imp.geminiKey !== undefined ? imp.geminiKey : settings().geminiKey};
       saveSettings(Object.assign({}, imp, keep));
       if(d.nas && A) A.setNasConfig(JSON.stringify(d.nas));
       syncReminders(); updateBadge(); setNasState("unknown");

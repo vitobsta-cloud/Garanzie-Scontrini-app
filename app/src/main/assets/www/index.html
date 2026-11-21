@@ -245,6 +245,22 @@ function db(){
   return dbp;
 }
 const rq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+/* Bozza dello scontrino in acquisizione: resta anche se l'app si chiude (es. durante la stampa) */
+let bozzaDbP = null, bozzaT = null;
+function bozzaDb(){
+  if(!bozzaDbP) bozzaDbP = new Promise((res, rej) => { const r = indexedDB.open("garanzie_bozza", 1); r.onupgradeneeded = () => r.result.createObjectStore("bozza"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  return bozzaDbP;
+}
+async function bozzaOp(mode, fn){ try{ const st = (await bozzaDb()).transaction("bozza", mode).objectStore("bozza"); return await rq(fn(st)); }catch(e){ return null; } }
+function salvaBozza(){
+  clearTimeout(bozzaT);
+  bozzaT = setTimeout(() => {
+    if(!draft) return;
+    const vuota = !draft.pendingFiles.length && !draft.nome && !draft.negozio && !draft._edit;
+    if(vuota) bozzaOp("readwrite", st => st.delete("corrente")); else bozzaOp("readwrite", st => st.put(JSON.parse(JSON.stringify(draft)), "corrente"));
+  }, 600);
+}
+function cancellaBozza(){ clearTimeout(bozzaT); bozzaOp("readwrite", st => st.delete("corrente")); }
 async function st(mode){ return (await db()).transaction("acquisti", mode).objectStore("acquisti"); }
 async function allAcquisti(){ return rq((await st("readonly")).getAll()); }
 async function getAcquisto(id){ return rq((await st("readonly")).get(id)); }
@@ -1050,7 +1066,7 @@ function setView(v, arg, isBack){
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
   const navAcq = document.querySelector('nav button[data-v="acquisisci"]'); if(navAcq) navAcq.style.display = puo("aggiungere") ? "" : "none";
   window.scrollTo(0, 0);
-  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa, impUtenti:renderImpUtenti, impUtente:renderImpUtente, invito:renderInvito})[v](arg);
+  return ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa, impUtenti:renderImpUtenti, impUtente:renderImpUtente, invito:renderInvito})[v](arg);
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
 $("#hBack").onclick = () => window.onAndroidBack();
@@ -1059,8 +1075,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.7";
+const VERSIONE = "v5.8";
 const CRONOLOGIA = [
+  {v:"v5.8", d:"21/11/2026", n:[
+    "Acquisisci: \"Stampa\" non fa più perdere lo scontrino, resta nella pagina pronto da salvare (anche se l'app si chiude)",
+    "Dopo \"Salva\" l'app chiede se vuoi stampare la scheda"
+  ]},
   {v:"v5.7", d:"21/11/2026", n:[
     "Lettura online: tolta la \"R\" davanti agli articoli Lidl (es. R PISTOLA SPARAPUNTI)",
     "Il pallino \"Nome\" si accende da solo sull'articolo che dà il nome all'acquisto"
@@ -1423,10 +1443,12 @@ async function renderAcquisisci(edit){
     $("#leggiStatus").innerHTML = `<div class="muted" style="margin-top:8px">La lettura online (gratuita, con Google Gemini) è più precisa con gli scontrini rovinati. Serve una chiave gratuita di Google, da inserire una volta sola.</div><div class="btns"><button class="btn primary" id="bVaiChiave">🔑 Inserisci la chiave gratuita</button></div>`;
     $("#bVaiChiave").onclick = () => setView("impLett");
   };
+  $("#view").addEventListener("input", () => { if(current === "acquisisci" && draft && $("#fNegozio")){ readForm(); salvaBozza(); } });
+  salvaBozza();
   $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
   $("#bSalva").onclick = doSalva;
   $("#bStampaA").onclick = async () => {
-    readForm();
+    readForm(); salvaBozza();   // la scheda si stampa e lo scontrino resta qui, pronto da salvare
     const b = $("#bStampaA"); b.disabled = true;
     try{
       const imgs = draft.pendingFiles.filter(f => f.mime.startsWith("image/")).map(f => ({name:f.name, src:dataUrl(f)}));
@@ -1436,8 +1458,8 @@ async function renderAcquisisci(edit){
     }catch(e){ toast(e.message, true); }
     b.disabled = false;
   };
-  if($("#bReset")) $("#bReset").onclick = async () => { if(await conferma("Svuotare il modulo?", "Svuota")){ draft = newDraft(); lastOcr = ""; renderAcquisisci(); } };
-  if($("#bAnnulla")) $("#bAnnulla").onclick = () => { draft = null; window.onAndroidBack(); };
+  if($("#bReset")) $("#bReset").onclick = async () => { if(await conferma("Svuotare il modulo?", "Svuota")){ draft = newDraft(); lastOcr = ""; cancellaBozza(); renderAcquisisci(); } };
+  if($("#bAnnulla")) $("#bAnnulla").onclick = () => { draft = null; cancellaBozza(); window.onAndroidBack(); };
 }
 function updPreview(){
   const s = scadenzaInfo(draft);
@@ -1460,7 +1482,7 @@ function drawThumbs(){
   const old = (draft.files || []).map(f => `<div class="thumb" title="Già nell'archivio">${isImg(f.name) ? "🖼️" : "📄"}<br>${esc(f.name.slice(0, 22))}</div>`);
   const neu = draft.pendingFiles.map((f, i) => `<div class="thumb" data-i="${i}">${f.mime.startsWith("image/") ? `<img src="${dataUrl(f)}">` : `📄<br>${esc(f.name.slice(0, 22))}`}<button data-del="${i}">✕</button></div>`);
   $("#thumbs").innerHTML = old.concat(neu).join("") || `<span class="muted">Nessun documento.</span>`;
-  $("#thumbs").querySelectorAll("[data-del]").forEach(b => b.onclick = e => { e.stopPropagation(); draft.pendingFiles.splice(+b.dataset.del, 1); drawThumbs(); });
+  $("#thumbs").querySelectorAll("[data-del]").forEach(b => b.onclick = e => { e.stopPropagation(); draft.pendingFiles.splice(+b.dataset.del, 1); drawThumbs(); salvaBozza(); });
   $("#thumbs").querySelectorAll(".thumb[data-i]").forEach(t => t.onclick = () => showLocal(draft.pendingFiles[+t.dataset.i]));
 }
 function drawItems(){
@@ -1481,6 +1503,7 @@ function drawItems(){
 async function addFiles(list){
   if(!draft) draft = newDraft();
   for(const file of list){ try{ draft.pendingFiles.push(await prepareFile(file)); }catch(e){ toast("Impossibile leggere " + (file.name || "il file"), true); } }
+  salvaBozza();
   if(current === "acquisisci"){ drawThumbs(); if(!draft._edit && list.length && !draft.articoli.length) doLeggi(false); }
 }
 $("#camInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
@@ -1589,11 +1612,12 @@ async function doSalva(){
     msg = "Salvato sul telefono. Lo carico nell'archivio appena è raggiungibile (" + e.message + ").";
   }
   await putAcquisto(a); syncReminders(); updateBadge();
-  draft = null; lastOcr = "";
+  draft = null; lastOcr = ""; cancellaBozza();
   toast(msg, a.daCaricare);
   navStack = navStack.filter(x => x.v !== "acquisisci");
   current = "home"; currentArg = undefined;
-  setView("dettaglio", a.id);
+  await setView("dettaglio", a.id);
+  if(await conferma((a.daCaricare ? "Salvato sul telefono." : "✅ Salvato nell'archivio.") + "\n\nVuoi stampare la scheda?", "🖨️ Stampa")){ const bp = $("#bPrint"); if(bp) bp.click(); }
 }
 
 /* =========================================================
@@ -2632,6 +2656,11 @@ async function collegaArchivio(forzaElenco){
 window.onAndroidResume = () => { if(archivioPronto() && Date.now() - ultimoPing > 5 * 60 * 1000) collegaArchivio(false); };
 setNasState("unknown"); setSync(settings().ultimoAggiornamento ? "old" : "none");
 setView(A && !archivioPronto() ? "impostazioni" : "home");
+bozzaOp("readonly", st => st.get("corrente")).then(b => {
+  if(!b || draft) return;
+  draft = b; draft.pendingFiles = draft.pendingFiles || [];
+  if(current === "home"){ setView("acquisisci"); toast("Ho ripreso lo scontrino che stavi acquisendo."); }
+});
 updateBadge();
 if(archivioPronto()) collegaArchivio(false);
 </script>

@@ -433,7 +433,7 @@ function parseReceipt(text){
   if(!out.negozioCitta){   // es. Lidl: "Montichiari (BS) - cdc 0904"
     for(const l of lines.slice(0, 15)){ const m = l.match(/(?:^|\d{5}\s*[-–]?\s*)([A-Z][A-Za-zÀ-ù' ]{2,30}?)\s*\((?:[A-Z]{2})\)/); if(m && !/^(via|viale|piazza|corso|largo|strada|loc|trento)\b/i.test(m[1].trim()) && !/S\.?R\.?L|S\.?P\.?A|ITALIA/i.test(m[1])){ out.negozioCitta = m[1].trim(); break; } }
   }
-  if(out.negozioCitta){ let c = out.negozioCitta.replace(/\s+\(?[A-Z]{2}\)?$/, "").trim(); if(c === c.toUpperCase()) c = c.toLowerCase().replace(/(^|\s|')\S/g, x => x.toUpperCase()); out.negozioCitta = c; }
+  if(out.negozioCitta){ let c = out.negozioCitta.replace(/\s+\(?[A-Z]{2}\)?$/, "").trim().replace(/^(\p{Lu}\p{Ll}+) (\p{Ll}{3,})$/u, "$1$2"); if(c === c.toUpperCase()) c = c.toLowerCase().replace(/(^|\s|')\S/g, x => x.toUpperCase()); out.negozioCitta = c; }
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
@@ -1057,8 +1057,12 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.5";
+const VERSIONE = "v5.6";
 const CRONOLOGIA = [
+  {v:"v5.6", d:"21/11/2026", n:[
+    "Se la lettura online non riesce, dice il motivo e c'è il tasto \"Riprova online\"",
+    "Città spezzate dall'OCR ricomposte (es. \"Mont ichiari\" → Montichiari)"
+  ]},
   {v:"v5.5", d:"21/11/2026", n:[
     "Con la chiave di Google, \"Leggi scontrino\" incrocia la lettura del telefono con quella online: nomi, articoli e città più puliti",
     "Se le due letture danno data o totale diversi, il campo è giallo con il valore letto dal telefono",
@@ -1518,7 +1522,7 @@ async function doLeggi(useClaude){
         try{
           const on = await Promise.race([geminiRead(docs), new Promise((_, no) => setTimeout(() => no(new Error("tempo scaduto")), 30000))]);
           const x = incrocia(r, on); r = x.r; dubbiLettura = x.dubbi; modoLettura = "incrocio";
-        }catch(e){ modoLettura = "solo telefono (online non disponibile)"; }
+        }catch(e){ modoLettura = "solo telefono: online non riuscito – " + String(e.message || e).split("\n")[0].slice(0, 140); }
       }
     }
     // in modifica la lettura completa solo i campi vuoti, senza cambiare quelli già compilati
@@ -1531,9 +1535,11 @@ async function doLeggi(useClaude){
     const nd = Object.keys(dubbiLettura).length;
     $("#leggiStatus").innerHTML = "✅ Dati compilati" + (useClaude ? " (lettura online)" : modoLettura === "incrocio" ? " (telefono + online)" : modoLettura && modoLettura !== "telefono" ? " (" + esc(modoLettura) + ")" : "") + ": controllali prima di salvare."
       + (nd ? ` <b>Controlla i campi in giallo</b>: le due letture non erano d'accordo.` : "")
+      + (modoLettura.startsWith("solo telefono") ? ` <button class="btn small" id="bRiprovaOn">🔄 Riprova online</button>` : "")
       + (!useClaude && !(r.articoli || []).length ? " Non ho riconosciuto gli articoli: aggiungili a mano se servono." : "");
     const evid = (id, k, fmt) => { const el = $("#" + id); if(el && dubbiLettura[k] !== undefined){ el.style.background = "#fff4c2"; el.style.borderColor = "#e8a33d"; const h = document.createElement("div"); h.className = "muted"; h.style.fontSize = "12.5px"; h.textContent = "Sul telefono: " + fmt(dubbiLettura[k]); el.after(h); el.addEventListener("input", () => { el.style.background = ""; el.style.borderColor = ""; h.remove(); }, {once:true}); } };
     evid("fData", "dataAcquisto", fmtDate); evid("fPrezzo", "prezzo", v => euro(v));
+    if($("#bRiprovaOn")) $("#bRiprovaOn").onclick = () => doLeggi(false);
   }catch(e){
     stEl.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`;
     document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = false);

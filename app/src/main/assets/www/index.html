@@ -988,6 +988,23 @@ function dataISO(v){
   if((m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/))) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
   return "";
 }
+/* Catalogo nello stesso formato del programma Windows (catalogo_garanzie.csv): si scambiano i dati nei due sensi */
+const CATALOGO = "catalogo_garanzie.csv";
+function catalogoCSV(list){
+  const head = ["Negozio/Categoria","Indirizzo negozio","Città negozio","Telefono negozio","Nome oggetto","Prezzo €","N. scontrino","Tipo pagamento","Data acquisto","Mesi garanzia","Scadenza","Stato","Cartella","File","Note"];
+  const pulito = v => String(v ?? "").replace(/[;\r\n]+/g, " ").trim();
+  const radice = settings().radiceWindows || "";
+  const percorso = rel => (radice ? radice + "\\" : "") + String(rel || "").replace(/\//g, "\\");
+  const stato = {ok:"attiva", warn:"in_scadenza", bad:"scaduta"};
+  const righe = [...list].filter(a => !a.daCaricare).sort((x, y) => x.cartella.localeCompare(y.cartella, "it", {sensitivity:"base"})).map(a => {
+    const sc = scadenzaInfo(a), parti = a.cartella.split("/");
+    const doc = (a.files || []).map(f => f.name).filter(n => /\.(pdf|jpe?g|png|webp)$/i.test(n)).sort((x, y) => (/scontrin|fattur|ricevut/i.test(y) ? 1 : 0) - (/scontrin|fattur|ricevut/i.test(x) ? 1 : 0))[0];
+    const prezzo = a.prezzo === "" || a.prezzo == null || isNaN(Number(a.prezzo)) ? "" : Number(a.prezzo).toFixed(2);
+    return [parti.length > 1 ? parti[0] : (a.negozio || ""), a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono, String(a.nome || "").split(" / ").pop(), prezzo, a.numeroScontrino, a.tipoPagamento,
+      a.dataAcquisto, a.garanziaMesi, sc.date || "", stato[sc.cls] || "sconosciuta", percorso(a.cartella), doc ? percorso(a.cartella + "/" + doc) : "", a.note].map(pulito).join(";");
+  });
+  return "\ufeff" + [head.join(";"), ...righe].join("\r\n") + "\r\n";
+}
 async function importaDaWindows(testo, avanza){
   const voci = vociDaWindows(testo);
   if(!voci.length) throw new Error("Nel file non ci sono acquisti.");
@@ -1008,6 +1025,8 @@ async function importaDaWindows(testo, avanza){
     const cart = v.cartella || v.folder || v.path || "";
     const a = (cart && perCartella.get(coda(cart))) || perDati.get(k(v.negozio) + "|" + k(v.nome) + "|" + dataISO(v.dataAcquisto));
     if(!a){ nonTrovati.push(v.nome || cart || "?"); continue; }
+    // impara dove il programma Windows tiene l'archivio (es. C:/Users/…/garanzie scontrini acquisti), per riscrivere il catalogo uguale
+    if(cart && !settings().radiceWindows){ const c = cart.replace(/\\/g, "/"), rel = a.cartella.replace(/\\/g, "/"), i = c.toLowerCase().lastIndexOf("/" + rel.toLowerCase()); if(i > 0) saveSettings({radiceWindows:cart.slice(0, i)}); }
     let cambiato = false;
     const p = prezzoNum(v.prezzo);
     if(p !== "" && (a.prezzo === "" || a.prezzo == null)){ a.prezzo = p; cambiato = true; }
@@ -1075,8 +1094,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.8";
+const VERSIONE = "v5.9";
 const CRONOLOGIA = [
+  {v:"v5.9", d:"21/11/2026", n:[
+    "Catalogo CSV uguale a quello del programma Windows (catalogo_garanzie.csv), salvabile direttamente nell'archivio sul NAS: app e PC si scambiano i dati"
+  ]},
   {v:"v5.8", d:"21/11/2026", n:[
     "Acquisisci: \"Stampa\" non fa più perdere lo scontrino, resta nella pagina pronto da salvare (anche se l'app si chiude)",
     "Dopo \"Salva\" l'app chiede se vuoi stampare la scheda"
@@ -2455,9 +2477,9 @@ function renderImpBackup(){
       <div id="bWinOut"></div>
     </div>
     <div class="card">
-      <h2>📋 Elenco acquisti</h2>
-      <p class="muted">Esporta l'elenco di tutti gli acquisti in un file CSV, da aprire con Excel o Fogli Google. I documenti (foto e PDF) restano nell'archivio.</p>
-      <div class="btns"><button class="btn" id="bCsv">📊 Esporta elenco (CSV)</button></div>
+      <h2>📋 Catalogo acquisti (CSV, come il programma Windows)</h2>
+      <p class="muted">Crea <b>catalogo_garanzie.csv</b> nello stesso formato del programma Windows: dal PC lo importi con <b>Importa / Esporta → Importa CSV</b>, e si apre anche con Excel. Prima di scriverlo l'app legge il catalogo già presente nell'archivio e ne prende i dati che mancano, così non si perde niente; la versione precedente resta come <b>catalogo_garanzie_prima.csv</b>.</p>
+      <div class="btns"><button class="btn primary" id="bCsvNas">🗄️ Salva nell'archivio</button><button class="btn" id="bCsv">📥 Salva in Download</button></div>
       <div id="bCsvOut"></div>
     </div>`;
   $("#bExp").onclick = async () => {
@@ -2511,13 +2533,30 @@ function renderImpBackup(){
     await winRun(decodificaTesto(new Uint8Array(await f.arrayBuffer())));
   };
   $("#bCsv").onclick = async () => {
-    const o = $("#bCsvOut"), list = (await allAcquisti()).sort((x, y) => (x.dataAcquisto || "").localeCompare(y.dataAcquisto || ""));
-    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const head = ["Data acquisto","Negozio","Oggetto","Prezzo","Garanzia mesi","Scadenza garanzia","Stato","N. scontrino","Pagamento","Città","Note","Cartella"];
-    const rows = list.map(a => { const sc = scadenzaInfo(a); return [fmtDate(a.dataAcquisto), a.negozio, a.nome, a.prezzo === "" || a.prezzo == null ? "" : String(a.prezzo).replace(".", ","), a.garanziaMesi, sc.date ? fmtDate(sc.date) : "", sc.label, a.numeroScontrino, a.tipoPagamento, a.negozioCitta, a.note, (a.cartella || "").replace(/\//g, "\\")].map(q).join(";"); });
-    try{ const dove = await salvaFile(`GaranzieScontrini_elenco_${todayISO()}.csv`, "text/csv", "\ufeff" + [head.map(q).join(";"), ...rows].join("\r\n")); esito(o, true, `${list.length} acquisti esportati in ${dove}`); }
+    const o = $("#bCsvOut"), list = await allAcquisti();
+    try{ const dove = await salvaFile(CATALOGO, "text/csv", catalogoCSV(list)); esito(o, true, `${list.length} acquisti esportati in ${dove}`); }
     catch(e){ esito(o, false, e.message); }
   };
+  $("#bCsvNas").onclick = async () => {
+    const o = $("#bCsvOut"), b = $("#bCsvNas");
+    if(archivioScelto() !== "nas" || !archivioPronto()){ esito(o, false, "Serve l'archivio sul NAS: usa \"Salva in Download\"."); return; }
+    b.disabled = true;
+    try{
+      esito(o, null, "Leggo il catalogo del programma Windows…");
+      let vecchio = "";
+      try{ const by = Uint8Array.from(atob(await call("nasRead", CATALOGO)), c => c.charCodeAt(0)); vecchio = new TextDecoder("utf-8").decode(by); }catch(e){}
+      if(vecchio.trim()){
+        try{ await importaDaWindows(vecchio, msg => esito(o, null, msg)); }catch(e){}
+        await call("nasWriteText", "", "catalogo_garanzie_prima.csv", vecchio);
+      }
+      const list = await allAcquisti();
+      esito(o, null, "Scrivo catalogo_garanzie.csv…");
+      await call("nasWriteText", "", CATALOGO, catalogoCSV(list));
+      esito(o, true, `Catalogo salvato nell'archivio con ${list.filter(a => !a.daCaricare).length} acquisti. Sul PC: Importa CSV nel programma Windows.`);
+    }catch(e){ esito(o, false, e.message); }
+    b.disabled = false;
+  };
+
 }
 
 /* ---------- Informazioni ---------- */

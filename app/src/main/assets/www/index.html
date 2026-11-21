@@ -419,8 +419,13 @@ function parseReceipt(text){
   else if(/CARTA|VISA|MASTERCARD|AMEX|MAESTRO|ELETTRONICO|POS/i.test(all)) out.tipoPagamento = "Carta";
   else if(/CONTANT/i.test(all)) out.tipoPagamento = "Contanti";
   // indirizzo, città, telefono
-  const ind = lines.find(l => /^(via|viale|piazza|piazzale|corso|largo|strada|s\.?s\.?|sp|loc\.?)\b/i.test(l)); if(ind) out.negozioIndirizzo = ind.slice(0, 60);
+  const ind = lines.slice(0, 15).find(l => /^(\d{5}\s*[-–]?\s*)?(via|viale|piazza|piazzale|corso|largo|strada|s\.?s\.?|sp|loc\.?)\b/i.test(l)); if(ind) out.negozioIndirizzo = ind.replace(/^\d{5}\s*[-–]?\s*/, "").slice(0, 60);
   const cap = all.match(/\b\d{5}\s*[-–]?\s*([A-Z][A-Za-zÀ-ù' ]{2,30})/); if(cap && !/^(via|viale|piazza|corso|largo|strada|loc)\b/i.test(cap[1].trim()) && /[A-Za-zÀ-ù]{3,}/.test(cap[1])) out.negozioCitta = cap[1].trim().replace(/\s+[A-Za-z]$/, "");
+  if(out.negozioCitta && /^(TEL|FAX|TRANSAZ|MICROSOF|ADDRESS|P\.?\s?IVA|LOCALIT)/i.test(out.negozioCitta)) out.negozioCitta = "";
+  if(!out.negozioCitta){   // es. Lidl: "Montichiari (BS) - cdc 0904"
+    for(const l of lines.slice(0, 15)){ const m = l.match(/(?:^|\d{5}\s*[-–]?\s*)([A-Z][A-Za-zÀ-ù' ]{2,30}?)\s*\((?:[A-Z]{2})\)/); if(m && !/^(via|viale|piazza|corso|largo|strada|loc|trento)\b/i.test(m[1].trim()) && !/S\.?R\.?L|S\.?P\.?A|ITALIA/i.test(m[1])){ out.negozioCitta = m[1].trim(); break; } }
+  }
+  if(out.negozioCitta){ let c = out.negozioCitta.replace(/\s+\(?[A-Z]{2}\)?$/, "").trim(); if(c === c.toUpperCase()) c = c.toLowerCase().replace(/(^|\s|')\S/g, x => x.toUpperCase()); out.negozioCitta = c; }
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
@@ -431,7 +436,7 @@ function parseReceipt(text){
     [new RegExp("^(?:cad\\.?|c\\/u|cadauno|cad\\.? ?uno)\\s*:?\\s*" + PRICE + "\\s*(?:€|eur)?\\s*(?:pz\\.?|pezzi|n\\.?|x)\\s*(\\d{1,3})\\b", "i"), 1, 2],
     [new RegExp("^(?:pz\\.?|n\\.?)?\\s*(\\d{1,3})\\s*(?:pz\\.?)?\\s*[xX*]\\s*[€$]?\\s*" + PRICE, "i"), 2, 1]
   ];
-  const pulisci = d => d.replace(/\s*\d{1,2}[,.]\d{2}\s?%.*$/, "").replace(/-\s?[0-9GO]\d{5,7}\w*.*$/, "").replace(/\s+\S*_\S*/g, "").replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
+  const pulisci = d => d.replace(/\s*\d{1,2}[,.]\d{2}\s?%.*$/, "").replace(/\s*-\s?[0-9GO][\d ]{3,9}\s*$/, "").replace(/-\s?[0-9GO]\d{5,7}\w*.*$/, "").replace(/\s+\S*_\S*/g, "").replace(/(\s+\d{1,3})?\s+\d+\s?[.,]\s?\d{2}\s*€?(\s+\d{1,2}\s?%)?\s*$/, "").replace(/[-\s]*\d{5,}\s*%.*$/, "").replace(/\s+\d{1,2}\s?%.*$/, "").replace(/\s+[A-Z]-\d{4,}\s*$/, "").replace(/[-\s]+\d{4,}\s*$/, "").replace(/\s+\d{1,2}\s?[,.]?\s*$/, "").replace(/[\s-]+[A-Z]?-?0?\d{6,8}\s*$/, "").replace(/^[A-Z]{2,4}\d{3,}\s+/, "").replace(/^\d{6,}\s+/, "").replace(/^[A-Za-z]\s+(?=[A-Za-z]{3,})/, "").replace(/\s{2,}/g, " ").trim();
   const flags = raw => ({raee:/^R\s+[A-Z]/.test(raw.trim()), cod:/[-\s][0-9GO]\d{5,7}\b/.test(raw)});
   let pending = "", testoPrima = "", prezzoEan = null;
   const inizioArticoli = Math.max(lines.findIndex(l => /DESCRIZ|PREZZO\s*\(/i.test(l)), lines.findIndex(l => /DOCUMENTO\s*COMMERCIALE|SCONTRINO/i.test(l)));
@@ -982,8 +987,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.2";
+const VERSIONE = "v4.3";
 const CRONOLOGIA = [
+  {v:"v4.3", d:"21/11/2026", n:[
+    "Legge la città e l'indirizzo del negozio (es. Lidl Montichiari, Via Trieste 99)",
+    "Tolti i codici dai nomi degli articoli Lidl (es. \"SET CHIODI- 03851\" → \"SET CHIODI\")",
+    "Nuovo tasto \"Leggi online (più preciso)\" sempre visibile in Acquisisci"
+  ]},
   {v:"v4.2", d:"20/11/2026", n:[
     "Date più giuste: corregge gli anni letti male (es. 2029 → 2020) e scarta le date nel futuro",
     "Negozi sconosciuti: usa la ragione sociale (es. TIM Retail, Mira, Sinica) invece di righe a caso",
@@ -1239,7 +1249,7 @@ async function renderAcquisisci(edit){
       <div class="thumbs" id="thumbs"></div>
       <div class="btns">
         <button class="btn primary" id="bLeggi">🔎 Leggi scontrino</button>
-        ${hasKey ? `<button class="btn" id="bClaude">🤖 Rileggi con Claude</button>` : ""}
+        <button class="btn" id="bClaude">🌐 Leggi online (più preciso)</button>
       </div>
       <div class="status" id="leggiStatus"></div>
       <details id="ocrBox" class="${lastOcr ? "" : "hidden"}"><summary>Testo letto dal documento (per verifica)</summary><pre class="ocr">${esc(lastOcr)}</pre></details>
@@ -1283,7 +1293,11 @@ async function renderAcquisisci(edit){
   $("#bCam").onclick = () => $("#camInput").click();
   $("#bFile").onclick = () => $("#fileInput").click();
   $("#bLeggi").onclick = () => doLeggi(false);
-  if($("#bClaude")) $("#bClaude").onclick = () => doLeggi(true);
+  $("#bClaude").onclick = () => {
+    if(settings().apiKey) return doLeggi(true);
+    $("#leggiStatus").innerHTML = `<div class="muted" style="margin-top:8px">La lettura online usa Claude ed è più precisa con gli scontrini rovinati. Serve una chiave personale (a consumo: circa 1–2 centesimi a scontrino), da inserire una volta sola.</div><div class="btns"><button class="btn primary" id="bVaiChiave">🔑 Inserisci la chiave</button></div>`;
+    $("#bVaiChiave").onclick = () => setView("impLett");
+  };
   $("#bAddItem").onclick = () => { readForm(); draft.articoli.push({descrizione:"", quantita:1, prezzo:""}); drawItems(); };
   $("#bSalva").onclick = doSalva;
   $("#bStampaA").onclick = async () => {
@@ -1876,7 +1890,7 @@ function renderImpLett(){
     </div>
     <div class="card">
       <h2>🤖 Claude (facoltativo)</h2>
-      <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) compare il tasto "Rileggi con Claude" per gli scontrini difficili.</p>
+      <p class="muted">Con una chiave API (console.anthropic.com, a consumo, pochi centesimi a scontrino) il tasto "Leggi online" legge gli scontrini difficili con Claude: più preciso su nomi, città e date.</p>
       <label>Chiave API</label><input id="cKey" type="password" value="${esc(s.apiKey)}" placeholder="sk-ant-…" autocomplete="off">
       <label>Modello</label><input id="cModel" value="${esc(s.model)}" autocapitalize="off">
       <div class="btns"><button class="btn" id="cTest">▶️ Verifica</button><button class="btn primary" id="cSave">💾 Salva</button></div>

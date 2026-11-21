@@ -1198,8 +1198,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.14";
+const VERSIONE = "v5.15";
 const CRONOLOGIA = [
+  {v:"v5.15", d:"21/11/2026", n:[
+    "Recupera i dati: se Google è occupato non resta più bloccato; gli scontrini non letti online vengono rimandati e ripresi al Controlla successivo, senza salvare dati meno precisi"
+  ]},
   {v:"v5.14", d:"21/11/2026", n:[
     "Scontrini lunghi: dopo ogni foto l'app chiede «Lo scontrino continua?» e legge solo alla fine, tutte le foto insieme",
     "Le righe ripetute tra una foto e l'altra vengono tolte da sole",
@@ -2519,28 +2522,33 @@ async function recuperaDati(){
   r.fatti = r.fatti || {}; r.proposte = r.proposte || {}; r.dubbi = r.dubbi || {};
   const daFare = tutti.filter(a => !r.fatti[a.id]);
   b.disabled = true;
-  let ultimaOnline = 0, onlineKo = 0;
+  let ultimaOnline = 0, onlineKo = 0, rimandati = 0, ultimoErrore = "";
   for(let i = 0; i < daFare.length; i++){
+    if(online && onlineKo >= 3){ rimandati += daFare.length - i; break; }   // Google non risponde: inutile insistere, si riprende più tardi
     const a = daFare[i], n = Object.keys(r.fatti).length + 1;
     esito(o, null, `Leggo ${n} di ${tutti.length}${online ? " (telefono + online)" : ""}: ${a.negozio} – ${a.nome}… Non salvo niente.`);
     const docs = a.files.filter(docOk).sort((x, y) => (/scontrin|fattur|ricevut/i.test(y.name) ? 1 : 0) - (/scontrin|fattur|ricevut/i.test(x.name) ? 1 : 0));
     try{
       const data = await call("nasRead", a.cartella + "/" + docs[0].name), mime = mimeOf(docs[0].name);
       let p = parseReceipt(await call("ocr", data, mime)), disaccordi = {};
-      if(online && onlineKo < 5){
-        // Google gratuito accetta circa 10 letture al minuto: aspetta il giusto e riprova se è occupato
-        for(let t = 0; t < 4; t++){
+      let letto = !online;
+      if(online && onlineKo < 3){
+        // Google gratuito accetta circa 10 letture al minuto: aspetta il giusto; se è occupato riprova una volta sola
+        for(let t = 0; t < 2 && !letto; t++){
           const attesa = 6500 - (Date.now() - ultimaOnline); if(attesa > 0) await new Promise(ok => setTimeout(ok, attesa));
           ultimaOnline = Date.now();
-          try{ const on = await geminiRead([{name:docs[0].name, mime, data}]); const x = incrocia(p, on); p = x.r; disaccordi = x.dubbi; onlineKo = 0; break; }
+          try{ const on = await geminiRead([{name:docs[0].name, mime, data}]); const x = incrocia(p, on); p = x.r; disaccordi = x.dubbi; onlineKo = 0; letto = true; }
           catch(e){
-            if(/limite gratuito.*oggi/i.test(e.message)){ onlineKo = 99; break; }
-            esito(o, null, `Google è occupato, riprovo tra poco… (${n} di ${tutti.length})`);
-            await new Promise(ok => setTimeout(ok, 15000 * (t + 1)));
-            if(t === 3) onlineKo++;
+            ultimoErrore = String(e.message || e).split("\n")[0];
+            if(/limite gratuito.*oggi/i.test(ultimoErrore)){ onlineKo = 99; break; }
+            if(t === 0 && /sovraccaric|occupat|503|500|429|high demand|temporar/i.test(ultimoErrore)){ esito(o, null, `Google è occupato, riprovo tra 10 secondi… (${n} di ${tutti.length})`); await new Promise(ok => setTimeout(ok, 10000)); }
+            else break;
           }
         }
+        if(!letto) onlineKo++;
       }
+      // precisione: se la lettura online non è riuscita lo scontrino si rilegge più tardi, non si salva solo quello del telefono
+      if(!letto){ rimandati++; continue; }
       const nuovi = {};
       for(const [k] of CAMPI_RECUPERO) if(vuoto(a[k]) && !vuoto(p[k]) && disaccordi[k] === undefined) nuovi[k] = p[k];
       if(nuovi.prezzo !== undefined && !(Number(nuovi.prezzo) > 0 && Number(nuovi.prezzo) < 20000)) delete nuovi.prezzo;
@@ -2556,7 +2564,7 @@ async function recuperaDati(){
     r.fatti[a.id] = 1; salvaRecupero(r);
   }
   b.disabled = false; mostraRecupero();
-  if(online && onlineKo >= 5) toast(onlineKo === 99 ? "Limite gratuito di Google finito per oggi: domani tocca di nuovo Controlla per rileggere online i rimanenti." : "Google non rispondeva: alcuni scontrini sono stati letti solo dal telefono.", true);
+  if(rimandati) $("#rOut").insertAdjacentHTML("afterbegin", `<div class="g-nota att">⚠️ ${rimandati} scontrin${rimandati > 1 ? "i" : "o"} non ${rimandati > 1 ? "sono stati letti" : "è stato letto"} online${onlineKo === 99 ? " (limite gratuito di Google finito per oggi)" : " (Google era occupato)"}: non ho salvato niente per ${rimandati > 1 ? "loro" : "lui"}. ${onlineKo === 99 ? "Domani" : "Tra un po'"} tocca di nuovo <b>Controlla</b>: riprende solo da quelli.${ultimoErrore ? `<br><small>Ultimo messaggio di Google: ${esc(ultimoErrore)}</small>` : ""}</div>`);
 }
 function mostraRecupero(){
   const r = caricaRecupero(), o = $("#rOut"); if(!o) return;

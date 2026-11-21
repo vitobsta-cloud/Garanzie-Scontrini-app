@@ -1,6 +1,6 @@
 const fs = require("fs");
 const s = fs.readFileSync("/home/claude/GaranzieScontriniAndroid/app/src/main/assets/www/index.html","utf8");
-const a = s.indexOf("const NEGOZI_NOTI"), b = s.indexOf("/* Claude (facoltativo) */");
+const a = s.indexOf("const NEGOZI_NOTI"), b = s.indexOf("/* Lettura online gratuita");
 global.todayISO = () => "2026-11-20";
 eval(s.slice(a, b).replace(/^const /gm, "var ").replace(/^function (\w+)/gm, "global.$1 = function $1"));
 const ni = s.indexOf("const nomeBello"); eval(s.slice(ni, s.indexOf("\n", ni)).replace(/^const /, "var "));

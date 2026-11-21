@@ -1019,8 +1019,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.4";
+const VERSIONE = "v4.5";
 const CRONOLOGIA = [
+  {v:"v4.5", d:"21/11/2026", n:[
+    "Tolto il tasto \"Leggi online\": la lettura resta sul telefono, gratis e senza registrazioni"
+  ]},
   {v:"v4.4", d:"21/11/2026", n:[
     "Lettura online GRATUITA con Google Gemini: basta una chiave gratuita (Impostazioni → Lettura scontrini)",
     "Il tasto \"Leggi online\" usa Google; Claude resta solo come alternativa facoltativa"
@@ -1285,7 +1288,7 @@ async function renderAcquisisci(edit){
       <div class="thumbs" id="thumbs"></div>
       <div class="btns">
         <button class="btn primary" id="bLeggi">🔎 Leggi scontrino</button>
-        <button class="btn" id="bClaude">🌐 Leggi online (più preciso)</button>
+        ${settings().geminiKey || settings().apiKey ? `<button class="btn" id="bClaude">🌐 Leggi online (più preciso)</button>` : ""}
       </div>
       <div class="status" id="leggiStatus"></div>
       <details id="ocrBox" class="${lastOcr ? "" : "hidden"}"><summary>Testo letto dal documento (per verifica)</summary><pre class="ocr">${esc(lastOcr)}</pre></details>
@@ -1329,7 +1332,7 @@ async function renderAcquisisci(edit){
   $("#bCam").onclick = () => $("#camInput").click();
   $("#bFile").onclick = () => $("#fileInput").click();
   $("#bLeggi").onclick = () => doLeggi(false);
-  $("#bClaude").onclick = () => {
+  if($("#bClaude")) $("#bClaude").onclick = () => {
     if(settings().geminiKey || settings().apiKey) return doLeggi(true);
     $("#leggiStatus").innerHTML = `<div class="muted" style="margin-top:8px">La lettura online (gratuita, con Google Gemini) è più precisa con gli scontrini rovinati. Serve una chiave gratuita di Google, da inserire una volta sola.</div><div class="btns"><button class="btn primary" id="bVaiChiave">🔑 Inserisci la chiave gratuita</button></div>`;
     $("#bVaiChiave").onclick = () => setView("impLett");

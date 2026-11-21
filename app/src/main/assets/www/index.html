@@ -240,6 +240,13 @@ pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px
 .g-stat b{display:block;font-size:17px}.g-stat.warn b{color:#c77c12}.g-stat.ok b{color:#2f7a3f}.g-stat.bad b{color:#c0392b}
 .g-banner{background:#e0f2fe;border:1px solid #bfe6f8;border-radius:10px;padding:8px;color:#075985}
 .g-chk{padding:3px 0}
+.rprop{border:1px solid #e3e5e8;border-radius:12px;margin:8px 0;background:#fff}
+.rprop.aperto{border-color:#9cc9ec}
+.rtesta{display:flex;gap:10px;align-items:center;padding:10px 12px;cursor:pointer}
+.rtesta .rinc{width:22px;height:22px;margin:0;flex:none}
+.rtx{flex:1;min-width:0;font-size:14.5px;line-height:1.4}
+.rprop.aperto .chev{transform:rotate(90deg)}
+.rdett{padding:0 12px 12px}
 .g-lungo{display:flex;gap:10px;align-items:center}
 .g-carta{background:#fff;border:1px dashed #bbb;border-radius:6px;padding:8px 10px;font-family:monospace;font-size:11.5px;line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 .g-rip{background:#fff4c2}
@@ -1198,8 +1205,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.16";
+const VERSIONE = "v5.17";
 const CRONOLOGIA = [
+  {v:"v5.17", d:"21/11/2026", n:[
+    "Recupera i dati: scegli tu se controllare con telefono + online o solo con il telefono",
+    "Nell'elenco dei risultati tocchi un acquisto e vedi tutti i dati trovati (data, prezzo, articoli…), puoi aprire lo scontrino o la scheda e togliere la spunta a quelli da non salvare",
+    "Se il controllo si interrompe lo dice chiaramente (letti X di Y) e riprende da dove era arrivato"
+  ]},
   {v:"v5.16", d:"21/11/2026", n:[
     "Leggi scontrino più veloce quando Google è occupato: aspetta al massimo 15 secondi e per 5 minuti usa subito la lettura del telefono"
   ]},
@@ -2278,8 +2290,12 @@ function renderImpLett(){
     ${puo("gestire") ? `<div class="card">
       <h2>📥 Recupera i dati dagli scontrini</h2>
       <p class="muted">Rilegge le foto e i PDF già salvati nell'archivio e <b>aggiunge solo i dati che mancano</b>: prezzo, data d'acquisto (se la cartella non ce l'ha), articoli, città, indirizzo, pagamento, numero scontrino. Non cambia mai il nome, il negozio o i dati che hai già scritto.</p>
-      <p class="muted">Prima fa un controllo <b>senza salvare niente</b> e ti mostra cosa aggiungerebbe; salvi solo se confermi. ${s.geminiKey && s.incrocio !== false ? "Con la chiave di Google ogni scontrino viene letto <b>dal telefono e online</b> e i dati vengono incrociati: se data o totale non coincidono, quel dato non viene salvato e lo trovi tra quelli da controllare. Ci vogliono circa 20–25 minuti" : "Ci vogliono circa 10–15 minuti"}: a casa sul Wi-Fi, app aperta, schermo acceso e telefono in carica. Se lo interrompi, riprende da dove era arrivato.</p>
-      <div class="btns"><button class="btn primary" id="rAvvia">🔍 Controlla (senza salvare)</button></div>
+      <p class="muted">Prima fa un controllo <b>senza salvare niente</b> e ti mostra cosa aggiungerebbe; salvi solo se confermi. ${s.geminiKey ? "Con <b>telefono + online</b> ogni scontrino viene letto due volte e i dati vengono incrociati: se data o totale non coincidono quel dato non viene salvato (circa 20–25 minuti). <b>Solo con il telefono</b> è più veloce (circa 10–15 minuti) ma meno preciso su nomi e articoli" : "Ci vogliono circa 10–15 minuti"}: a casa sul Wi-Fi, app aperta, schermo acceso e telefono in carica. Se lo interrompi, riprende da dove era arrivato.</p>
+      <div class="btns" style="flex-direction:column">
+        ${s.geminiKey ? `<button class="btn primary" id="rAvviaOn">🌐 Controlla con telefono + online (più preciso)</button>` : ""}
+        <button class="btn${s.geminiKey ? "" : " primary"}" id="rAvvia">📱 Controlla solo con il telefono (più veloce)</button>
+      </div>
+      <p class="muted" style="margin-top:6px">Non salva niente: alla fine vedi cosa aggiungerebbe, acquisto per acquisto, e scegli tu.</p>
       <div id="rOut"></div>
     </div>` : ""}
     <div class="card">
@@ -2309,7 +2325,12 @@ function renderImpLett(){
       <div id="cOut"></div>
     </div>`;
   const save = () => saveSettings({apiKey:$("#cKey").value.trim(), model:$("#cModel").value.trim() || DEFAULTS.model});
-  if($("#rAvvia")){ $("#rAvvia").onclick = () => recuperaDati(); if(caricaRecupero().fatti) mostraRecupero(); }
+  if($("#rAvvia")){
+    $("#rAvvia").onclick = () => recuperaDati("telefono");
+    if($("#rAvviaOn")) $("#rAvviaOn").onclick = () => recuperaDati("incrocio");
+    if(window._recuperoInCorso) esito($("#rOut"), null, "Controllo in corso… (" + window._recuperoInCorso + ")");
+    else if(caricaRecupero().fatti) mostraRecupero();
+  }
   $("#tTutto").onclick = () => provaArchivio(true);
   $("#tProva").onclick = () => provaArchivio(false);
   const provaArchivio = async (tuttoArchivio) => {
@@ -2452,6 +2473,17 @@ function renderGuida(){
     ${nota("Tutte le foto vengono salvate nella cartella (scontrino_1, scontrino_2…) e nella scheda stampata compaiono <b>affiancate</b>, sullo stesso foglio A4.")}
     ${nota("Per togliere una foto venuta male tocca la ✕ sulla sua miniatura.")}`),
 
+  cap("recupera", "📥", "Completare l'archivio (Recupera i dati)", `
+    <p>Serve per gli scontrini <b>già archiviati</b> a cui mancano prezzo, data, articoli o città: l'app li rilegge e aggiunge <b>solo quello che manca</b>. Lo fa solo chi gestisce l'archivio.</p>
+    ${passo(1, "Vai in <b>Impostazioni → Lettura scontrini</b>, sezione <b>📥 Recupera i dati dagli scontrini</b>. Fallo a casa sul Wi-Fi, con il telefono in carica e lo schermo acceso.")}
+    ${passo(2, "Scegli come leggere: <b>🌐 telefono + online</b> (più preciso, circa 20–25 minuti) oppure <b>📱 solo con il telefono</b> (più veloce, circa 10–15 minuti). In ogni caso <b>non salva niente</b>.",
+      schermo("Lettura scontrini", `<div class="g-card"><b>📥 Recupera i dati dagli scontrini</b>${btn("🌐 Controlla con telefono + online", true, true)}${btn("📱 Controlla solo con il telefono")}</div>`))}
+    ${passo(3, "Alla fine vedi il riepilogo e l'elenco <b>«Cosa verrebbe aggiunto»</b>. Tocca un acquisto per vedere tutti i dati trovati; con <b>🧾 Apri lo scontrino</b> li confronti con la foto. Togli la spunta a quelli che non ti convincono.",
+      schermo("Lettura scontrini", `<div class="g-card"><div class="g-row"><span class="g-chk">☑</span><span><b>Aspirapolvere</b> · Lidl<br><small>01/08/2026 · 187,08 € · 18 articoli · Brescia</small></span></div><div class="g-row"><span class="g-chk">☐</span><span><b>Ferro da stiro</b> · Lidl<br><small>29/11/2020 · 49,95 €</small></span></div>${btn("✅ Salva i dati spuntati (1)", true, true)}</div>`))}
+    ${passo(4, "Tocca <b>✅ Salva i dati spuntati</b>. Gli acquisti completati hanno il segno <b>🤖 dati letti dallo scontrino</b>.")}
+    ${nota("Se esci dalla pagina o il telefono si spegne, il controllo si ferma: tornando trovi «letti X di Y» e con lo stesso tasto riprende da dove era arrivato.")}
+    ${nota("Gli acquisti in «Da controllare a mano» non vengono toccati: di solito sono documenti che non sono scontrini, o con dati che non tornano.")}`),
+
   cap("cerca", "🔍", "Trovare un acquisto e aprire la scheda", `
     ${passo(1, "Tocca <b>Cerca</b> e scrivi una parola: l'oggetto, il negozio, un articolo, una nota o l'anno (es. <i>friggitrice</i>, <i>lidl 2025</i>).",
       schermo("Cerca", `<div class="g-card"><div class="g-inp g-tocca">🔎 friggitrice</div><div class="g-art">Friggitrice ad aria<br><small>Lidl · 17/03/2025 · 59,99 €</small> <span class="g-pill ok">In garanzia</span></div></div>`))}
@@ -2517,22 +2549,28 @@ function salvaRecupero(r){ try{ localStorage.setItem("gs_recupero", JSON.stringi
 const vuoto = v => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
 const normNeg = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 function stessoNegozio(a, b){ const x = normNeg(a), y = normNeg(b); return !x || !y || x.includes(y) || y.includes(x) || (x.length > 3 && y.length > 3 && (x.slice(0, 4) === y.slice(0, 4))); }
-async function recuperaDati(){
-  const o = $("#rOut"), b = $("#rAvvia");
+async function recuperaDati(modoScelto){
+  if(window._recuperoInCorso){ toast("Il controllo è già in corso.", true); return; }
+  const O = () => $("#rOut") || {innerHTML:""}, o = {set innerHTML(v){ const el = $("#rOut"); if(el) el.innerHTML = v; }};
   if(!A || !A.ocr){ esito(o, false, "Disponibile solo nell'app sul telefono."); return; }
   if(!archivioPronto()){ esito(o, false, "Prima collega l'archivio (Destinazione file)."); return; }
-  const online = !!settings().geminiKey && settings().incrocio !== false, modo = online ? "incrocio" : "telefono";
+  const online = modoScelto === "incrocio" && !!settings().geminiKey, modo = online ? "incrocio" : "telefono";
   const docOk = f => /\.(jpe?g|png|webp|pdf)$/i.test(f.name);
   const tutti = (await allAcquisti()).filter(a => !a.daCaricare && (a.files || []).some(docOk));
   let r = caricaRecupero();
-  if(r.modo !== modo) r = {modo};            // un controllo fatto in un altro modo si rifà da capo
+  if(r.modo !== modo){
+    if(r.fatti && Object.keys(r.fatti).length && !r.finito && !(await conferma(`C'è un controllo ${r.modo === "incrocio" ? "telefono + online" : "solo telefono"} non finito (${Object.keys(r.fatti).length} letti). Ricominciare in modo diverso?`, "Ricomincia"))) return;
+    r = {modo};
+  }
+  r.finito = false; r.totale = 0;
   r.fatti = r.fatti || {}; r.proposte = r.proposte || {}; r.dubbi = r.dubbi || {};
-  const daFare = tutti.filter(a => !r.fatti[a.id]);
-  b.disabled = true;
+  const daFare = tutti.filter(a => !r.fatti[a.id]); r.totale = tutti.length;
+  const bottoni = () => document.querySelectorAll("#rAvvia,#rAvviaOn").forEach(x => x.disabled = !!window._recuperoInCorso);
+  window._recuperoInCorso = `${Object.keys(r.fatti).length} di ${tutti.length}`; bottoni();
   let ultimaOnline = 0, onlineKo = 0, rimandati = 0, ultimoErrore = "";
   for(let i = 0; i < daFare.length; i++){
     if(online && onlineKo >= 3){ rimandati += daFare.length - i; break; }   // Google non risponde: inutile insistere, si riprende più tardi
-    const a = daFare[i], n = Object.keys(r.fatti).length + 1;
+    const a = daFare[i], n = Object.keys(r.fatti).length + 1; window._recuperoInCorso = `${n} di ${tutti.length}`;
     esito(o, null, `Leggo ${n} di ${tutti.length}${online ? " (telefono + online)" : ""}: ${a.negozio} – ${a.nome}… Non salvo niente.`);
     const docs = a.files.filter(docOk).sort((x, y) => (/scontrin|fattur|ricevut/i.test(y.name) ? 1 : 0) - (/scontrin|fattur|ricevut/i.test(x.name) ? 1 : 0));
     try{
@@ -2570,40 +2608,70 @@ async function recuperaDati(){
     }catch(e){ r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:"non leggibile (" + String(e.message).split("\n")[0] + ")"}; }
     r.fatti[a.id] = 1; salvaRecupero(r);
   }
-  b.disabled = false; mostraRecupero();
-  if(rimandati) $("#rOut").insertAdjacentHTML("afterbegin", `<div class="g-nota att">⚠️ ${rimandati} scontrin${rimandati > 1 ? "i" : "o"} non ${rimandati > 1 ? "sono stati letti" : "è stato letto"} online${onlineKo === 99 ? " (limite gratuito di Google finito per oggi)" : " (Google era occupato)"}: non ho salvato niente per ${rimandati > 1 ? "loro" : "lui"}. ${onlineKo === 99 ? "Domani" : "Tra un po'"} tocca di nuovo <b>Controlla</b>: riprende solo da quelli.${ultimoErrore ? `<br><small>Ultimo messaggio di Google: ${esc(ultimoErrore)}</small>` : ""}</div>`);
+  r.finito = !rimandati; salvaRecupero(r);
+  window._recuperoInCorso = ""; bottoni(); if($("#rOut")) mostraRecupero();
+  if(rimandati && $("#rOut")) $("#rOut").insertAdjacentHTML("afterbegin", `<div class="g-nota att">⚠️ ${rimandati} scontrin${rimandati > 1 ? "i" : "o"} non ${rimandati > 1 ? "sono stati letti" : "è stato letto"} online${onlineKo === 99 ? " (limite gratuito di Google finito per oggi)" : " (Google era occupato)"}: non ho salvato niente per ${rimandati > 1 ? "loro" : "lui"}. ${onlineKo === 99 ? "Domani" : "Tra un po'"} tocca di nuovo <b>Controlla</b>: riprende solo da quelli.${ultimoErrore ? `<br><small>Ultimo messaggio di Google: ${esc(ultimoErrore)}</small>` : ""}</div>`);
 }
 function mostraRecupero(){
   const r = caricaRecupero(), o = $("#rOut"); if(!o) return;
+  r.esclusi = r.esclusi || {};
   const prop = Object.entries(r.proposte || {}), dub = Object.entries(r.dubbi || {});
+  const scelti = () => prop.filter(([id]) => !r.esclusi[id]);
   const conta = k => prop.filter(([, n]) => n[k] !== undefined).length;
-  o.innerHTML = `<div class="okline">Controllo finito: ${Object.keys(r.fatti || {}).length} acquisti letti. Niente è stato ancora salvato.</div>
+  const letti = Object.keys(r.fatti || {}).length, modoTxt = r.modo === "incrocio" ? "telefono + online" : "solo telefono";
+  o.innerHTML = `${r.finito ? `<div class="okline">Controllo finito (${modoTxt}): ${letti} acquisti letti. Niente è stato ancora salvato.</div>`
+      : `<div class="g-nota att">⏸️ Controllo non finito (${modoTxt}): letti ${letti}${r.totale ? " di " + r.totale : ""}. Tocca di nuovo il tasto <b>Controlla ${r.modo === "incrocio" ? "con telefono + online" : "solo con il telefono"}</b> per continuare da dove era arrivato. Niente è stato ancora salvato.</div>`}
     <table class="items" style="margin-top:8px">
       <tr><td><b>Acquisti da completare</b></td><td class="num"><b>${prop.length}</b></td></tr>
-      ${CAMPI_RECUPERO.map(([k, t]) => conta(k) ? `<tr><td>${t[0].toUpperCase() + t.slice(1)} aggiunti</td><td class="num">${conta(k)}</td></tr>` : "").join("")}
+      ${CAMPI_RECUPERO.map(([k, t]) => conta(k) ? `<tr><td>${t[0].toUpperCase() + t.slice(1)} trovati</td><td class="num">${conta(k)}</td></tr>` : "").join("")}
       <tr><td>Da controllare a mano</td><td class="num">${dub.length}</td></tr>
     </table>
-    ${prop.length ? `<div class="btns"><button class="btn primary" id="rSalva">✅ Salva i dati trovati (${prop.length} acquisti)</button></div>` : ""}
-    <div class="btns"><button class="btn" id="rRicomincia">🔄 Ricomincia da capo</button></div>
+    ${prop.length ? `<h3 style="margin:16px 2px 4px;font-size:16px">Cosa verrebbe aggiunto</h3>
+      <p class="muted" style="margin:0 2px 6px">Tocca un acquisto per vedere tutti i dati trovati. Togli la spunta a quelli che non vuoi salvare.</p>
+      <div id="rElenco"></div>
+      <div class="btns"><button class="btn primary" id="rSalva">✅ Salva i dati spuntati (${scelti().length})</button></div>` : ""}
     ${dub.length ? `<details style="margin-top:10px"><summary>Da controllare a mano (${dub.length})</summary><table class="items">${dub.map(([id, d]) => `<tr data-id="${esc(id)}" style="cursor:pointer"><td><b>${esc(d.nome || "")}</b> · ${esc(d.negozio || "")}<br><small class="muted">${esc(d.motivo)}</small></td></tr>`).join("")}</table></details>` : ""}
-    ${prop.length ? `<details style="margin-top:6px"><summary>Vedi cosa verrebbe aggiunto</summary><table class="items" id="rElenco"></table></details>` : ""}`;
+    <div class="btns"><button class="btn" id="rRicomincia">🔄 Ricomincia da capo</button></div>`;
+  const aggiornaBottone = () => { const b = $("#rSalva"); if(b) b.textContent = `✅ Salva i dati spuntati (${scelti().length})`; };
   allAcquisti().then(list => {
     const el = $("#rElenco"); if(!el) return;
     const m = new Map(list.map(a => [a.id, a]));
-    el.innerHTML = prop.slice(0, 300).map(([id, n]) => { const a = m.get(id) || {}; return `<tr><td><b>${esc(a.nome || id)}</b> · ${esc(a.negozio || "")}<br><small class="muted">${[n.dataAcquisto ? "data " + fmtDate(n.dataAcquisto) : "", n.prezzo ? euro(n.prezzo) : "", n.articoli ? n.articoli.length + " articoli" : "", n.negozioCitta || ""].filter(Boolean).map(esc).join(" · ")}</small></td></tr>`; }).join("");
+    const riga = (k, v) => v === undefined || v === "" ? "" : `<tr><td>${k}</td><td class="num">${v}</td></tr>`;
+    el.innerHTML = prop.slice(0, 400).map(([id, n]) => { const a = m.get(id) || {};
+      const sintesi = [n.dataAcquisto ? fmtDate(n.dataAcquisto) : "", n.prezzo ? euro(n.prezzo) : "", n.articoli ? n.articoli.length + " articoli" : "", n.negozioCitta || ""].filter(Boolean).map(esc).join(" · ");
+      return `<div class="rprop" data-id="${esc(id)}">
+        <div class="rtesta"><input type="checkbox" class="rinc" ${r.esclusi[id] ? "" : "checked"} aria-label="Salva questo acquisto"><div class="rtx"><b>${esc(a.nome || id)}</b> · ${esc(a.negozio || "")}<br><small class="muted">${sintesi}</small></div><span class="chev">›</span></div>
+        <div class="rdett hidden">
+          <table class="items">
+            ${riga("Data acquisto", n.dataAcquisto ? fmtDate(n.dataAcquisto) : undefined)}${riga("Prezzo", n.prezzo !== undefined ? euro(n.prezzo) : undefined)}
+            ${riga("N. scontrino", n.numeroScontrino !== undefined ? esc(n.numeroScontrino) : undefined)}${riga("Pagamento", n.tipoPagamento !== undefined ? esc(n.tipoPagamento) : undefined)}
+            ${riga("Città", n.negozioCitta !== undefined ? esc(n.negozioCitta) : undefined)}${riga("Indirizzo", n.negozioIndirizzo !== undefined ? esc(n.negozioIndirizzo) : undefined)}${riga("Telefono", n.negozioTelefono !== undefined ? esc(n.negozioTelefono) : undefined)}
+          </table>
+          ${n.articoli ? `<label>Articoli trovati</label><table class="items">${n.articoli.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="num">${euro(x.prezzo)}</td></tr>`).join("")}</table>` : ""}
+          <p class="muted" style="margin:6px 0 0">Vengono aggiunti solo questi dati: quelli già presenti nell'acquisto non cambiano.</p>
+          <div class="btns"><button class="btn small rdoc">🧾 Apri lo scontrino</button><button class="btn small rscheda">📄 Apri la scheda</button></div>
+        </div></div>`; }).join("");
+    el.querySelectorAll(".rprop").forEach(d => {
+      const id = d.dataset.id, a = m.get(id) || {};
+      d.querySelector(".rtesta").onclick = e => { if(e.target.classList.contains("rinc")) return; d.querySelector(".rdett").classList.toggle("hidden"); d.classList.toggle("aperto"); };
+      d.querySelector(".rinc").onchange = e => { if(e.target.checked) delete r.esclusi[id]; else r.esclusi[id] = 1; salvaRecupero(r); aggiornaBottone(); };
+      d.querySelector(".rscheda").onclick = () => setView("dettaglio", id);
+      d.querySelector(".rdoc").onclick = async () => { const f = (a.files || []).find(x => /\.(pdf|jpe?g|png|webp)$/i.test(x.name)); if(!f){ toast("Nessun documento.", true); return; } try{ await call("nasOpen", a.cartella + "/" + f.name); }catch(e){ toast(e.message, true); } };
+    });
   });
   o.querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => setView("dettaglio", t.dataset.id));
-  $("#rRicomincia").onclick = () => { salvaRecupero({}); o.innerHTML = ""; toast("Pronto per un nuovo controllo."); };
+  $("#rRicomincia").onclick = async () => { if(!(await conferma("Cancellare il controllo fatto finora? I dati non salvati andranno riletti.", "Ricomincia"))) return; salvaRecupero({}); o.innerHTML = ""; toast("Pronto per un nuovo controllo."); };
   if($("#rSalva")) $("#rSalva").onclick = async () => {
-    if(!(await conferma(`Salvare i dati trovati in ${prop.length} acquisti?\n\nVengono aggiunti solo i campi vuoti; nome, negozio e i dati già scritti non cambiano.`, "Salva"))) return;
+    const lista = scelti(); if(!lista.length){ toast("Nessun acquisto spuntato.", true); return; }
+    if(!(await conferma(`Salvare i dati trovati in ${lista.length} acquisti?\n\nVengono aggiunti solo i campi vuoti; nome, negozio e i dati già scritti non cambiano.`, "Salva"))) return;
     const bs = $("#rSalva"); bs.disabled = true; let ok = 0, err = 0;
-    for(const [id, n] of prop){
+    for(const [id, n] of lista){
       const a = await getAcquisto(id); if(!a){ continue; }
       const campi = [];
       for(const [k, v] of Object.entries(n)) if(vuoto(a[k])){ a[k] = v; campi.push(k); }
-      if(!campi.length){ continue; }
+      if(!campi.length){ delete r.proposte[id]; continue; }
       a.datiAuto = true; a.campiAuto = campi;
-      esito(o, null, `Salvo ${ok + err + 1} di ${prop.length}: ${a.nome}…`);
+      esito(o, null, `Salvo ${ok + err + 1} di ${lista.length}: ${a.nome}…`);
       try{ await call("nasWriteText", a.cartella, "garanzia.json", infoJSON(a)); a.hasInfo = true; await putAcquisto(a); ok++; delete r.proposte[id]; salvaRecupero(r); }
       catch(e){ err++; if(err >= 3){ esito(o, false, "Il NAS non risponde: riprova a casa sul Wi-Fi. Quelli già salvati restano salvati."); return; } }
     }

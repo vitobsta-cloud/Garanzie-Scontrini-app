@@ -240,6 +240,10 @@ pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px
 .g-stat b{display:block;font-size:17px}.g-stat.warn b{color:#c77c12}.g-stat.ok b{color:#2f7a3f}.g-stat.bad b{color:#c0392b}
 .g-banner{background:#e0f2fe;border:1px solid #bfe6f8;border-radius:10px;padding:8px;color:#075985}
 .g-chk{padding:3px 0}
+.g-lungo{display:flex;gap:10px;align-items:center}
+.g-carta{background:#fff;border:1px dashed #bbb;border-radius:6px;padding:8px 10px;font-family:monospace;font-size:11.5px;line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.g-rip{background:#fff4c2}
+.g-cornice{border:2px solid #f59e0b;border-radius:10px;padding:6px 8px;font-size:12px;white-space:nowrap}
 .g-tocca{outline:3px solid #f59e0b;outline-offset:2px;border-radius:12px;animation:gpulse 1.6s ease-in-out infinite;position:relative}
 @keyframes gpulse{0%,100%{outline-color:#f59e0b}50%{outline-color:#fcd38d}}
 @media (prefers-reduced-motion: reduce){.g-tocca{animation:none}}
@@ -899,7 +903,7 @@ function datiScheda(a, imgs, altri){
   r("Negozio", [a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · "));
   r("Cartella", (a.cartella || folderFor(a)).replace(/\//g, "\\"));
   return {nome:a.nome || "(senza nome)", negozio:a.negozio || "", stato:sc.label || "", righe,
-    articoli:(a.articoli || []).filter(x => x.descrizione).map(x => [(x.quantita > 1 ? x.quantita + " × " : "") + x.descrizione, euro(x.prezzo)]),
+    articoli:(a.articoli || []).filter(x => x.descrizione).map(x => [(x.quantita > 1 ? x.quantita + " × " : "") + x.descrizione, euro(x.prezzo), Number(x.prezzo) || 0]),
     note:a.note || "", piede:(altri.length ? "Altri documenti: " + altri.join(", ") + "\n" : "") + `Stampato il ${fmtDate(todayISO())} con Garanzie & Scontrini ${VERSIONE}`,
     immagini:imgs.map(f => f.src.split(",")[1])};
 }
@@ -930,16 +934,47 @@ async function pdfScheda(d, imgSrc){
   if(d.negozio) y += block(d.nome, M, y + 2, 12.5, true, 0x333333, W - 2 * M - 120) + 2;
   txt("TR/software", W - M, y - 24, 8.5, true, 0x0B7BC0, true); txt("Garanzie & Scontrini", W - M, y - 13, 8.5, false, 0x555555, true);
   y += 4; line(M, y, W - M, y, 0x1A1A1A, 1.6); y += 10; const top = y;
-  if(d.stato){ const tw = wid(d.stato, 9.5, true); cs += `${col(0x999999)} RG 0.8 w ${M} ${H - y - 17} ${tw + 16} 17 re S\n`; txt(d.stato, M + 8, y + 4, 9.5, true); y += 24; }
-  for(const [k, v] of d.righe){ const h = Math.max(block(k, M + 2, y + 3, 9.5, false, 0x666666, 95), block(v, M + 100, y + 3, 9.5, false, 0x111111, COL - 104)); y += h + 6; line(M, y, M + COL, y, 0xDDDDDD, 0.6); }
-  if(d.articoli.length){ y += 10; y += block("Articoli", M, y, 11, true, 0x111111, COL) + 2;
-    for(const [ds, pr] of d.articoli){ if(y > H - 80) break; const h = block(ds, M + 2, y + 3, 9.5, false, 0x111111, COL - 70); txt(pr, M + COL - 2, y + 3, 9.5, false, 0x111111, true); y += h + 6; line(M, y, M + COL, y, 0xDDDDDD, 0.6); } }
-  if(d.note && y < H - 90){ y += 10; y += block("Note", M, y, 11, true, 0x111111, COL) + 2; y += block(d.note, M, y, 9.5, false, 0x111111, COL); }
-  y += 12; block(d.piede, M, Math.min(y, H - M - 20), 7.5, false, 0x777777, COL);
   const imgs = []; for(const src of imgSrc){ try{ imgs.push(await jpegPerPdf(src)); }catch(e){} }
-  if(imgs.length){ const x0 = M + COL + 16, bw = W - M - x0, each = (H - M - top - 6 * (imgs.length - 1)) / imgs.length; let yy = top;
-    imgs.forEach((im, i) => { const s = Math.min(bw / im.w, each / im.h), iw = im.w * s, ih = im.h * s, ix = x0 + (bw - iw) / 2;
-      cs += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ix.toFixed(2)} ${(H - yy - ih).toFixed(2)} cm /Im${i} Do Q\n${col(0xDDDDDD)} RG 0.6 w ${ix.toFixed(2)} ${(H - yy - ih).toFixed(2)} ${iw.toFixed(2)} ${ih.toFixed(2)} re S\n`; yy += ih + 6; }); }
+  const foto = (im, i, x, yy, bw, bh) => { const sc = Math.min(bw / im.w, bh / im.h), iw = im.w * sc, ih = im.h * sc, ix = x + (bw - iw) / 2;
+    cs += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ix.toFixed(2)} ${(H - yy - ih).toFixed(2)} cm /Im${i} Do Q\n${col(0xDDDDDD)} RG 0.6 w ${ix.toFixed(2)} ${(H - yy - ih).toFixed(2)} ${iw.toFixed(2)} ${ih.toFixed(2)} re S\n`; };
+  // se gli articoli non ci stanno tutti: i più cari, nell'ordine dello scontrino, e una riga che dice quanti mancano
+  const scegliArticoli = n => { const a = d.articoli; if(a.length <= n) return {lista:a, altri:0}; const k = Math.max(1, n - 1); const top = new Set([...a.keys()].sort((x, z) => (a[z][2] || 0) - (a[x][2] || 0)).slice(0, k)); return {lista:a.filter((_, i) => top.has(i)), altri:a.length - k}; };
+  const articoliIn = (x, w, yMax) => {
+    if(!d.articoli.length) return;
+    y += 10; y += block("Articoli", x, y, 11, true, 0x111111, w) + 2;
+    const {lista, altri} = scegliArticoli(Math.max(1, Math.floor((yMax - y) / 17.5)));
+    for(const [ds, pr] of lista){ if(y > yMax - 14) break; const h = block(ds, x + 2, y + 3, 9.5, false, 0x111111, w - 70); txt(pr, x + w - 2, y + 3, 9.5, false, 0x111111, true); y += h + 6; line(x, y, x + w, y, 0xDDDDDD, 0.6); }
+    if(altri) y += 4 + block(`…e altri ${altri} articol${altri > 1 ? "i" : "o"} (vedi la foto dello scontrino)`, x + 2, y + 4, 9, false, 0x666666, w);
+  };
+  if(imgs.length >= 2){
+    // scontrino lungo in più foto: dati a tutta larghezza su due colonne, foto affiancate sotto
+    const cw = (W - 2 * M - 16) / 2;
+    if(d.stato){ const tw = wid(d.stato, 9.5, true); cs += `${col(0x999999)} RG 0.8 w ${M} ${H - y - 17} ${tw + 16} 17 re S\n`; txt(d.stato, M + 8, y + 4, 9.5, true); y += 24; }
+    const meta = Math.ceil(d.righe.length / 2); let yL = y, yR = y;
+    d.righe.forEach(([k, v], i) => { const x = i < meta ? M : M + cw + 16; let yy = i < meta ? yL : yR;
+      const h = Math.max(block(k, x + 2, yy + 3, 9, false, 0x666666, 78), block(v, x + 82, yy + 3, 9, false, 0x111111, cw - 84)); yy += h + 5; line(x, yy, x + cw, yy, 0xDDDDDD, 0.6);
+      if(i < meta) yL = yy; else yR = yy; });
+    y = Math.max(yL, yR);
+    const fotoTop = Math.max(y + 150, H * 0.42);           // almeno metà pagina alle foto
+    articoliIn(M, W - 2 * M, fotoTop - 8);
+    if(d.note && y < fotoTop - 30){ y += 6; y += block("Note: " + d.note, M, y, 9, false, 0x333333, W - 2 * M); }
+    const yF = Math.max(y + 10, Math.min(fotoTop, H - 330)), hF = H - M - 16 - yF;
+    // sceglie se affiancare le foto o metterle su più righe: vince la disposizione che le fa più grandi
+    const n = Math.min(imgs.length, 4), gap = 8, AW = W - 2 * M; let best = null;
+    for(let c = 1; c <= n; c++){ const r = Math.ceil(n / c), cw = (AW - gap * (c - 1)) / c, ch = (hF - gap * (r - 1)) / r;
+      const area = imgs.slice(0, n).reduce((t, im) => { const k = Math.min(cw / im.w, ch / im.h); return t + im.w * k * im.h * k; }, 0);
+      if(!best || area > best.area) best = {c, cw, ch, area}; }
+    imgs.slice(0, n).forEach((im, i) => foto(im, i, M + (i % best.c) * (best.cw + gap), yF + Math.floor(i / best.c) * (best.ch + gap), best.cw, best.ch));
+    imgs.length = n;
+    block(d.piede.replace(/\n/g, " · "), M, H - M - 10, 7, false, 0x777777, W - 2 * M);
+  }else{
+    if(d.stato){ const tw = wid(d.stato, 9.5, true); cs += `${col(0x999999)} RG 0.8 w ${M} ${H - y - 17} ${tw + 16} 17 re S\n`; txt(d.stato, M + 8, y + 4, 9.5, true); y += 24; }
+    for(const [k, v] of d.righe){ const h = Math.max(block(k, M + 2, y + 3, 9.5, false, 0x666666, 95), block(v, M + 100, y + 3, 9.5, false, 0x111111, COL - 104)); y += h + 6; line(M, y, M + COL, y, 0xDDDDDD, 0.6); }
+    articoliIn(M, COL, H - 95 - (d.note ? 40 : 0));
+    if(d.note && y < H - 90){ y += 10; y += block("Note", M, y, 11, true, 0x111111, COL) + 2; y += block(d.note, M, y, 9.5, false, 0x111111, COL); }
+    y += 12; block(d.piede, M, Math.min(y, H - M - 20), 7.5, false, 0x777777, COL);
+    if(imgs.length){ const x0 = M + COL + 16; foto(imgs[0], 0, x0, top, W - M - x0, H - M - top); }
+  }
   // assemblaggio del file PDF
   const objs = [];
   objs.push("<< /Type /Catalog /Pages 2 0 R >>");
@@ -1163,8 +1198,15 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.13";
+const VERSIONE = "v5.14";
 const CRONOLOGIA = [
+  {v:"v5.14", d:"21/11/2026", n:[
+    "Scontrini lunghi: dopo ogni foto l'app chiede «Lo scontrino continua?» e legge solo alla fine, tutte le foto insieme",
+    "Le righe ripetute tra una foto e l'altra vengono tolte da sole",
+    "Se gli articoli fanno molto meno del totale l'app avvisa che forse manca un pezzo, con il tasto «Aggiungi una foto»",
+    "Scheda A4: con più foto dati in alto e foto affiancate sotto; con tanti articoli stampa i più cari e scrive quanti mancano",
+    "Guida all'uso: nuovo capitolo «Scontrini lunghi» e capitoli Acquisisci e Stampa aggiornati"
+  ]},
   {v:"v5.13", d:"21/11/2026", n:[
     "Corretto l'errore \"DiskShare has already been closed\": se il collegamento al NAS è scaduto l'app lo riapre da sola e riprova",
     "Numero scontrino: tolte le lettere lette per sbaglio (es. 1533-0013o)"
@@ -1604,13 +1646,29 @@ function drawItems(){
     draft.nome = nomeBello(it.descrizione); $("#fNome").value = draft.nome; updPreview();
   });
 }
-async function addFiles(list){
+function sceltaFoto(){
+  return new Promise(res => {
+    const m = document.createElement("div"); m.className = "modal";
+    m.innerHTML = `<div class="box"><div style="font-size:17px;font-weight:600;margin:4px 0 6px">Lo scontrino continua?</div>
+      <div class="muted" style="font-size:14.5px;line-height:1.5">Se è lungo, fotografa la parte successiva lasciando ripetere una o due righe. Quando hai fotografato fino al totale e alla data, tocca «È finito».</div>
+      <div class="btns" style="flex-direction:column"><button class="btn" data-r="1">📷 Sì, foto successiva</button><button class="btn primary" data-r="0">✅ No, è finito: leggi</button></div></div>`;
+    m.onclick = e => { const r = e.target.dataset && e.target.dataset.r; if(r !== undefined){ m.remove(); res(r === "1"); } };
+    document.body.appendChild(m);
+  });
+}
+async function addFiles(list, daCamera){
   if(!draft) draft = newDraft();
   for(const file of list){ try{ draft.pendingFiles.push(await prepareFile(file)); }catch(e){ toast("Impossibile leggere " + (file.name || "il file"), true); } }
   salvaBozza();
-  if(current === "acquisisci"){ drawThumbs(); if(!draft._edit && list.length && !draft.articoli.length) doLeggi(false); }
+  if(current !== "acquisisci") return;
+  drawThumbs();
+  if(daCamera && list.length && !draft._edit){
+    if(await sceltaFoto()){ $("#camInput").click(); return; }
+    doLeggi(false); return;
+  }
+  if(!draft._edit && list.length && !draft.articoli.length) doLeggi(false);
 }
-$("#camInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+$("#camInput").onchange = e => { addFiles([...e.target.files], true); e.target.value = ""; };
 $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 
 // "R PISTOLA SPARAPUNTI" e "Pistola sparapunti" sono lo stesso nome (la R di Lidl è il contributo RAEE)
@@ -1618,6 +1676,30 @@ const senzaR = d => String(d || "").replace(/^R\s+(?=[A-ZÀ-Ù])/, "");
 function stessoNome(desc, nome){
   const n = x => senzaR(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const a = n(desc), b = n(nome); return !!a && !!b && (a === b || (b.length >= 6 && a.startsWith(b)) || (a.length >= 6 && b.startsWith(a)));
+}
+/* Scontrino lungo in più foto: toglie le righe ripetute tra la fine di una foto e l'inizio della successiva */
+function unisciTesti(texts){
+  const n = l => String(l).toLowerCase().replace(/[^a-z0-9]/g, "");
+  let out = [];
+  texts.forEach((t, ti) => {
+    let ls = String(t || "").split("\n");
+    if(ti > 0 && out.length){
+      const coda = out.slice(-15).map(n), testa = ls.map(n);
+      let tolte = 0;
+      // cerca il punto in cui l'inizio della nuova foto ripete la fine della precedente
+      for(let k = Math.min(12, testa.length); k >= 1 && !tolte; k--){
+        const pezzo = testa.slice(0, k).filter(x => x.length >= 3);
+        if(pezzo.length < Math.min(2, k)) continue;
+        for(let st = 0; st + k <= coda.length; st++){
+          let uguali = 0; for(let j = 0; j < k; j++) if(coda[st + j] === testa[j] || (testa[j].length >= 6 && coda[st + j] && (coda[st + j].includes(testa[j]) || testa[j].includes(coda[st + j])))) uguali++;
+          if(uguali >= Math.max(2, Math.ceil(k * 0.75)) && st + k >= coda.length - 2){ tolte = k; break; }
+        }
+      }
+      ls = ls.slice(tolte);
+    }
+    out = out.concat(ls);
+  });
+  return out.join("\n");
 }
 /* Incrocio lettura sul telefono + lettura online (quando c'è la chiave di Google) */
 function incrocia(off, on){
@@ -1654,7 +1736,7 @@ async function doLeggi(useClaude){
     else{
       const texts = [];
       for(const f of docs) texts.push(await call("ocr", f.data, f.mime));
-      lastOcr = texts.join("\n"); r = parseReceipt(lastOcr); r.nome = r.nomeSuggerito ? nomeBello(r.nomeSuggerito) : nomeDaArticoli(r.articoli);
+      lastOcr = unisciTesti(texts); r = parseReceipt(lastOcr); r.nome = r.nomeSuggerito ? nomeBello(r.nomeSuggerito) : nomeDaArticoli(r.articoli);
       dubbiLettura = {}; modoLettura = "telefono";
       if(settings().geminiKey && settings().incrocio !== false){
         stEl.innerHTML = `<span class="spinner"></span>Letto sul telefono ✓ · controllo anche online…`;
@@ -1675,10 +1757,13 @@ async function doLeggi(useClaude){
     $("#leggiStatus").innerHTML = "✅ Dati compilati" + (useClaude ? " (lettura online)" : modoLettura === "incrocio" ? " (telefono + online)" : modoLettura && modoLettura !== "telefono" ? " (" + esc(modoLettura) + ")" : "") + ": controllali prima di salvare."
       + (nd ? ` <b>Controlla i campi in giallo</b>: le due letture non erano d'accordo.` : "")
       + (modoLettura.startsWith("solo telefono") ? ` <button class="btn small" id="bRiprovaOn">🔄 Riprova online</button>` : "")
+      + (() => { const arts = (draft.articoli || []).filter(x => Number(x.prezzo) > 0), somma = arts.reduce((t, x) => t + Number(x.prezzo), 0), tot = Number(draft.prezzo) || 0;
+          return !draft._edit && arts.length && tot > 0 && somma < tot * 0.9 - 0.5 ? `<div class="g-nota att" style="margin-top:10px">⚠️ Gli articoli letti fanno <b>${euro(somma)}</b>, il totale è <b>${euro(tot)}</b>: forse manca un pezzo dello scontrino. <button class="btn small" id="bAltraFoto">📷 Aggiungi una foto</button></div>` : ""; })()
       + (!useClaude && !(r.articoli || []).length ? " Non ho riconosciuto gli articoli: aggiungili a mano se servono." : "");
     const evid = (id, k, fmt) => { const el = $("#" + id); if(el && dubbiLettura[k] !== undefined){ el.style.background = "#fff4c2"; el.style.borderColor = "#e8a33d"; const h = document.createElement("div"); h.className = "muted"; h.style.fontSize = "12.5px"; h.textContent = "Sul telefono: " + fmt(dubbiLettura[k]); el.after(h); el.addEventListener("input", () => { el.style.background = ""; el.style.borderColor = ""; h.remove(); }, {once:true}); } };
     evid("fData", "dataAcquisto", fmtDate); evid("fPrezzo", "prezzo", v => euro(v));
     if($("#bRiprovaOn")) $("#bRiprovaOn").onclick = () => doLeggi(false);
+    if($("#bAltraFoto")) $("#bAltraFoto").onclick = () => $("#camInput").click();
   }catch(e){
     stEl.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`;
     document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = false);
@@ -2319,9 +2404,9 @@ function renderGuida(){
 
   cap("acquisisci", "📷", "Archiviare un nuovo scontrino (passo per passo)", `
     ${passo(1, "Nella Home tocca <b>Acquisisci</b>.", schermo("Garanzie &amp; Scontrini", tile("📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino", true), true))}
-    ${passo(2, "Tocca <b>📷 Scatta foto</b> e fotografa lo scontrino. Se è già nel telefono (foto, PDF di una fattura, email) tocca <b>📁 Scegli file</b>.<br>Se lo scontrino è <b>lungo</b>, fai più foto una dopo l'altra: l'app le tiene tutte insieme.",
+    ${passo(2, "Tocca <b>📷 Scatta foto</b> e fotografa lo scontrino. Se è già nel telefono (foto, PDF di una fattura, email) tocca <b>📁 Scegli file</b>.<br>Dopo ogni foto l'app chiede <b>«Lo scontrino continua?»</b>: se è corto tocca <b>✅ No, è finito: leggi</b>; se è lungo tocca <b>📷 Sì, foto successiva</b> (vedi il capitolo «Scontrini lunghi»).",
       schermo("Acquisisci", `<div class="g-card"><b>1. Scontrino</b><div class="g-row">${btn("📷 Scatta foto", false, true)}${btn("📁 Scegli file")}</div></div>`))}
-    ${passo(3, "Appena c'è la foto, l'app <b>legge da sola</b> lo scontrino e riempie i campi (ci vogliono pochi secondi). Se c'è la lettura online vedi scritto <i>«Letto sul telefono ✓ · controllo anche online…»</i>: aspetta che finisca.",
+    ${passo(3, "Quando tocchi «È finito», l'app <b>legge da sola</b> lo scontrino e riempie i campi (ci vogliono pochi secondi). Se c'è la lettura online vedi scritto <i>«Letto sul telefono ✓ · controllo anche online…»</i>: aspetta che finisca.",
       schermo("Acquisisci", `<div class="g-card"><div class="g-row">${fotoScontrino}</div><div class="g-row">${btn("🔎 Leggi scontrino", true)}${btn("🌐 Leggi online")}</div><div class="g-ok">✅ Dati compilati (telefono + online): controllali prima di salvare.</div></div>`))}
     ${passo(4, "<b>Controlla i dati</b>: negozio, nome dell'oggetto, data, prezzo. Se un campo è <b>giallo</b> le due letture non erano d'accordo: sotto c'è scritto cosa aveva letto il telefono. Guarda lo scontrino e correggi se serve (toccando il campo il giallo sparisce).",
       schermo("Acquisisci", `<div class="g-card"><b>2. Controlla i dati</b><div class="g-grid">${campo("Negozio", "Lidl")}${campo("Nome oggetto", "Pistola sparapunti")}${campo("Data acquisto", "28/09/2026", true, true)}${campo("Prezzo (€)", "57,43")}</div><small class="g-mut">Sul telefono: 29/09/2026</small></div>`))}
@@ -2344,6 +2429,19 @@ function renderGuida(){
       <li><b>Fatture via email (PDF)</b>: non fotografare lo schermo, usa <b>📁 Scegli file</b> e prendi direttamente il PDF.</li>
     </ul>`),
 
+  cap("lunghi", "📜", "Scontrini lunghi (più foto)", `
+    <p>Se lo scontrino è lungo, <b>non fotografarlo tutto da lontano</b>: le scritte diventano troppo piccole. Meglio 2 o 3 foto da vicino.</p>
+    ${passo(1, "Fotografa la <b>prima parte</b>: dal nome del negozio fino a metà degli articoli.",
+      `<div class="g-lungo"><div class="g-carta"><b>LIDL</b><br>Lidl Italia S.r.l.<br>──────<br>FELPA JEEP L&nbsp;&nbsp;14,99<br>SET CHIODI&nbsp;&nbsp;3,49<br><span class="g-rip">SET GRAFFE PICCO&nbsp;&nbsp;6,98</span></div><div class="g-cornice">📷 foto 1</div></div>`)}
+    ${passo(2, "Alla domanda <b>«Lo scontrino continua?»</b> tocca <b>📷 Sì, foto successiva</b>.",
+      `<div class="g-modal" style="max-width:300px"><b>Lo scontrino continua?</b><div class="g-row" style="flex-direction:column">${btn("📷 Sì, foto successiva", false, true)}${btn("✅ No, è finito: leggi", true)}</div></div>`)}
+    ${passo(3, "Fotografa la <b>parte dopo</b>, ripartendo dall'<b>ultima riga</b> della foto precedente (una o due righe ripetute vanno bene: l'app le toglie da sola). Continua così fino al <b>totale e alla data</b>.",
+      `<div class="g-lungo"><div class="g-carta"><span class="g-rip">SET GRAFFE PICCO&nbsp;&nbsp;6,98</span><br>PISTOLA SPARAPUNTI&nbsp;&nbsp;24,99<br>──────<br><b>TOTALE&nbsp;&nbsp;57,43</b><br>28-09-2026 08:43</div><div class="g-cornice">📷 foto 2</div></div><small class="g-mut">In giallo la riga ripetuta tra le due foto.</small>`)}
+    ${passo(4, "All'ultima foto tocca <b>✅ No, è finito: leggi</b>. L'app legge tutte le foto insieme, come un unico scontrino.")}
+    ${passo(5, "Se gli articoli letti fanno molto meno del totale, l'app avvisa: <i>«forse manca un pezzo dello scontrino»</i>. Tocca <b>📷 Aggiungi una foto</b> e fotografa la parte mancante.")}
+    ${nota("Tutte le foto vengono salvate nella cartella (scontrino_1, scontrino_2…) e nella scheda stampata compaiono <b>affiancate</b>, sullo stesso foglio A4.")}
+    ${nota("Per togliere una foto venuta male tocca la ✕ sulla sua miniatura.")}`),
+
   cap("cerca", "🔍", "Trovare un acquisto e aprire la scheda", `
     ${passo(1, "Tocca <b>Cerca</b> e scrivi una parola: l'oggetto, il negozio, un articolo, una nota o l'anno (es. <i>friggitrice</i>, <i>lidl 2025</i>).",
       schermo("Cerca", `<div class="g-card"><div class="g-inp g-tocca">🔎 friggitrice</div><div class="g-art">Friggitrice ad aria<br><small>Lidl · 17/03/2025 · 59,99 €</small> <span class="g-pill ok">In garanzia</span></div></div>`))}
@@ -2361,7 +2459,8 @@ function renderGuida(){
     ${nota("La garanzia si calcola dalla <b>data d'acquisto</b>: se manca la data, l'acquisto non compare nelle scadenze. Per questo è importante controllarla.")}`),
 
   cap("stampa", "🖨️", "Stampare la scheda A4", `
-    ${passo(1, "Tocca <b>🖨️ Stampa</b> (nella scheda dell'acquisto, oppure rispondi Stampa dopo il salvataggio). L'app prepara un foglio A4 con negozio, oggetto, dati, articoli e la foto dello scontrino.")}
+    ${passo(1, "Tocca <b>🖨️ Stampa</b> (nella scheda dell'acquisto, oppure rispondi Stampa dopo il salvataggio). L'app prepara <b>un solo foglio A4</b> con negozio, oggetto, dati, articoli e la foto dello scontrino.")}
+    ${nota("Con <b>una foto</b>: dati a sinistra e foto a destra. Con <b>più foto</b> (scontrino lungo): dati in alto e foto affiancate sotto, grandi il più possibile. Se gli articoli sono tanti vengono stampati i più cari e in fondo c'è scritto «…e altri N articoli (vedi la foto dello scontrino)».")}
     ${passo(2, "Si apre il <b>PDF</b>. Tocca <b>Condividi</b> (l'icona con i tre pallini collegati) e scegli l'app della tua stampante, per esempio <b>Epson iPrint</b> (o HP Smart, Canon PRINT…).")}
     ${passo(3, "Nell'app della stampante tocca <b>STAMPA</b>. Fatto.")}
     ${nota("Dal PDF puoi anche mandare la scheda per <b>WhatsApp o email</b>, sempre con Condividi.")}

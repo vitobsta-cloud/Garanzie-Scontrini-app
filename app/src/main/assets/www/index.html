@@ -726,7 +726,7 @@ async function geminiSicuro(body){
   if(!occupato) return res;
   let altri = [];
   try{ altri = (await geminiModelli()).filter(m => m !== settings().geminiModel); }catch(e){}
-  for(const m of altri.slice(0, 5)){
+  for(const m of altri.slice(0, 2)){
     const r2 = await geminiCall(body, m);
     if(r2.status === 200){ saveSettings({geminiModel:m}); return r2; }
     res = r2;
@@ -1198,8 +1198,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.15";
+const VERSIONE = "v5.16";
 const CRONOLOGIA = [
+  {v:"v5.16", d:"21/11/2026", n:[
+    "Leggi scontrino più veloce quando Google è occupato: aspetta al massimo 15 secondi e per 5 minuti usa subito la lettura del telefono"
+  ]},
   {v:"v5.15", d:"21/11/2026", n:[
     "Recupera i dati: se Google è occupato non resta più bloccato; gli scontrini non letti online vengono rimandati e ripresi al Controlla successivo, senza salvare dati meno precisi"
   ]},
@@ -1741,12 +1744,16 @@ async function doLeggi(useClaude){
       for(const f of docs) texts.push(await call("ocr", f.data, f.mime));
       lastOcr = unisciTesti(texts); r = parseReceipt(lastOcr); r.nome = r.nomeSuggerito ? nomeBello(r.nomeSuggerito) : nomeDaArticoli(r.articoli);
       dubbiLettura = {}; modoLettura = "telefono";
-      if(settings().geminiKey && settings().incrocio !== false){
+      if(settings().geminiKey && settings().incrocio !== false && Date.now() < (window._googleOccupatoFino || 0)) modoLettura = "solo telefono: Google è occupato, riprovo online tra qualche minuto";
+      else if(settings().geminiKey && settings().incrocio !== false){
         stEl.innerHTML = `<span class="spinner"></span>Letto sul telefono ✓ · controllo anche online…`;
         try{
-          const on = await Promise.race([geminiRead(docs), new Promise((_, no) => setTimeout(() => no(new Error("tempo scaduto")), 30000))]);
+          const on = await Promise.race([geminiRead(docs), new Promise((_, no) => setTimeout(() => no(new Error("Google non ha risposto in tempo")), 15000))]);
           const x = incrocia(r, on); r = x.r; dubbiLettura = x.dubbi; modoLettura = "incrocio";
-        }catch(e){ modoLettura = "solo telefono: online non riuscito – " + String(e.message || e).split("\n")[0].slice(0, 140); }
+        }catch(e){
+          modoLettura = "solo telefono: online non riuscito – " + String(e.message || e).split("\n")[0].slice(0, 140);
+          if(/sovraccaric|occupat|503|500|tempo|high demand/i.test(String(e.message))) window._googleOccupatoFino = Date.now() + 5 * 60 * 1000;   // per 5 minuti non aspetta più Google
+        }
       }
     }
     // in modifica la lettura completa solo i campi vuoti, senza cambiare quelli già compilati
@@ -1765,7 +1772,7 @@ async function doLeggi(useClaude){
       + (!useClaude && !(r.articoli || []).length ? " Non ho riconosciuto gli articoli: aggiungili a mano se servono." : "");
     const evid = (id, k, fmt) => { const el = $("#" + id); if(el && dubbiLettura[k] !== undefined){ el.style.background = "#fff4c2"; el.style.borderColor = "#e8a33d"; const h = document.createElement("div"); h.className = "muted"; h.style.fontSize = "12.5px"; h.textContent = "Sul telefono: " + fmt(dubbiLettura[k]); el.after(h); el.addEventListener("input", () => { el.style.background = ""; el.style.borderColor = ""; h.remove(); }, {once:true}); } };
     evid("fData", "dataAcquisto", fmtDate); evid("fPrezzo", "prezzo", v => euro(v));
-    if($("#bRiprovaOn")) $("#bRiprovaOn").onclick = () => doLeggi(false);
+    if($("#bRiprovaOn")) $("#bRiprovaOn").onclick = () => { window._googleOccupatoFino = 0; doLeggi(false); };
     if($("#bAltraFoto")) $("#bAltraFoto").onclick = () => $("#camInput").click();
   }catch(e){
     stEl.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`;

@@ -148,6 +148,12 @@ textarea{min-height:64px;resize:vertical}
 .pill.bad{background:var(--bad-soft);color:var(--bad)}
 .pill.none{background:#eef0f3;color:var(--muted)}
 .pill.up{background:var(--accent-soft);color:#0369a1}
+.pill.nuovo{background:#e5484d;color:#fff}
+.pill.adm{background:var(--accent-soft);color:#0369a1}.pill.fam{background:var(--ok-soft);color:var(--ok)}
+.entry.nuovo{background:#fff8ef}
+.perm{display:flex;gap:12px;align-items:center;padding:10px 2px;border-top:1px solid var(--line, #e5e7eb);font-size:15px}
+.perm input{width:22px;height:22px;margin:0;flex:none}
+.codice{font-family:monospace;font-size:12px;word-break:break-all;background:#f4f5f7;border-radius:10px;padding:10px;user-select:all}
 .stats{display:flex;gap:8px;margin-bottom:12px}
 .stat{flex:1;background:var(--card);border:1.5px solid #dcdcdc;border-radius:16px;padding:10px;text-align:center;font-size:12.5px}
 .stat b{display:block;font-size:22px}
@@ -705,6 +711,8 @@ async function refreshFromNas(quiet){
     setNasState("on"); setSync("ok");
     if(keep.length) await uploadPending(true);
     syncReminders(); updateBadge();
+    await aggiornaUtenti();
+    if(current === "home") renderHome();
     if(!quiet) toast(`Archivio aggiornato: ${folders.length} acquisti.`);
     return true;
   }catch(e){
@@ -976,7 +984,7 @@ async function importaDaWindows(testo, avanza){
   return {letti:voci.length, aggiornati:daSalvare.length - errori, errori, giaOk, nonTrovati};
 }
 function infoJSON(a){
-  const keys = ["nome","negozio","dataAcquisto","garanziaMesi","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","categoria","note","articoli"];
+  const keys = ["nome","negozio","dataAcquisto","garanziaMesi","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","categoria","note","articoli","aggiuntoDa","aggiuntoDaId","aggiuntoIl","modificatoDa","modificatoIl"];
   const o = {app:"GaranzieScontrini", versione:1, aggiornato:new Date().toISOString()};
   keys.forEach(k => o[k] = a[k] ?? ""); return JSON.stringify(o, null, 2);
 }
@@ -999,7 +1007,7 @@ async function uploadPending(quiet){
    Navigazione
    ========================================================= */
 let current = "";
-const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni", impStampa:"Stampa"};
+const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni", impStampa:"Stampa", impUtenti:"Utenti di casa", impUtente:"Utente", invito:"Entra con un invito"};
 let currentArg, navStack = [];
 function setView(v, arg, isBack){
   if(!isBack){
@@ -1014,8 +1022,9 @@ function setView(v, arg, isBack){
   $("#hDate").classList.remove("hidden");
   document.querySelector("header").classList.toggle("sub", v !== "home");
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
+  const navAcq = document.querySelector('nav button[data-v="acquisisci"]'); if(navAcq) navAcq.style.display = puo("aggiungere") ? "" : "none";
   window.scrollTo(0, 0);
-  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa})[v](arg);
+  ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa, impUtenti:renderImpUtenti, impUtente:renderImpUtente, invito:renderInvito})[v](arg);
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
 $("#hBack").onclick = () => window.onAndroidBack();
@@ -1024,8 +1033,14 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.7";
+const VERSIONE = "v5.0";
 const CRONOLOGIA = [
+  {v:"v5.0", d:"21/11/2026", n:[
+    "Utenti di casa: più persone usano lo stesso archivio sul NAS, ognuna sul suo telefono (Impostazioni → Utenti di casa)",
+    "L'amministratore invita con un messaggio WhatsApp e decide con le spunte cosa può fare ognuno",
+    "🆕 All'apertura vedi gli acquisti aggiunti dagli altri; nell'elenco sono segnati NUOVO",
+    "Le scadenze e gli avvisi valgono per tutti"
+  ]},
   {v:"v4.7", d:"21/11/2026", n:[
     "Date Lidl sbiadite lette meglio (es. 29-92-2026 → 20/02/2026, 38-97-2926 → 30/07/2026)",
     "Bricoman/Tecnomat: riconosce gli articoli anche con codici sporchi (es. relè luci scale, valvole termostatiche)",
@@ -1246,6 +1261,7 @@ async function renderHome(){
   const pre = info.filter(s => s.cls === "warn").length, att = info.filter(s => s.cls === "ok").length, sca = info.filter(s => s.cls === "bad").length;
   const anno = new Date().getFullYear(), spesaAnno = list.filter(a => (a.dataAcquisto || "").startsWith(anno)).reduce((t, a) => t + (Number(a.prezzo) || 0), 0);
   const nDaCaricare = list.filter(a => a.daCaricare).length;
+  const nuovi = list.filter(nuovoPerMe), daChi = [...new Set(nuovi.map(a => a.aggiuntoDa).filter(Boolean))];
   const oggi = new Date().toLocaleDateString("it-IT", {weekday:"long", day:"numeric", month:"long", year:"numeric"}).replace(/^\w|\s\w/g, c => c.toUpperCase());
   const tile = (v, ic, bg, t1, t2, extra) => `<div class="tile" data-v="${v}"><div class="ic" style="background:${bg}">${ic}</div><div class="tx"><div class="t1">${t1}${extra || ""}</div><div class="t2">${t2}</div></div><div class="chev">›</div></div>`;
   $("#view").innerHTML = `
@@ -1254,8 +1270,9 @@ async function renderHome(){
       <div class="day">${esc(oggi)}</div>
       <div class="sum"><b>Archivio</b>: ${list.length} acquisti · <a href="#" data-f="ok">In garanzia: ${att}</a><br><a href="#" data-f="warn">In scadenza: ${pre}</a> · <a href="#" data-f="bad">Scadute: ${sca}</a>${spesaAnno ? ` · Spesa ${anno}: ${euro(spesaAnno)}` : ""}${nDaCaricare ? `<br>⏳ Da caricare sul NAS: ${nDaCaricare}` : ""}</div>
     </div>
-    ${tile("acquisisci", "📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino")}
-    ${tile("archivio", "🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti nell'archivio")}
+    ${nuovi.length ? `<div class="banner info" id="bNuovi" style="cursor:pointer"><div>🆕 <b>${nuovi.length} nuov${nuovi.length > 1 ? "i acquisti" : "o acquisto"} da ${esc(daChi.join(" e "))}</b><br><small>${esc(nuovi.slice(0, 3).map(a => a.nome).join(", "))}${nuovi.length > 3 ? "…" : ""} · tocca per vederli</small></div></div>` : ""}
+    ${puo("aggiungere") ? tile("acquisisci", "📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino") : ""}
+    ${tile("archivio", "🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti nell'archivio", nuovi.length ? `<span class="cnt" style="background:#e5484d">${nuovi.length}</span>` : "")}
     ${tile("scadenze", "⏰", "#f8e6dc", "Scadenze", "Garanzie in scadenza e scadute", pre ? `<span class="cnt">${pre}</span>` : "")}
     ${tile("grafici", "📊", "#e8f4f1", "Grafici", "Spese per negozio e per periodo")}
     ${tile("impostazioni", "⚙️", "#ece7f4", "Impostazioni", "Destinazione file, garanzie, avvisi")}
@@ -1264,10 +1281,11 @@ async function renderHome(){
   bindFooter();
   if(updInAttesa) setTimeout(proponiAggiornamento, 300);
   document.querySelectorAll(".hero a[data-f]").forEach(x => x.onclick = e => { e.preventDefault(); setView("scadenze", x.dataset.f); });
+  if($("#bNuovi")) $("#bNuovi").onclick = () => setView("archivio", {nuovi:true});
 }
 function nasBanner(){
   if(!A) return `<div class="banner warn"><div>Anteprima nel browser: il collegamento al NAS funziona solo nell'app Android.</div></div>`;
-  if(!archivioScelto()) return `<div class="banner warn"><div>Scegli dove salvare gli scontrini: NAS, Google Drive o telefono.</div><button class="btn small" onclick="setView('impDest')">Scegli</button></div>`;
+  if(!archivioScelto()) return `<div class="banner warn"><div>Scegli dove salvare gli scontrini: NAS, Google Drive o telefono.</div><button class="btn small" onclick="setView('impDest')">Scegli</button></div><div class="banner info"><div>📨 Qualcuno di casa ti ha mandato un invito?</div><button class="btn small" onclick="setView('invito')">Ho un invito</button></div>`;
   if(!archivioPronto()) return `<div class="banner warn"><div>Completa le impostazioni della destinazione (${esc(nomeArchivio())}).</div><button class="btn small" onclick="setView('impDest')">Apri</button></div>`;
   return "";
 }
@@ -1286,6 +1304,9 @@ function newDraft(){
     negozioIndirizzo:"", negozioCitta:"", negozioTelefono:"", garanziaMesi:settings().mesiDefault, articoli:[], note:"", files:[], pendingFiles:[]};
 }
 async function renderAcquisisci(edit){
+  if(edit ? !puoModificare(edit) : !(draft && draft._edit) && !puo("aggiungere")){
+    $("#view").innerHTML = `<div class="card"><h2>🔒 Non disponibile</h2><p class="muted">${edit ? "Non puoi modificare questo acquisto." : "Non puoi aggiungere scontrini."} Lo decide l'amministratore in Impostazioni → Utenti di casa.</p></div>`; return;
+  }
   if(edit){ draft = JSON.parse(JSON.stringify(edit)); draft.pendingFiles = draft.pendingFiles || []; draft._edit = true; lastOcr = ""; }
   if(!draft) draft = newDraft();
   const isEdit = !!draft._edit, hasKey = !!settings().apiKey;
@@ -1453,7 +1474,8 @@ async function doSalva(){
   readForm();
   if(!draft.nome && !draft.negozio){ toast("Scrivi almeno il negozio o il nome dell'oggetto.", true); return; }
   if(!draft._edit && !draft.pendingFiles.length && !(await conferma("Nessuna foto o PDF allegato. Salvare lo stesso?", "Salva"))) return;
-  const a = draft;
+  const a = draft, me = io(), ora = new Date().toISOString();
+  if(me){ if(!a._edit){ a.aggiuntoDa = me.nome; a.aggiuntoDaId = me.id; a.aggiuntoIl = ora; } else { a.modificatoDa = me.nome; a.modificatoIl = ora; } }
   if(!a._edit){
     // nome cartella unico
     const all = await allAcquisti(); let base = folderFor(a), c = base, n = 2;
@@ -1492,12 +1514,12 @@ let searchQ = "", sortBy = "data";
 async function renderArchivio(filtro){
   const tutti = await allAcquisti(), last = settings().ultimoAggiornamento;
   const f = filtro || null, chiave = s => (s || "").trim().toLowerCase();
-  const list = !f ? tutti : tutti.filter(a => (!f.negozio || chiave(a.negozio || "Senza negozio") === chiave(f.negozio))
+  const list = !f ? tutti : f.nuovi ? tutti.filter(nuovoPerMe) : tutti.filter(a => (!f.negozio || chiave(a.negozio || "Senza negozio") === chiave(f.negozio))
     && (!f.da || (a.dataAcquisto && a.dataAcquisto >= f.da)) && (!f.a || (a.dataAcquisto && a.dataAcquisto <= f.a)));
-  if(f) $("#hTitle").textContent = f.negozio ? f.negozio : "Acquisti";
+  if(f) $("#hTitle").textContent = f.nuovi ? "Nuovi acquisti" : f.negozio ? f.negozio : "Acquisti";
   $("#view").innerHTML = `
     ${nasBanner()}${await pendingBanner()}
-    ${f ? `<div class="banner info"><div>🏪 <b>${esc(f.negozio || "Tutti i negozi")}</b>${f.titolo ? " · " + esc(f.titolo) : ""} — ${list.length} acquist${list.length === 1 ? "o" : "i"}</div><button class="btn small" id="bTogliFiltro">Tutti</button></div>` : ""}
+    ${f ? `<div class="banner info"><div>${f.nuovi ? "🆕 <b>Aggiunti da altri</b>" : `🏪 <b>${esc(f.negozio || "Tutti i negozi")}</b>`}${f.titolo ? " · " + esc(f.titolo) : ""} — ${list.length} acquist${list.length === 1 ? "o" : "i"}</div><button class="btn small" id="bTogliFiltro">Tutti</button></div>` : ""}
     <div class="card" style="padding:10px">
       <input id="q" type="search" placeholder="🔎 Cerca oggetto, negozio, articolo, note, anno…" value="${esc(searchQ)}">
       <div class="row" style="margin-top:8px">
@@ -1530,10 +1552,11 @@ async function renderArchivio(filtro){
 }
 function entryHTML(a){
   const s = scadenzaInfo(a), pdf = (a.files || []).some(f => extOf(f.name) === "pdf"), img = (a.files || []).some(f => isImg(f.name));
-  return `<div class="entry" data-id="${esc(a.id)}">
+  const nv = nuovoPerMe(a);
+  return `<div class="entry${nv ? " nuovo" : ""}" data-id="${esc(a.id)}">
     <div class="ico">${pdf ? "📄" : img ? "🖼️" : "🧾"}</div>
-    <div class="txt"><div class="t1">${esc(a.nome || "(senza nome)")}</div>
-      <div class="t2">${esc(a.negozio || "—")} · ${fmtDate(a.dataAcquisto)}${a.prezzo !== "" && a.prezzo != null ? " · " + euro(a.prezzo) : ""}</div>
+    <div class="txt"><div class="t1">${esc(a.nome || "(senza nome)")}${nv ? ` <span class="pill nuovo">NUOVO</span>` : ""}</div>
+      <div class="t2">${esc(a.negozio || "—")} · ${fmtDate(a.dataAcquisto)}${a.prezzo !== "" && a.prezzo != null ? " · " + euro(a.prezzo) : ""}${piuUtenti() && a.aggiuntoDa ? " · da " + esc(a.aggiuntoDa) : ""}</div>
       <div style="margin-top:4px"><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare</span>` : ""}</div></div></div>`;
 }
 function bindEntries(){ document.querySelectorAll(".entry").forEach(e => e.onclick = () => setView("dettaglio", e.dataset.id)); }
@@ -1541,6 +1564,7 @@ function bindEntries(){ document.querySelectorAll(".entry").forEach(e => e.oncli
 async function renderDettaglio(id){
   const a = await getAcquisto(id);
   if(!a){ setView("archivio"); return; }
+  if(nuovoPerMe(a)) segnaVisto(a.id);
   const s = scadenzaInfo(a), files = (a.files || []).map(f => ({...f, nas:true})).concat((a.pendingFiles || []).map(f => ({...f, local:true})));
   const tr = (k, v) => v ? `<tr><td>${k}</td><td class="num">${v}</td></tr>` : "";
   $("#view").innerHTML = `
@@ -1556,6 +1580,7 @@ async function renderDettaglio(id){
         ${tr("N. scontrino", esc(a.numeroScontrino))}
         ${tr("Pagamento", esc(a.tipoPagamento))}
         ${tr("Negozio", esc([a.negozioIndirizzo, a.negozioCitta, a.negozioTelefono].filter(Boolean).join(" · ")))}
+        ${piuUtenti() && a.aggiuntoDa ? tr("Aggiunto da", esc(a.aggiuntoDa) + (a.aggiuntoIl ? " · " + fmtDate(a.aggiuntoIl.slice(0, 10)) : "")) : ""}
         <tr><td>Cartella</td><td class="num" style="word-break:break-word">${esc(a.cartella.replace(/\//g, "\\"))}</td></tr>
       </table>
       ${(a.articoli || []).length ? `<label>Articoli</label><table class="items">${a.articoli.map(x => `<tr><td>${x.quantita > 1 ? x.quantita + " × " : ""}${esc(x.descrizione)}</td><td class="num">${euro(x.prezzo)}</td></tr>`).join("")}</table>` : ""}
@@ -1563,9 +1588,9 @@ async function renderDettaglio(id){
       <label>Documenti (tocca per aprire)</label>
       <div class="thumbs" id="dThumbs">${files.map((f, i) => `<div class="thumb" data-i="${i}">${f.local && f.mime.startsWith("image/") ? `<img src="${dataUrl(f)}">` : (isImg(f.name) ? "🖼️" : "📄") + "<br>" + esc(f.name.slice(0, 22))}</div>`).join("") || `<span class="muted">Nessuno.</span>`}</div>
       <div class="btns">
-        <button class="btn" id="bEdit">✏️ Modifica</button>
+        ${puoModificare(a) ? `<button class="btn" id="bEdit">✏️ Modifica</button>` : ""}
         <button class="btn" id="bPrint">🖨️ Stampa</button>
-        <button class="btn danger" id="bDel">🗑️ Elimina</button>
+        ${puo("eliminare") ? `<button class="btn danger" id="bDel">🗑️ Elimina</button>` : ""}
       </div>
       ${a.hasInfo ? "" : `<p class="muted">Dati ricavati dal nome della cartella. Con "Modifica" puoi aggiungere prezzo, mesi di garanzia e note: vengono salvati nel file garanzia.json della cartella.</p>`}
     </div>`;
@@ -1577,7 +1602,7 @@ async function renderDettaglio(id){
     try{ await call("nasOpen", a.cartella + "/" + f.name); }catch(e){ toast(e.message, true); }
     t.style.opacity = 1;
   });
-  $("#bEdit").onclick = () => { draft = null; setView("acquisisci", a); };
+  if($("#bEdit")) $("#bEdit").onclick = () => { draft = null; setView("acquisisci", a); };
   $("#bPrint").onclick = async () => {
     const b = $("#bPrint"); b.disabled = true; b.textContent = "⏳ Preparo…";
     try{
@@ -1591,7 +1616,7 @@ async function renderDettaglio(id){
     }catch(e){ toast(e.message, true); }
     b.disabled = false; b.textContent = "🖨️ Stampa";
   };
-  $("#bDel").onclick = async () => {
+  if($("#bDel")) $("#bDel").onclick = async () => {
     if(a.daCaricare && !(a.files || []).length){
       if(!(await conferma("Eliminare questo acquisto non ancora caricato?", "Elimina", true))) return;
       await delAcquisto(a.id);
@@ -1769,12 +1794,15 @@ function descrDestinazione(){
 }
 function renderImpostazioni(){
   const s = settings();
+  const gest = puo("gestire"), me = io();
   $("#view").innerHTML = `
-    ${rigaMenu("impDest", "📁", "#e6eef8", "Destinazione file", esc(descrDestinazione()))}
+    ${!me && !archivioPronto() ? `<div class="banner info"><div>📨 Qualcuno di casa ti ha mandato un invito?</div><button class="btn small" onclick="setView('invito')">Ho un invito</button></div>` : ""}
+    ${gest ? rigaMenu("impDest", "📁", "#e6eef8", "Destinazione file", esc(descrDestinazione())) : ""}
+    ${rigaMenu("impUtenti", "👥", "#edf3e4", "Utenti di casa", me ? esc(utentiCasa().map(u => u.nome).join(", ") || me.nome) + " · sei " + esc(me.nome) : archivioScelto() === "nas" ? "Usa l'archivio in più persone" : "Solo con l'archivio sul NAS")}
     ${rigaMenu("impGar", "🧾", "#edf3e4", "Garanzie e avvisi", `${s.mesiDefault} mesi predefiniti · avviso ${s.giorniAvviso} giorni prima`)}
     ${rigaMenu("impLett", "🔎", "#f8e6dc", "Lettura scontrini", s.geminiKey ? "Sul telefono + online Google, gratis" : s.apiKey ? "OCR sul telefono + Claude" : "OCR sul telefono, gratuito")}
     ${rigaMenu("impStampa", "🖨️", "#e9eef3", "Stampa", {android:"Finestra di stampa del telefono", pdf:"Apri come PDF, poi Condividi", app:"App della stampante (Epson iPrint, HP Smart, Canon…)"}[modoStampa()])}
-    ${rigaMenu("impBackup", "💾", "#e8f4f1", "Backup e ripristino", "Esporta o importa le impostazioni, elenco acquisti in Excel")}
+    ${gest ? rigaMenu("impBackup", "💾", "#e8f4f1", "Backup e ripristino", "Esporta o importa le impostazioni, elenco acquisti in Excel") : ""}
     ${rigaMenu("impInfo", "ℹ️", "#ece7f4", "Informazioni e aggiornamenti", `Versione ${VERSIONE} · cronologia`)}`;
   document.querySelectorAll(".tile").forEach(t => t.onclick = () => setView(t.dataset.v));
 }
@@ -2021,6 +2049,150 @@ function renderImpLett(){
       const body = JSON.stringify({model:settings().model, max_tokens:10, messages:[{role:"user", content:"Rispondi solo OK"}]});
       const r = JSON.parse(await call("claudeRequest", body, settings().apiKey));
       if(r.status === 200) esito(o, true, "Claude risponde correttamente."); else esito(o, false, "Errore " + r.status + ": " + ((JSON.parse(r.body).error || {}).message || ""));
+    }catch(e){ esito(o, false, e.message); }
+  };
+}
+
+/* ---------- Utenti di casa (archivio condiviso sul NAS) ---------- */
+const UTENTI_FILE = "utenti.json";
+const PERMESSI = [["aggiungere","Aggiungere scontrini"],["modificaPropri","Modificare i suoi acquisti"],["modificaAltri","Modificare gli acquisti degli altri"],["eliminare","Eliminare acquisti"],["gestire","Gestire utenti e impostazioni (NAS, backup)"]];
+const io = () => settings().utente || null;                       // chi usa questo telefono {id, nome}
+const utentiCasa = () => settings().utenti || [];
+const utenteAttivo = () => { const me = io(); return me ? utentiCasa().find(u => u.id === me.id) || null : null; };
+const piuUtenti = () => !!io() && utentiCasa().length > 1;
+function puo(k){
+  const me = io(); if(!me) return true;                           // utenti non attivati: si può fare tutto, come prima
+  const u = utenteAttivo(); if(!u) return false;                  // utente rimosso
+  return u.ruolo === "admin" || !!(u.permessi || {})[k];
+}
+function mio(a){ const me = io(); if(!me) return true; return a.aggiuntoDaId ? a.aggiuntoDaId === me.id : (utenteAttivo() || {}).ruolo === "admin"; }
+const puoModificare = a => puo(mio(a) ? "modificaPropri" : "modificaAltri");
+function nuovoPerMe(a){
+  const me = io(), st = settings(); if(!me || !a.aggiuntoDaId || a.aggiuntoDaId === me.id) return false;
+  return (a.aggiuntoIl || "") > (st.utenteDal || "") && !(st.visti || []).includes(a.id);
+}
+function segnaVisto(id){ const v = settings().visti || []; if(!v.includes(id)){ v.push(id); saveSettings({visti:v.slice(-800)}); } }
+const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const b64dec = b => new TextDecoder("utf-8").decode(Uint8Array.from(atob(b), c => c.charCodeAt(0)));
+async function leggiUtenti(){
+  try{ const d = JSON.parse(b64dec(await call("nasRead", UTENTI_FILE))); return Array.isArray(d.utenti) ? d.utenti : []; }
+  catch(e){ if(/non trovat|not found|no such|STATUS_OBJECT_NAME_NOT_FOUND|does not exist|0xc0000034/i.test(e.message || "")) return []; throw e; }
+}
+async function scriviUtenti(list){
+  await call("nasWriteText", "", UTENTI_FILE, JSON.stringify({app:"GaranzieScontrini", tipo:"utenti", aggiornato:new Date().toISOString(), utenti:list}, null, 2));
+  saveSettings({utenti:list});
+}
+async function aggiornaUtenti(){ if(!io() || archivioScelto() !== "nas") return; try{ const l = await leggiUtenti(); if(l.length) saveSettings({utenti:l}); }catch(e){} }
+const descrPermessi = u => u.ruolo === "admin" ? "Può fare tutto · gestisce gli utenti" : PERMESSI.filter(([k]) => (u.permessi || {})[k]).map(([, t]) => t.replace(/ \(.*\)/, "")).join(" · ") || "Può solo vedere";
+function codiceInvito(u){
+  const nas = nasCfg(); delete nas.hasPassword;
+  if(A && A.getNasPassword) nas.password = A.getNasPassword();
+  return "GS1-" + b64utf8(JSON.stringify({v:1, utente:u, nas})).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function leggiCodice(t){
+  const m = String(t || "").match(/GS1-([A-Za-z0-9_-]{20,})/); if(!m) throw new Error("Codice non valido: copia tutto il messaggio dell'invito e incollalo qui.");
+  let b = m[1].replace(/-/g, "+").replace(/_/g, "/"); while(b.length % 4) b += "=";
+  const d = JSON.parse(b64dec(b)); if(!d.utente || !d.nas || !d.nas.host) throw new Error("Codice non valido.");
+  return d;
+}
+function renderImpUtenti(){
+  const me = io(), lista = utentiCasa();
+  if(archivioScelto() !== "nas"){
+    $("#view").innerHTML = `<div class="card"><h2>👥 Utenti di casa</h2><p class="muted">Per usare l'app in più persone l'archivio deve essere sul <b>NAS di casa</b>: è lì che tutti i telefoni leggono e salvano gli scontrini. Imposta il NAS in Destinazione file.</p></div>
+      <div class="card"><h2>📨 Hai ricevuto un invito?</h2><p class="muted">Se qualcuno di casa ti ha mandato un codice d'invito, il NAS si imposta da solo.</p><div class="btns"><button class="btn primary" onclick="setView('invito')">Entra con un invito</button></div></div>`; return;
+  }
+  if(!me){
+    $("#view").innerHTML = `<div class="card"><h2>👥 Utenti di casa</h2>
+      <p class="muted">Più persone di casa (es. moglie, figli) possono usare lo stesso archivio, ognuna sul suo telefono. Tu sarai l'<b>amministratore</b>: decidi chi entra e cosa può fare. Quando qualcuno aggiunge uno scontrino, gli altri lo vedono come 🆕 all'apertura dell'app.</p>
+      <label>Il tuo nome</label><input id="uMio" placeholder="es. Vito" autocomplete="off">
+      <div class="btns"><button class="btn primary" id="uAttiva">👥 Attiva utenti di casa</button></div><div id="uOut"></div></div>
+      <div class="card"><h2>📨 Hai ricevuto un invito?</h2><p class="muted">Se qualcuno di casa ti ha mandato un codice d'invito, usa questo.</p><div class="btns"><button class="btn" id="uInv">Entra con un invito</button></div></div>`;
+    $("#uInv").onclick = () => setView("invito");
+    $("#uAttiva").onclick = async () => {
+      const nome = $("#uMio").value.trim(), o = $("#uOut"); if(!nome){ esito(o, false, "Scrivi il tuo nome."); return; }
+      esito(o, null, "Collego al NAS…");
+      try{
+        const esistenti = await leggiUtenti();
+        if(esistenti.length){ esito(o, false, "Nell'archivio ci sono già degli utenti (" + esistenti.map(u => u.nome).join(", ") + "). Chiedi all'amministratore un invito."); return; }
+        const u = {id:nuovoId(), nome, ruolo:"admin", permessi:Object.fromEntries(PERMESSI.map(([k]) => [k, true])), creato:new Date().toISOString()};
+        await scriviUtenti([u]);
+        saveSettings({utente:{id:u.id, nome}, utenteDal:new Date().toISOString(), visti:[]});
+        toast("Utenti di casa attivati."); renderImpUtenti();
+      }catch(e){ esito(o, false, "NAS non raggiungibile: " + e.message); }
+    };
+    return;
+  }
+  const gestisco = puo("gestire");
+  $("#view").innerHTML = `<div class="card"><h2>👥 Utenti di casa</h2>
+      ${lista.map(u => `<div class="tile" data-u="${esc(u.id)}" style="margin:0;box-shadow:none;border-top:1px solid #eee;border-radius:0"><div class="ic" style="background:${u.ruolo === "admin" ? "#e6eef8" : "#edf3e4"}">${u.ruolo === "admin" ? "🛡️" : "👤"}</div><div class="tx"><div class="t1">${esc(u.nome)}${u.id === me.id ? " <small class=\"muted\">(questo telefono)</small>" : ""}</div><div class="t2">${esc(descrPermessi(u))}</div></div><span class="pill ${u.ruolo === "admin" ? "adm" : "fam"}">${u.ruolo === "admin" ? "Amministratore" : "Familiare"}</span></div>`).join("")}
+      ${gestisco ? `<div class="btns"><button class="btn primary" id="uAdd">➕ Aggiungi utente</button></div>` : `<p class="muted">Solo l'amministratore può aggiungere utenti o cambiare i permessi.</p>`}
+      <div id="uOut"></div></div>`;
+  if(gestisco){
+    $("#uAdd").onclick = () => setView("impUtente", "");
+    document.querySelectorAll("[data-u]").forEach(t => { const u = lista.find(x => x.id === t.dataset.u); if(u && u.ruolo !== "admin") t.onclick = () => setView("impUtente", u.id); });
+  }
+  aggiornaUtenti().then(() => { if(current === "impUtenti" && JSON.stringify(utentiCasa()) !== JSON.stringify(lista)) renderImpUtenti(); });
+}
+function renderImpUtente(id){
+  const u = utentiCasa().find(x => x.id === id) || {id:"", nome:"", ruolo:"familiare", permessi:{aggiungere:true, modificaPropri:true}};
+  $("#view").innerHTML = `<div class="card"><h2>${u.id ? "👤 " + esc(u.nome) : "➕ Nuovo utente"}</h2>
+      <label>Nome</label><input id="uNome" value="${esc(u.nome)}" placeholder="es. Silvia" autocomplete="off">
+      <label style="margin-top:12px">Cosa può fare (vedere acquisti e scadenze: sempre)</label>
+      ${PERMESSI.map(([k, t]) => `<label class="perm"><input type="checkbox" data-k="${k}"${(u.permessi || {})[k] ? " checked" : ""}> ${t}</label>`).join("")}
+      <div class="btns"><button class="btn primary" id="uSalva">${u.id ? "💾 Salva" : "📨 Crea e invia l'invito"}</button></div>
+      ${u.id ? `<div class="btns"><button class="btn" id="uInvito">📨 Manda di nuovo l'invito</button><button class="btn danger" id="uDel">🗑️ Rimuovi</button></div>` : ""}
+      <div id="uOut"></div></div><div id="uInvBox"></div>`;
+  const mostraInvito = utente => {
+    const cod = codiceInvito(utente);
+    const msg = `Ciao ${utente.nome}! Ti invito nell'archivio Garanzie & Scontrini di casa.\n1) Installa l'app: https://github.com/vitobsta-cloud/Garanzie-Scontrini-app/releases/latest/download/GaranzieScontrini.apk\n2) Aprila, tocca "Ho un invito", incolla tutto questo messaggio e tocca Entra.\n\n${cod}`;
+    $("#uInvBox").innerHTML = `<div class="card"><h2>📨 Invito per ${esc(utente.nome)}</h2>
+      <p class="muted">Mandalo <b>solo a ${esc(utente.nome)}</b>, non in un gruppo: contiene l'accesso al NAS.</p>
+      <div class="btns"><a class="btn primary" id="uWa" href="https://wa.me/?text=${encodeURIComponent(msg)}">📲 Manda con WhatsApp</a><button class="btn" id="uCopia">📋 Copia il messaggio</button></div>
+      <p class="muted" style="margin-top:10px">Lei poi apre l'app, tocca <b>Ho un invito</b> (in alto nella Home, oppure Impostazioni → Utenti di casa), incolla il messaggio e tocca <b>Entra</b>.</p>
+      <div class="codice">${esc(cod)}</div></div>`;
+    $("#uCopia").onclick = async () => { try{ await navigator.clipboard.writeText(msg); toast("Copiato: incollalo in WhatsApp, SMS o email."); }catch(e){ toast("Tieni premuto sul codice per copiarlo.", true); } };
+    $("#uInvBox").scrollIntoView({behavior:"smooth"});
+  };
+  $("#uSalva").onclick = async () => {
+    const nome = $("#uNome").value.trim(), o = $("#uOut"); if(!nome){ esito(o, false, "Scrivi il nome."); return; }
+    const permessi = {}; document.querySelectorAll(".perm input").forEach(c => permessi[c.dataset.k] = c.checked);
+    esito(o, null, "Salvo sul NAS…");
+    try{
+      const lista = await leggiUtenti();
+      if(lista.some(x => x.nome.toLowerCase() === nome.toLowerCase() && x.id !== u.id)){ esito(o, false, "C'è già un utente con questo nome."); return; }
+      let nu;
+      if(u.id){ nu = Object.assign(lista.find(x => x.id === u.id) || u, {nome, permessi}); if(!lista.includes(nu)) lista.push(nu); }
+      else{ nu = {id:nuovoId(), nome, ruolo:"familiare", permessi, creato:new Date().toISOString()}; lista.push(nu); }
+      await scriviUtenti(lista);
+      esito(o, true, u.id ? "Salvato. Vale dalla prossima apertura dell'app di " + nome + "." : "Utente creato. Ora mandagli l'invito qui sotto.");
+      if(!u.id) mostraInvito(nu);
+    }catch(e){ esito(o, false, "NAS non raggiungibile: " + e.message); }
+  };
+  if(u.id){
+    $("#uInvito").onclick = () => mostraInvito(u);
+    $("#uDel").onclick = async () => {
+      if(!(await conferma(`Rimuovere ${u.nome}?\n\nI suoi acquisti restano nell'archivio; dal suo telefono potrà solo guardare l'elenco già scaricato.`, "Rimuovi", true))) return;
+      try{ await scriviUtenti((await leggiUtenti()).filter(x => x.id !== u.id)); toast(u.nome + " rimosso."); setView("impUtenti"); }catch(e){ esito($("#uOut"), false, e.message); }
+    };
+  }
+}
+function renderInvito(){
+  $("#view").innerHTML = `<div class="card"><h2>📨 Entra con un invito</h2>
+      <p class="muted">Incolla qui il messaggio dell'invito che ti hanno mandato (tieni premuto nel riquadro → Incolla).</p>
+      <textarea id="iCod" rows="5" placeholder="Incolla qui il messaggio…"></textarea>
+      <div class="btns"><button class="btn primary" id="iEntra">✅ Entra</button></div><div id="iOut"></div></div>`;
+  $("#iEntra").onclick = async () => {
+    const o = $("#iOut");
+    try{
+      const d = leggiCodice($("#iCod").value);
+      if(!(await conferma(`Entrare nell'archivio di casa come ${d.utente.nome}?`, "Entra"))) return;
+      if(A) A.setNasConfig(JSON.stringify(d.nas));
+      saveSettings({archivio:"nas", utente:{id:d.utente.id, nome:d.utente.nome}, utenti:[d.utente], utenteDal:new Date().toISOString(), visti:[], ultimoAggiornamento:""});
+      if(A && A.setArchivio) A.setArchivio("nas");
+      esito(o, null, "Mi collego al NAS…");
+      const ok = await refreshFromNas(true);
+      toast(ok ? `Benvenuta/o ${d.utente.nome}! Archivio collegato.` : "Invito salvato. Il NAS non risponde: collegati al Wi-Fi di casa.", !ok);
+      setView("home");
     }catch(e){ esito(o, false, e.message); }
   };
 }

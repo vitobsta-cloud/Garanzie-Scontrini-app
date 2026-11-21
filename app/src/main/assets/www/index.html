@@ -185,6 +185,64 @@ pre.ocr{white-space:pre-wrap;font-size:12px;background:#f6f7f9;border-radius:8px
 .modal .rel{border-top:1px solid var(--line);padding:12px 0}
 .modal .rel b{font-size:15px} .modal .rel span{color:#888;font-size:12.5px;margin-left:6px}
 .modal .rel ul{margin:6px 0 0;padding-left:20px;font-size:14px;color:#444}
+
+/* guida all'uso */
+.g-cap{padding:0;overflow:hidden}
+.g-cap summary{list-style:none;display:flex;align-items:center;gap:12px;padding:16px 16px;font-size:17px;font-weight:600;cursor:pointer}
+.g-cap summary::-webkit-details-marker{display:none}
+.g-cap summary::after{content:"›";margin-left:auto;color:#aaa;font-size:24px;transition:transform .2s}
+.g-cap[open] summary::after{transform:rotate(90deg)}
+.g-cap > *:not(summary){margin-left:16px;margin-right:16px}
+.g-cap[open]{padding-bottom:14px}
+.g-cic{width:40px;height:40px;border-radius:12px;background:#f1f3f5;display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
+.g-cap p,.g-list{font-size:15.5px;line-height:1.55}
+.g-list{padding-left:20px}.g-list li{margin-bottom:8px}
+.g-passo{display:flex;gap:12px;margin:14px 16px 0}
+.g-num{width:30px;height:30px;border-radius:50%;background:#1a1a1a;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-size:15px}
+.g-tx{flex:1;min-width:0;font-size:15.5px;line-height:1.55}
+.g-fig{margin-top:10px}
+.g-nota{background:#eef6fd;border-radius:12px;padding:10px 12px;font-size:14.5px;line-height:1.5;margin-top:14px}
+.g-nota.att{background:#fff4e5}
+.g-faq{border-top:1px solid #eee;padding:12px 0;font-size:15px;line-height:1.5}
+.g-hl{background:#fde7c8;border-radius:6px;padding:0 5px}
+.g-tel{border:6px solid #222;border-radius:22px;overflow:hidden;background:#eef0f2;max-width:330px;font-size:12.5px;pointer-events:none;user-select:none}
+.g-bar{background:#161616;color:#fff;padding:9px 10px;display:flex;gap:10px;align-items:center;font-size:14px}
+.g-back{background:#333;border-radius:8px;padding:2px 7px;font-size:11px}
+.g-st{display:flex;gap:6px;padding:5px 8px;background:#f6f7f8;font-size:10.5px;flex-wrap:wrap}
+.g-st span{background:#fff;border:1px solid #ddd;border-radius:99px;padding:2px 8px;display:flex;align-items:center;gap:4px}
+.g-dot{width:7px;height:7px;border-radius:50%;background:#3d9a50;display:inline-block}
+.g-body{padding:8px;display:grid;gap:7px}
+.g-hero{text-align:center;color:#666;padding:6px 0}
+.g-tile{display:flex;gap:10px;align-items:center;background:#fff;border:1.5px solid #dcdcdc;border-radius:14px;padding:9px 10px}
+.g-tile small{color:#777}
+.g-ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none}
+.g-cnt{background:#e8a33d;color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
+.g-card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:9px;display:grid;gap:7px}
+.g-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.g-btn{border:1.5px solid #ddd;border-radius:10px;padding:6px 9px;background:#fff;font-weight:500}
+.g-btn.pri{background:#4aa3df;border-color:#4aa3df;color:#fff}
+.g-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.g-campo small{color:#777;font-size:10.5px}
+.g-inp{border:1.5px solid #ddd;border-radius:9px;padding:6px 8px;background:#fff}
+.g-inp.giallo{background:#fff4c2;border-color:#e8a33d}
+.g-mut{color:#777}
+.g-thumb{width:54px;height:66px;border-radius:8px;background:#f4efe6;display:flex;align-items:center;justify-content:center;font-size:26px;border:1px solid #ddd}
+.g-ok{color:#166534;font-size:11.5px}
+.g-art{border-top:1px solid #eee;padding-top:5px;font-weight:500}
+.g-art small{font-weight:400;color:#555}
+.g-radio{border:1.5px solid #ddd;border-radius:9px;padding:3px 8px;font-weight:400}
+.g-radio.on{color:#1f6fd1}
+.g-modal{background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:10px;text-align:center;display:grid;gap:7px}
+.g-modal .g-row{justify-content:center}
+.g-pill{font-size:10px;border-radius:99px;padding:1px 6px}.g-pill.ok{background:#e7f5ea;color:#2f7a3f}
+.g-stats{justify-content:space-between}
+.g-stat{flex:1;background:#fff;border-radius:10px;padding:6px;text-align:center;border:1px solid #ddd;font-size:10.5px}
+.g-stat b{display:block;font-size:17px}.g-stat.warn b{color:#c77c12}.g-stat.ok b{color:#2f7a3f}.g-stat.bad b{color:#c0392b}
+.g-banner{background:#e0f2fe;border:1px solid #bfe6f8;border-radius:10px;padding:8px;color:#075985}
+.g-chk{padding:3px 0}
+.g-tocca{outline:3px solid #f59e0b;outline-offset:2px;border-radius:12px;animation:gpulse 1.6s ease-in-out infinite;position:relative}
+@keyframes gpulse{0%,100%{outline-color:#f59e0b}50%{outline-color:#fcd38d}}
+@media (prefers-reduced-motion: reduce){.g-tocca{animation:none}}
 </style>
 </head>
 <body>
@@ -1067,7 +1125,7 @@ async function uploadPending(quiet){
    Navigazione
    ========================================================= */
 let current = "";
-const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni", impStampa:"Stampa", impUtenti:"Utenti di casa", impUtente:"Utente", invito:"Entra con un invito"};
+const TITOLI = {home:"Garanzie & Scontrini", acquisisci:"Acquisisci", archivio:"Cerca", scadenze:"Scadenze", impostazioni:"Impostazioni", dettaglio:"Scheda acquisto", grafici:"Grafici", impDest:"Destinazione file", impGar:"Garanzie e avvisi", impLett:"Lettura scontrini", impBackup:"Backup e ripristino", impInfo:"Informazioni", impStampa:"Stampa", impUtenti:"Utenti di casa", impUtente:"Utente", invito:"Entra con un invito", guida:"Guida all'uso"};
 let currentArg, navStack = [];
 function setView(v, arg, isBack){
   if(!isBack){
@@ -1084,7 +1142,7 @@ function setView(v, arg, isBack){
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.v === (v === "dettaglio" ? "archivio" : v)));
   const navAcq = document.querySelector('nav button[data-v="acquisisci"]'); if(navAcq) navAcq.style.display = puo("aggiungere") ? "" : "none";
   window.scrollTo(0, 0);
-  return ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa, impUtenti:renderImpUtenti, impUtente:renderImpUtente, invito:renderInvito})[v](arg);
+  return ({home:renderHome, acquisisci:renderAcquisisci, archivio:renderArchivio, scadenze:renderScadenze, impostazioni:renderImpostazioni, dettaglio:renderDettaglio, grafici:renderGrafici, impDest:renderImpDest, impGar:renderImpGar, impLett:renderImpLett, impBackup:renderImpBackup, impInfo:renderImpInfo, impStampa:renderImpStampa, impUtenti:renderImpUtenti, impUtente:renderImpUtente, invito:renderInvito, guida:renderGuida})[v](arg);
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
 $("#hBack").onclick = () => window.onAndroidBack();
@@ -1093,8 +1151,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.11";
+const VERSIONE = "v5.12";
 const CRONOLOGIA = [
+  {v:"v5.12", d:"21/11/2026", n:[
+    "Guida all'uso in Impostazioni: 10 capitoli passo per passo con le immagini delle schermate e il punto da toccare evidenziato"
+  ]},
   {v:"v5.11", d:"21/11/2026", n:[
     "Recupera i dati dagli scontrini: con la chiave di Google incrocia lettura del telefono e online; se data o totale non coincidono quel dato non viene salvato"
   ]},
@@ -1937,6 +1998,7 @@ function renderImpostazioni(){
   const gest = puo("gestire"), me = io();
   $("#view").innerHTML = `
     ${!me && !archivioPronto() ? `<div class="banner info"><div>📨 Qualcuno di casa ti ha mandato un invito?</div><button class="btn small" onclick="setView('invito')">Ho un invito</button></div>` : ""}
+    ${rigaMenu("guida", "📖", "#fdf0dc", "Guida all'uso", "Come usare l'app, passo per passo, con le immagini")}
     ${gest ? rigaMenu("impDest", "📁", "#e6eef8", "Destinazione file", esc(descrDestinazione())) : ""}
     ${rigaMenu("impUtenti", "👥", "#edf3e4", "Utenti di casa", me ? esc(utentiCasa().map(u => u.nome).join(", ") || me.nome) + " · sei " + esc(me.nome) : archivioScelto() === "nas" ? "Usa l'archivio in più persone" : "Solo con l'archivio sul NAS")}
     ${rigaMenu("impGar", "🧾", "#edf3e4", "Garanzie e avvisi", `${s.mesiDefault} mesi predefiniti · avviso ${s.giorniAvviso} giorni prima`)}
@@ -2214,6 +2276,113 @@ function renderImpLett(){
       if(r.status === 200) esito(o, true, "Claude risponde correttamente."); else esito(o, false, "Errore " + r.status + ": " + ((JSON.parse(r.body).error || {}).message || ""));
     }catch(e){ esito(o, false, e.message); }
   };
+}
+
+/* ---------- Guida all'uso (con le schermate dell'app disegnate e il punto da toccare evidenziato) ---------- */
+function renderGuida(){
+  // piccoli pezzi di schermata, uguali all'app
+  const schermo = (titolo, corpo, home) => `<div class="g-tel"><div class="g-bar">${home ? "" : `<span class="g-back">← Home</span>`}<b>${titolo}</b></div><div class="g-st"><span><i class="g-dot"></i>NAS online</span><span><i class="g-dot"></i>Aggiornato alle 08:15</span></div><div class="g-body">${corpo}</div></div>`;
+  const tile = (ic, bg, t1, t2, hi, extra) => `<div class="g-tile${hi ? " g-tocca" : ""}"><span class="g-ic" style="background:${bg}">${ic}</span><span><b>${t1}</b>${extra || ""}<br><small>${t2}</small></span></div>`;
+  const btn = (t, pri, hi) => `<span class="g-btn${pri ? " pri" : ""}${hi ? " g-tocca" : ""}">${t}</span>`;
+  const campo = (l, v, giallo, hi) => `<div class="g-campo"><small>${l}</small><div class="g-inp${giallo ? " giallo" : ""}${hi ? " g-tocca" : ""}">${v}</div></div>`;
+  const passo = (n, testo, fig) => `<div class="g-passo"><div class="g-num">${n}</div><div class="g-tx">${testo}${fig ? `<div class="g-fig">${fig}</div>` : ""}</div></div>`;
+  const nota = t => `<div class="g-nota">💡 ${t}</div>`;
+  const att = t => `<div class="g-nota att">⚠️ ${t}</div>`;
+  const cap = (id, ic, titolo, corpo) => `<details class="card g-cap" id="g-${id}"><summary><span class="g-cic">${ic}</span>${titolo}</summary>${corpo}</details>`;
+  const fotoScontrino = `<span class="g-thumb">🧾</span>`;
+
+  const capitoli = [
+  cap("base", "🏠", "Le cose da sapere prima di iniziare", `
+    <p>L'app tiene in ordine <b>scontrini, fatture e garanzie</b> di casa. Ogni acquisto ha la sua cartella nell'archivio sul <b>NAS</b> (Negozio → Oggetto data), con dentro la foto dello scontrino e i dati.</p>
+    ${passo(1, "In alto ci sono <b>due pallini</b>. Il primo dice se l'archivio è raggiungibile, il secondo quando l'elenco è stato aggiornato.<br>🟢 verde = tutto a posto · 🔵 blu = sta lavorando · 🟠 arancio = elenco vecchio · ⚪ grigio/🔴 = archivio non raggiungibile (sei fuori casa o il Wi-Fi è spento).",
+      schermo("Garanzie &amp; Scontrini", `<div class="g-hero">Archivio: 171 acquisti · In garanzia: 48<br>In scadenza: 3 · Scadute: 120</div>`, true))}
+    ${passo(2, "Dalla <b>Home</b> si va dappertutto: <b>Acquisisci</b> per un nuovo scontrino, <b>Cerca</b> per trovare un acquisto, <b>Scadenze</b> per le garanzie, <b>Grafici</b> per le spese, <b>Impostazioni</b> per tutto il resto. Gli stessi tasti sono anche in basso nello schermo.",
+      schermo("Garanzie &amp; Scontrini", tile("📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino") + tile("🔍", "#e6eef8", "Cerca", "Trova acquisti e documenti") + tile("⏰", "#f8e6dc", "Scadenze", "Garanzie in scadenza e scadute", false, ` <span class="g-cnt">3</span>`), true))}
+    ${passo(3, "Il tasto <b>← Home</b> (o <b>← Indietro</b>) in alto a sinistra riporta alla pagina precedente. Funziona anche il tasto ◀ del telefono.")}
+    ${nota("Non serve chiudere l'app: quando la riapri si ricollega da sola all'archivio.")}`),
+
+  cap("acquisisci", "📷", "Archiviare un nuovo scontrino (passo per passo)", `
+    ${passo(1, "Nella Home tocca <b>Acquisisci</b>.", schermo("Garanzie &amp; Scontrini", tile("📷", "#edf3e4", "Acquisisci", "Fotografa e archivia uno scontrino", true), true))}
+    ${passo(2, "Tocca <b>📷 Scatta foto</b> e fotografa lo scontrino. Se è già nel telefono (foto, PDF di una fattura, email) tocca <b>📁 Scegli file</b>.<br>Se lo scontrino è <b>lungo</b>, fai più foto una dopo l'altra: l'app le tiene tutte insieme.",
+      schermo("Acquisisci", `<div class="g-card"><b>1. Scontrino</b><div class="g-row">${btn("📷 Scatta foto", false, true)}${btn("📁 Scegli file")}</div></div>`))}
+    ${passo(3, "Appena c'è la foto, l'app <b>legge da sola</b> lo scontrino e riempie i campi (ci vogliono pochi secondi). Se c'è la lettura online vedi scritto <i>«Letto sul telefono ✓ · controllo anche online…»</i>: aspetta che finisca.",
+      schermo("Acquisisci", `<div class="g-card"><div class="g-row">${fotoScontrino}</div><div class="g-row">${btn("🔎 Leggi scontrino", true)}${btn("🌐 Leggi online")}</div><div class="g-ok">✅ Dati compilati (telefono + online): controllali prima di salvare.</div></div>`))}
+    ${passo(4, "<b>Controlla i dati</b>: negozio, nome dell'oggetto, data, prezzo. Se un campo è <b>giallo</b> le due letture non erano d'accordo: sotto c'è scritto cosa aveva letto il telefono. Guarda lo scontrino e correggi se serve (toccando il campo il giallo sparisce).",
+      schermo("Acquisisci", `<div class="g-card"><b>2. Controlla i dati</b><div class="g-grid">${campo("Negozio", "Lidl")}${campo("Nome oggetto", "Pistola sparapunti")}${campo("Data acquisto", "28/09/2026", true, true)}${campo("Prezzo (€)", "57,43")}</div><small class="g-mut">Sul telefono: 29/09/2026</small></div>`))}
+    ${passo(5, "Più in basso ci sono gli <b>articoli</b> dello scontrino. Il <b>pallino «Nome»</b> indica quale articolo dà il nome all'acquisto (di solito il più caro). Se lo scontrino ha la spesa e un elettrodomestico, tocca il pallino sull'elettrodomestico: il nome si aggiorna da solo.",
+      schermo("Acquisisci", `<div class="g-card"><div class="g-art">SET GRAFFE GRAND<div class="g-row"><small>Q.tà 2 · € 6,98</small><span class="g-radio">○ Nome</span></div></div><div class="g-art">PISTOLA SPARAPUNTI<div class="g-row"><small>Q.tà 1 · € 24,99</small><span class="g-radio on g-tocca">◉ Nome</span></div></div></div>`))}
+    ${passo(6, "Controlla i <b>mesi di garanzia</b> (di solito 24) e, se vuoi, scrivi nelle <b>Note</b> la matricola o il modello. Sotto vedi fino a quando dura la garanzia e in quale cartella verrà salvato.")}
+    ${passo(7, "Tocca <b>💾 Salva</b>. L'app salva tutto nell'archivio e ti chiede <b>«Vuoi stampare la scheda?»</b>: rispondi <b>🖨️ Stampa</b> oppure <b>Annulla</b>.",
+      schermo("Acquisisci", `<div class="g-card"><div class="g-row">${btn("Svuota")}${btn("🖨️ Stampa")}${btn("💾 Salva", true, true)}</div><div class="g-modal">✅ Salvato nell'archivio.<br>Vuoi stampare la scheda?<div class="g-row">${btn("Annulla")}${btn("🖨️ Stampa", true)}</div></div></div>`))}
+    ${nota("Se esci dalla pagina o il telefono chiude l'app prima di salvare, lo scontrino non si perde: quando torni trovi «Ho ripreso lo scontrino che stavi acquisendo».")}
+    ${nota("Per ricominciare da zero tocca <b>Svuota</b>.")}`),
+
+  cap("foto", "📸", "Come fare foto che si leggono bene", `
+    <ul class="g-list">
+      <li><b>Luce</b>: vicino a una finestra o con la luce accesa. Niente ombre del telefono sopra lo scontrino.</li>
+      <li><b>Piatto</b>: appoggia lo scontrino su un tavolo e stendilo bene; se è arrotolato tienilo fermo con due dita ai lati.</li>
+      <li><b>Dritto e intero</b>: tieni il telefono parallelo allo scontrino. Si devono vedere il <b>nome del negozio in alto</b> e il <b>totale e la data in basso</b>.</li>
+      <li><b>Vicino</b>: lo scontrino deve riempire quasi tutta la foto. Se è lungo, fai 2 o 3 foto (sopra, centro, sotto).</li>
+      <li><b>Fermo</b>: aspetta che la foto sia a fuoco prima di scattare.</li>
+      <li><b>Scontrini sbiaditi</b> (carta termica vecchia): fotografali subito, finché si leggono. Con la lettura online vengono letti meglio.</li>
+      <li><b>Fatture via email (PDF)</b>: non fotografare lo schermo, usa <b>📁 Scegli file</b> e prendi direttamente il PDF.</li>
+    </ul>`),
+
+  cap("cerca", "🔍", "Trovare un acquisto e aprire la scheda", `
+    ${passo(1, "Tocca <b>Cerca</b> e scrivi una parola: l'oggetto, il negozio, un articolo, una nota o l'anno (es. <i>friggitrice</i>, <i>lidl 2025</i>).",
+      schermo("Cerca", `<div class="g-card"><div class="g-inp g-tocca">🔎 friggitrice</div><div class="g-art">Friggitrice ad aria<br><small>Lidl · 17/03/2025 · 59,99 €</small> <span class="g-pill ok">In garanzia</span></div></div>`))}
+    ${passo(2, "Tocca l'acquisto per aprire la <b>scheda</b>: ci sono tutti i dati, gli articoli e i documenti. Tocca un documento per aprirlo (foto o PDF).")}
+    ${passo(3, "Nella scheda trovi tre tasti: <b>✏️ Modifica</b> per correggere o aggiungere un documento (es. il certificato di garanzia), <b>🖨️ Stampa</b> per la scheda A4, <b>🗑️ Elimina</b> per cancellarlo dall'archivio.",
+      schermo("Scheda acquisto", `<div class="g-card"><b>Friggitrice ad aria</b><br><small>Lidl</small><div class="g-row">${btn("✏️ Modifica")}${btn("🖨️ Stampa")}${btn("🗑️ Elimina")}</div></div>`))}
+    ${passo(4, "Con <b>🔄 Aggiorna dal NAS</b> rileggi subito l'elenco (di solito l'app lo fa da sola ogni mezz'ora).")}
+    ${nota("Il segno <b>🤖 dati letti dallo scontrino</b> vuol dire che alcuni dati li ha aggiunti l'app: controllali, poi Modifica → Salva per confermarli.")}
+    ${att("<b>Elimina</b> cancella davvero la cartella con le foto dal NAS: non si può annullare.")}`),
+
+  cap("scadenze", "⏰", "Scadenze e avvisi delle garanzie", `
+    ${passo(1, "In <b>Scadenze</b> vedi tre riquadri: <b>In scadenza</b> (entro 30 giorni), <b>In garanzia</b>, <b>Scadute</b>. Tocca un riquadro per vedere solo quell'elenco.",
+      schermo("Scadenze", `<div class="g-row g-stats"><span class="g-stat warn g-tocca"><b>3</b>In scadenza</span><span class="g-stat ok"><b>48</b>In garanzia</span><span class="g-stat bad"><b>120</b>Scadute</span></div>`))}
+    ${passo(2, "Il telefono ti manda una <b>notifica</b> qualche giorno prima che una garanzia scada. I giorni si cambiano in <b>Impostazioni → Garanzie e avvisi</b>.")}
+    ${nota("La garanzia si calcola dalla <b>data d'acquisto</b>: se manca la data, l'acquisto non compare nelle scadenze. Per questo è importante controllarla.")}`),
+
+  cap("stampa", "🖨️", "Stampare la scheda A4", `
+    ${passo(1, "Tocca <b>🖨️ Stampa</b> (nella scheda dell'acquisto, oppure rispondi Stampa dopo il salvataggio). L'app prepara un foglio A4 con negozio, oggetto, dati, articoli e la foto dello scontrino.")}
+    ${passo(2, "Si apre il <b>PDF</b>. Tocca <b>Condividi</b> (l'icona con i tre pallini collegati) e scegli l'app della tua stampante, per esempio <b>Epson iPrint</b> (o HP Smart, Canon PRINT…).")}
+    ${passo(3, "Nell'app della stampante tocca <b>STAMPA</b>. Fatto.")}
+    ${nota("Dal PDF puoi anche mandare la scheda per <b>WhatsApp o email</b>, sempre con Condividi.")}
+    ${nota("Il modo di stampare si cambia in <b>Impostazioni → Stampa</b>.")}`),
+
+  cap("fuori", "🚗", "Fuori casa (senza NAS)", `
+    <p>Fuori casa l'app <b>funziona lo stesso</b>:</p>
+    <ul class="g-list">
+      <li>Vedi l'elenco degli acquisti com'era l'ultima volta a casa (nomi, prezzi, scadenze). Le foto degli scontrini invece si aprono solo con il NAS.</li>
+      <li>Se acquisisci uno scontrino viene salvato <b>sul telefono</b> con il segno <b>⏳ da caricare</b>.</li>
+      <li>Appena torni a casa e apri l'app, viene caricato <b>da solo</b> nell'archivio. Puoi anche toccare <b>Carica ora</b>.</li>
+      <li>Per avere tutto anche fuori casa: accendi la <b>VPN del NAS</b> (app QVPN del QNAP).</li>
+    </ul>`),
+
+  cap("famiglia", "👥", "Utenti di casa (moglie, figli)", `
+    ${passo(1, "<b>Chi gestisce l'archivio</b> (amministratore): Impostazioni → <b>Utenti di casa</b> → <b>➕ Aggiungi utente</b>. Scrivi il nome, metti le spunte su cosa può fare e tocca <b>Crea e invia l'invito</b> → <b>📲 Manda con WhatsApp</b>.",
+      schermo("Utente", `<div class="g-card"><div class="g-inp">Silvia</div><div class="g-chk">☑ Aggiungere scontrini</div><div class="g-chk">☑ Modificare i suoi acquisti</div><div class="g-chk">☐ Eliminare acquisti</div><div class="g-row">${btn("📨 Crea e invia l'invito", true, true)}</div></div>`))}
+    ${passo(2, "<b>Chi riceve l'invito</b>: installa l'app dal link nel messaggio, la apre, tocca <b>Ho un invito</b>, incolla tutto il messaggio e tocca <b>Entra</b>. Il NAS si imposta da solo.")}
+    ${passo(3, "Quando qualcuno aggiunge uno scontrino, gli altri all'apertura vedono <b>🆕 nuovi acquisti</b> e nell'elenco il segno <b>NUOVO</b>, finché non lo aprono.",
+      schermo("Garanzie &amp; Scontrini", `<div class="g-banner">🆕 <b>2 nuovi acquisti da Vito</b><br><small>Pistola sparapunti, Set morsetti · tocca per vederli</small></div>`, true))}
+    ${att("L'invito contiene l'accesso al NAS: mandalo solo alla persona giusta, mai in un gruppo.")}`),
+
+  cap("aggiornamenti", "🔄", "Aggiornamenti dell'app", `
+    ${passo(1, "Quando c'è una versione nuova compare <b>«È disponibile la vX»</b>: tocca <b>Aggiorna ora</b>. Non serve reinstallare niente.",
+      schermo("Garanzie &amp; Scontrini", `<div class="g-modal">È disponibile la v5.12<br><small>• Guida all'uso nelle impostazioni</small><div class="g-row">${btn("Più tardi")}${btn("Aggiorna ora", true, true)}</div></div>`, true))}
+    ${passo(2, "Per controllare subito: <b>Impostazioni → Informazioni e aggiornamenti → 🔄 Cerca aggiornamenti</b>. Lì trovi anche la <b>cronologia</b> con le novità di ogni versione.")}`),
+
+  cap("problemi", "🛟", "Se qualcosa non va", `
+    <div class="g-faq"><b>«NAS non raggiungibile» / pallino grigio</b><br>Sei fuori casa o il Wi-Fi è spento. Accendi il Wi-Fi di casa (o la VPN del NAS) e aspetta qualche secondo: il pallino torna verde.</div>
+    <div class="g-faq"><b>I dati letti sono sbagliati</b><br>Rifai la foto seguendo i consigli del capitolo «Come fare foto», poi tocca <b>🔎 Leggi scontrino</b>. Puoi sempre correggere a mano prima di salvare.</div>
+    <div class="g-faq"><b>«Google è occupato» / lettura online non riuscita</b><br>Capita ogni tanto: la lettura del telefono c'è comunque. Tocca <b>🔄 Riprova online</b> dopo un minuto.</div>
+    <div class="g-faq"><b>Ho perso lo scontrino che stavo acquisendo</b><br>Riapri <b>Acquisisci</b>: l'app lo tiene da parte finché non lo salvi o tocchi Svuota.</div>
+    <div class="g-faq"><b>Non trovo un acquisto</b><br>In Cerca tocca <b>🔄 Aggiorna dal NAS</b>, poi cerca con una sola parola (es. solo il negozio).</div>
+    <div class="g-faq"><b>Non vedo il tasto Acquisisci o Elimina</b><br>Se usi l'app come familiare, quei permessi li decide l'amministratore in Utenti di casa.</div>`)
+  ];
+  $("#view").innerHTML = `<div class="card"><h2>📖 Guida all'uso</h2><p class="muted">Tocca un capitolo per aprirlo. Nelle immagini il punto da toccare è evidenziato in <span class="g-hl">arancione</span>.</p></div>${capitoli.join("")}`;
+  document.querySelectorAll(".g-cap").forEach(d => d.addEventListener("toggle", () => { if(d.open){ document.querySelectorAll(".g-cap").forEach(x => { if(x !== d) x.open = false; }); setTimeout(() => d.scrollIntoView({behavior:"smooth", block:"start"}), 50); } }));
 }
 
 /* ---------- Recupera i dati dagli scontrini già archiviati ---------- */

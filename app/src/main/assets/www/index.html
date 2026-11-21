@@ -984,7 +984,7 @@ async function importaDaWindows(testo, avanza){
   return {letti:voci.length, aggiornati:daSalvare.length - errori, errori, giaOk, nonTrovati};
 }
 function infoJSON(a){
-  const keys = ["nome","negozio","dataAcquisto","garanziaMesi","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","categoria","note","articoli","aggiuntoDa","aggiuntoDaId","aggiuntoIl","modificatoDa","modificatoIl"];
+  const keys = ["nome","negozio","dataAcquisto","garanziaMesi","prezzo","numeroScontrino","tipoPagamento","negozioIndirizzo","negozioCitta","negozioTelefono","categoria","note","articoli","aggiuntoDa","aggiuntoDaId","aggiuntoIl","modificatoDa","modificatoIl","datiAuto","campiAuto"];
   const o = {app:"GaranzieScontrini", versione:1, aggiornato:new Date().toISOString()};
   keys.forEach(k => o[k] = a[k] ?? ""); return JSON.stringify(o, null, 2);
 }
@@ -1033,8 +1033,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.0";
+const VERSIONE = "v5.1";
 const CRONOLOGIA = [
+  {v:"v5.1", d:"21/11/2026", n:[
+    "Recupera i dati dagli scontrini (Impostazioni → Lettura scontrini): rilegge l'archivio e aggiunge solo prezzi, date, articoli e città mancanti, dopo un controllo senza salvare"
+  ]},
   {v:"v5.0", d:"21/11/2026", n:[
     "Utenti di casa: più persone usano lo stesso archivio sul NAS, ognuna sul suo telefono (Impostazioni → Utenti di casa)",
     "L'amministratore invita con un messaggio WhatsApp e decide con le spunte cosa può fare ognuno",
@@ -1475,6 +1478,7 @@ async function doSalva(){
   if(!draft.nome && !draft.negozio){ toast("Scrivi almeno il negozio o il nome dell'oggetto.", true); return; }
   if(!draft._edit && !draft.pendingFiles.length && !(await conferma("Nessuna foto o PDF allegato. Salvare lo stesso?", "Salva"))) return;
   const a = draft, me = io(), ora = new Date().toISOString();
+  if(a._edit){ delete a.datiAuto; delete a.campiAuto; }
   if(me){ if(!a._edit){ a.aggiuntoDa = me.nome; a.aggiuntoDaId = me.id; a.aggiuntoIl = ora; } else { a.modificatoDa = me.nome; a.modificatoIl = ora; } }
   if(!a._edit){
     // nome cartella unico
@@ -1572,7 +1576,7 @@ async function renderDettaglio(id){
     <div class="card">
       <h2>${esc(a.nome || "(senza nome)")}</h2>
       <div class="muted">${esc(a.negozio || "—")}</div>
-      <p><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare</span>` : ""}</p>
+      <p><span class="pill ${s.cls}">${esc(s.label)}</span>${a.daCaricare ? ` <span class="pill up">⏳ da caricare</span>` : ""}${a.datiAuto ? ` <span class="pill none" title="Campi aggiunti leggendo lo scontrino: controllali, poi Modifica → Salva per confermarli">🤖 dati letti dallo scontrino</span>` : ""}</p>
       <table class="items">
         ${tr("Data acquisto", fmtDate(a.dataAcquisto) + (a.annoCartellaErrato && !a.hasInfo ? ` <span class="pill warn" title="Nel nome della cartella l'anno è ${esc(a.annoCartellaErrato)}">anno corretto da ${esc(a.annoCartellaErrato)}</span>` : ""))}
         ${tr("Prezzo", euro(a.prezzo))}
@@ -1962,6 +1966,13 @@ function renderImpLett(){
       <h2>🔎 Lettura automatica</h2>
       <p class="muted">Gli scontrini vengono letti sul telefono con l'OCR di Google: gratuito e senza internet.</p>
     </div>
+    ${puo("gestire") ? `<div class="card">
+      <h2>📥 Recupera i dati dagli scontrini</h2>
+      <p class="muted">Rilegge le foto e i PDF già salvati nell'archivio e <b>aggiunge solo i dati che mancano</b>: prezzo, data d'acquisto (se la cartella non ce l'ha), articoli, città, indirizzo, pagamento, numero scontrino. Non cambia mai il nome, il negozio o i dati che hai già scritto.</p>
+      <p class="muted">Prima fa un controllo <b>senza salvare niente</b> e ti mostra cosa aggiungerebbe; salvi solo se confermi. Ci vogliono circa 10–15 minuti: a casa sul Wi-Fi, app aperta e schermo acceso. Se lo interrompi, riprende da dove era arrivato.</p>
+      <div class="btns"><button class="btn primary" id="rAvvia">🔍 Controlla (senza salvare)</button></div>
+      <div id="rOut"></div>
+    </div>` : ""}
     <div class="card">
       <h2>🧪 Prova sull'archivio</h2>
       <p class="muted">Rilegge fino a 100 scontrini veri già salvati nell'archivio (circa 5-10 minuti: tieni l'app aperta e lo schermo acceso) e controlla se negozio, data e importo vengono riconosciuti. Alla fine crea il file <b>prova_lettura</b> nella cartella Download: mandalo nella chat per migliorare la lettura.</p>
@@ -1986,6 +1997,7 @@ function renderImpLett(){
       <div id="cOut"></div>
     </div>`;
   const save = () => saveSettings({apiKey:$("#cKey").value.trim(), model:$("#cModel").value.trim() || DEFAULTS.model});
+  if($("#rAvvia")){ $("#rAvvia").onclick = () => recuperaDati(); if(caricaRecupero().fatti) mostraRecupero(); }
   $("#tTutto").onclick = () => provaArchivio(true);
   $("#tProva").onclick = () => provaArchivio(false);
   const provaArchivio = async (tuttoArchivio) => {
@@ -2050,6 +2062,79 @@ function renderImpLett(){
       const r = JSON.parse(await call("claudeRequest", body, settings().apiKey));
       if(r.status === 200) esito(o, true, "Claude risponde correttamente."); else esito(o, false, "Errore " + r.status + ": " + ((JSON.parse(r.body).error || {}).message || ""));
     }catch(e){ esito(o, false, e.message); }
+  };
+}
+
+/* ---------- Recupera i dati dagli scontrini già archiviati ---------- */
+const CAMPI_RECUPERO = [["prezzo","prezzo"],["dataAcquisto","data"],["articoli","articoli"],["negozioCitta","città"],["negozioIndirizzo","indirizzo"],["tipoPagamento","pagamento"],["numeroScontrino","n. scontrino"],["negozioTelefono","telefono"]];
+function caricaRecupero(){ try{ return JSON.parse(localStorage.getItem("gs_recupero") || "{}"); }catch(e){ return {}; } }
+function salvaRecupero(r){ try{ localStorage.setItem("gs_recupero", JSON.stringify(r)); }catch(e){} }
+const vuoto = v => v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length);
+const normNeg = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+function stessoNegozio(a, b){ const x = normNeg(a), y = normNeg(b); return !x || !y || x.includes(y) || y.includes(x) || (x.length > 3 && y.length > 3 && (x.slice(0, 4) === y.slice(0, 4))); }
+async function recuperaDati(){
+  const o = $("#rOut"), b = $("#rAvvia");
+  if(!A || !A.ocr){ esito(o, false, "Disponibile solo nell'app sul telefono."); return; }
+  if(!archivioPronto()){ esito(o, false, "Prima collega l'archivio (Destinazione file)."); return; }
+  const docOk = f => /\.(jpe?g|png|webp|pdf)$/i.test(f.name);
+  const tutti = (await allAcquisti()).filter(a => !a.daCaricare && (a.files || []).some(docOk));
+  const r = caricaRecupero(); r.fatti = r.fatti || {}; r.proposte = r.proposte || {}; r.dubbi = r.dubbi || {};
+  const daFare = tutti.filter(a => !r.fatti[a.id]);
+  b.disabled = true;
+  for(let i = 0; i < daFare.length; i++){
+    const a = daFare[i];
+    esito(o, null, `Leggo ${Object.keys(r.fatti).length + 1} di ${tutti.length}: ${a.negozio} – ${a.nome}… (non salvo niente)`);
+    const docs = a.files.filter(docOk).sort((x, y) => (/scontrin|fattur|ricevut/i.test(y.name) ? 1 : 0) - (/scontrin|fattur|ricevut/i.test(x.name) ? 1 : 0));
+    try{
+      const p = parseReceipt(await call("ocr", await call("nasRead", a.cartella + "/" + docs[0].name), mimeOf(docs[0].name)));
+      const nuovi = {};
+      for(const [k] of CAMPI_RECUPERO) if(vuoto(a[k]) && !vuoto(p[k])) nuovi[k] = p[k];
+      if(nuovi.prezzo !== undefined && !(nuovi.prezzo > 0 && nuovi.prezzo < 20000)) delete nuovi.prezzo;
+      let dubbio = "";
+      if(p.negozio && a.negozio && !stessoNegozio(p.negozio, a.negozio)) dubbio = `sul documento c'è scritto "${p.negozio}", non ${a.negozio}`;
+      if(dubbio) r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:dubbio};
+      else if(Object.keys(nuovi).length) r.proposte[a.id] = nuovi;
+    }catch(e){ r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:"non leggibile (" + String(e.message).split("\n")[0] + ")"}; }
+    r.fatti[a.id] = 1; salvaRecupero(r);
+  }
+  b.disabled = false; mostraRecupero();
+}
+function mostraRecupero(){
+  const r = caricaRecupero(), o = $("#rOut"); if(!o) return;
+  const prop = Object.entries(r.proposte || {}), dub = Object.entries(r.dubbi || {});
+  const conta = k => prop.filter(([, n]) => n[k] !== undefined).length;
+  o.innerHTML = `<div class="okline">Controllo finito: ${Object.keys(r.fatti || {}).length} acquisti letti. Niente è stato ancora salvato.</div>
+    <table class="items" style="margin-top:8px">
+      <tr><td><b>Acquisti da completare</b></td><td class="num"><b>${prop.length}</b></td></tr>
+      ${CAMPI_RECUPERO.map(([k, t]) => conta(k) ? `<tr><td>${t[0].toUpperCase() + t.slice(1)} aggiunti</td><td class="num">${conta(k)}</td></tr>` : "").join("")}
+      <tr><td>Da controllare a mano (non salvati)</td><td class="num">${dub.length}</td></tr>
+    </table>
+    ${prop.length ? `<div class="btns"><button class="btn primary" id="rSalva">✅ Salva i dati trovati (${prop.length} acquisti)</button></div>` : ""}
+    <div class="btns"><button class="btn" id="rRicomincia">🔄 Ricomincia da capo</button></div>
+    ${dub.length ? `<details style="margin-top:10px"><summary>Da controllare a mano (${dub.length})</summary><table class="items">${dub.map(([id, d]) => `<tr data-id="${esc(id)}" style="cursor:pointer"><td><b>${esc(d.nome || "")}</b> · ${esc(d.negozio || "")}<br><small class="muted">${esc(d.motivo)}</small></td></tr>`).join("")}</table></details>` : ""}
+    ${prop.length ? `<details style="margin-top:6px"><summary>Vedi cosa verrebbe aggiunto</summary><table class="items" id="rElenco"></table></details>` : ""}`;
+  allAcquisti().then(list => {
+    const el = $("#rElenco"); if(!el) return;
+    const m = new Map(list.map(a => [a.id, a]));
+    el.innerHTML = prop.slice(0, 300).map(([id, n]) => { const a = m.get(id) || {}; return `<tr><td><b>${esc(a.nome || id)}</b> · ${esc(a.negozio || "")}<br><small class="muted">${[n.dataAcquisto ? "data " + fmtDate(n.dataAcquisto) : "", n.prezzo ? euro(n.prezzo) : "", n.articoli ? n.articoli.length + " articoli" : "", n.negozioCitta || ""].filter(Boolean).map(esc).join(" · ")}</small></td></tr>`; }).join("");
+  });
+  o.querySelectorAll("tr[data-id]").forEach(t => t.onclick = () => setView("dettaglio", t.dataset.id));
+  $("#rRicomincia").onclick = () => { salvaRecupero({}); o.innerHTML = ""; toast("Pronto per un nuovo controllo."); };
+  if($("#rSalva")) $("#rSalva").onclick = async () => {
+    if(!(await conferma(`Salvare i dati trovati in ${prop.length} acquisti?\n\nVengono aggiunti solo i campi vuoti; nome, negozio e i dati già scritti non cambiano.`, "Salva"))) return;
+    const bs = $("#rSalva"); bs.disabled = true; let ok = 0, err = 0;
+    for(const [id, n] of prop){
+      const a = await getAcquisto(id); if(!a){ continue; }
+      const campi = [];
+      for(const [k, v] of Object.entries(n)) if(vuoto(a[k])){ a[k] = v; campi.push(k); }
+      if(!campi.length){ continue; }
+      a.datiAuto = true; a.campiAuto = campi;
+      esito(o, null, `Salvo ${ok + err + 1} di ${prop.length}: ${a.nome}…`);
+      try{ await call("nasWriteText", a.cartella, "garanzia.json", infoJSON(a)); a.hasInfo = true; await putAcquisto(a); ok++; delete r.proposte[id]; salvaRecupero(r); }
+      catch(e){ err++; if(err >= 3){ esito(o, false, "Il NAS non risponde: riprova a casa sul Wi-Fi. Quelli già salvati restano salvati."); return; } }
+    }
+    syncReminders(); updateBadge();
+    esito(o, true, `Fatto: ${ok} acquisti completati${err ? `, ${err} non salvati (riprova)` : ""}. Nella scheda trovi il segno "🤖 dati letti dallo scontrino".`);
   };
 }
 

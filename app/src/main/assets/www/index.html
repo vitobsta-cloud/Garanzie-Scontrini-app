@@ -1057,8 +1057,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.4";
+const VERSIONE = "v5.5";
 const CRONOLOGIA = [
+  {v:"v5.5", d:"21/11/2026", n:[
+    "Con la chiave di Google, \"Leggi scontrino\" incrocia la lettura del telefono con quella online: nomi, articoli e città più puliti",
+    "Se le due letture danno data o totale diversi, il campo è giallo con il valore letto dal telefono",
+    "Senza internet resta la lettura del telefono; il tasto \"Leggi online\" resta per la sola lettura online"
+  ]},
   {v:"v5.4", d:"21/11/2026", n:[
     "La chiave di Google arriva da sola anche a chi era già stato invitato"
   ]},
@@ -1471,6 +1476,21 @@ async function addFiles(list){
 $("#camInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 
+/* Incrocio lettura sul telefono + lettura online (quando c'è la chiave di Google) */
+function incrocia(off, on){
+  const r = Object.assign({}, off), dubbi = {};
+  const pieno = v => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length);
+  const noto = n => !!n && NEGOZI_NOTI.some(k => k.toLowerCase() === String(n).toLowerCase());
+  if(pieno(on.negozio) && !noto(off.negozio)) r.negozio = on.negozio;
+  for(const k of ["nome","negozioCitta","negozioIndirizzo","negozioTelefono","numeroScontrino","tipoPagamento"]) if(pieno(on[k])) r[k] = on[k];
+  if(Array.isArray(on.articoli) && on.articoli.length) r.articoli = on.articoli;
+  const dOn = /^\d{4}-\d{2}-\d{2}$/.test(on.dataAcquisto || "") && on.dataAcquisto <= todayISO() ? on.dataAcquisto : "";
+  if(dOn){ if(off.dataAcquisto && off.dataAcquisto !== dOn) dubbi.dataAcquisto = off.dataAcquisto; r.dataAcquisto = dOn; }
+  const pOn = Number(on.prezzo);
+  if(pOn > 0){ if(Number(off.prezzo) > 0 && Math.abs(Number(off.prezzo) - pOn) > 0.01) dubbi.prezzo = off.prezzo; r.prezzo = pOn; }
+  return {r, dubbi};
+}
+let dubbiLettura = {}, modoLettura = "";
 async function doLeggi(useClaude){
   const giaSalvati = (draft.files || []).filter(f => /\.(pdf|jpe?g|png|webp)$/i.test(f.name));
   if(!draft.pendingFiles.length && !(draft._edit && giaSalvati.length)){ toast("Prima scatta una foto o scegli un file.", true); return; }
@@ -1492,6 +1512,14 @@ async function doLeggi(useClaude){
       const texts = [];
       for(const f of docs) texts.push(await call("ocr", f.data, f.mime));
       lastOcr = texts.join("\n"); r = parseReceipt(lastOcr); r.nome = r.nomeSuggerito ? nomeBello(r.nomeSuggerito) : nomeDaArticoli(r.articoli);
+      dubbiLettura = {}; modoLettura = "telefono";
+      if(settings().geminiKey && settings().incrocio !== false){
+        stEl.innerHTML = `<span class="spinner"></span>Letto sul telefono ✓ · controllo anche online…`;
+        try{
+          const on = await Promise.race([geminiRead(docs), new Promise((_, no) => setTimeout(() => no(new Error("tempo scaduto")), 30000))]);
+          const x = incrocia(r, on); r = x.r; dubbiLettura = x.dubbi; modoLettura = "incrocio";
+        }catch(e){ modoLettura = "solo telefono (online non disponibile)"; }
+      }
     }
     // in modifica la lettura completa solo i campi vuoti, senza cambiare quelli già compilati
     const set = (k, v) => { if(v !== undefined && v !== null && v !== "" && !(draft._edit && draft[k])) draft[k] = v; };
@@ -1500,7 +1528,12 @@ async function doLeggi(useClaude){
     if(Array.isArray(r.articoli) && r.articoli.length) draft.articoli = r.articoli.map(x => ({descrizione:String(x.descrizione || ""), quantita:Number(x.quantita) || 1, prezzo: typeof x.prezzo === "number" ? x.prezzo : ""}));
     if(r.note) draft.note = draft.note ? draft.note + "\n" + r.note : r.note;
     await renderAcquisisci();
-    $("#leggiStatus").innerHTML = "✅ Dati compilati: controllali prima di salvare." + (!useClaude && !r.articoli.length ? " Non ho riconosciuto gli articoli: aggiungili a mano se servono." : "");
+    const nd = Object.keys(dubbiLettura).length;
+    $("#leggiStatus").innerHTML = "✅ Dati compilati" + (useClaude ? " (lettura online)" : modoLettura === "incrocio" ? " (telefono + online)" : modoLettura && modoLettura !== "telefono" ? " (" + esc(modoLettura) + ")" : "") + ": controllali prima di salvare."
+      + (nd ? ` <b>Controlla i campi in giallo</b>: le due letture non erano d'accordo.` : "")
+      + (!useClaude && !(r.articoli || []).length ? " Non ho riconosciuto gli articoli: aggiungili a mano se servono." : "");
+    const evid = (id, k, fmt) => { const el = $("#" + id); if(el && dubbiLettura[k] !== undefined){ el.style.background = "#fff4c2"; el.style.borderColor = "#e8a33d"; const h = document.createElement("div"); h.className = "muted"; h.style.fontSize = "12.5px"; h.textContent = "Sul telefono: " + fmt(dubbiLettura[k]); el.after(h); el.addEventListener("input", () => { el.style.background = ""; el.style.borderColor = ""; h.remove(); }, {once:true}); } };
+    evid("fData", "dataAcquisto", fmtDate); evid("fPrezzo", "prezzo", v => euro(v));
   }catch(e){
     stEl.innerHTML = `<span style="color:var(--bad)">❌ ${esc(e.message)}</span>`;
     document.querySelectorAll("#bLeggi,#bClaude").forEach(b => b.disabled = false);
@@ -2022,6 +2055,7 @@ function renderImpLett(){
       <label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:14.5px;margin-top:6px"><input type="checkbox" id="gShow" style="width:auto;margin:0"> Mostra la chiave</label>
       <div class="btns"><button class="btn" id="gTest">▶️ Verifica</button><button class="btn primary" id="gSave">💾 Salva</button></div>
       <div id="gOut"></div>
+      <label style="display:flex;gap:10px;align-items:flex-start;color:var(--text);font-size:14.5px;margin-top:12px"><input type="checkbox" id="gIncr" style="width:auto;margin-top:3px"${s.incrocio !== false ? " checked" : ""}> "Leggi scontrino" incrocia la lettura del telefono con quella online (consigliato). Togli la spunta per documenti riservati: resterà solo il tasto "Leggi online".</label>
     </div>`}
     <div class="card">
       <h2>🤖 Claude (facoltativo, a pagamento)</h2>
@@ -2086,6 +2120,7 @@ function renderImpLett(){
   if($("#gSave")){
   $("#gSave").onclick = () => { gSave(); esito($("#gOut"), true, io() && (utenteAttivo() || {}).ruolo === "admin" ? "Salvata. Vale anche per la tua famiglia (utenti di casa)." : "Salvata."); };
   $("#gShow").onchange = e => { $("#gKey").type = e.target.checked ? "text" : "password"; };
+  $("#gIncr").onchange = e => { saveSettings({incrocio:e.target.checked}); toast(e.target.checked ? "Leggi scontrino: telefono + online" : "Leggi scontrino: solo telefono"); };
   $("#gTest").onclick = async () => {
     gSave(); const o = $("#gOut");
     if(!settings().geminiKey){ esito(o, false, "Incolla prima la chiave."); return; }

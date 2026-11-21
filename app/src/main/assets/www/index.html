@@ -395,6 +395,8 @@ function parseReceipt(text){
     if(mo < 1 || mo > 12){ mo = +cifra0(m[2].padStart(2, "0")); corr++; }
     if(m[3].length === 4 && (y > oggi || y < 2000)){ const t = m[3][0] + "0" + m[3].slice(2); y = +t >= 2000 && +t <= oggi ? +t : fixYear(+t); corr++; }
     else { const y0 = y < 100 ? y + 2000 : y; y = fixYear(y); if(y !== y0) corr++; }
+    // stampa Lidl sbiadita: se mese o anno avevano lo 0 letto come 9/8, anche il giorno ha lo stesso difetto (29 → 20, 38 → 30)
+    if(corr && /^[1-3][98]$/.test(m[1])) d = +(m[1][0] + "0");
     if(!(d >= 1 && d <= 31 && mo >= 1 && mo <= 12 && y >= 2000 && y <= oggi)) continue;
     if(new Date(y, mo - 1, d).getDate() !== d) continue;   // es. 29 febbraio inesistente
     if(new Date(y, mo - 1, d) > new Date()) continue;        // nel futuro: letta male
@@ -429,7 +431,7 @@ function parseReceipt(text){
   const tel = all.match(/(?:TEL\.?|TELEFONO)\s*:?\s*([\d\s\/.+]{6,})/i); if(tel) out.negozioTelefono = tel[1].trim();
   // articoli: "DESCRIZIONE ... 22% 12,90" sulla stessa riga, prezzo sulla riga dopo,
   // oppure riga della quantità ("Cad 3,49 Pz. 2", "2 x 3,49") che completa l'articolo sopra
-  const SKIP = /(^\s*I?NOTE\s*$|SMALTIMENTO|APPROVAT|C\.?\s?CREDI\s?TO|INCASSO\s*E-?COMM|RICHIAMATA|NESSUN METODO|ARTICOL[OI]|\bARTI\s?COLO|^\s*IUA\b|^\s*[IT]OTALE|TOTALE|SUBTOTALE|(?<![A-Z])IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4}|[IHM]{0,2}P[O0]RT[O0]\s*E|IMPORT[O0]|COD\.|FISCAL|LESSIVO|AUTH|RESP\.|DUMMY|(?:^|\s)(?<![-\/])\d{5}\s*-?\s*[A-Z]{4,}(?:\s*\(?[A-Z]{2}\)?)?\s*$|TRANSAZ|AUTORIZ|A\.?R\.?Q\.?C|\bTML\b|\bSTAN\b|C\.\s?ABI|\bAPPL\b|PAGO\s?BAN|RICEVUTA|\bPOS\b|ONLINE|CTLS|\bICC\b|CREDITO|VAL[OU]RE\s*SC|[IT]OTALE|TOT\.|\bIAD\b|\bATC\b|\bTCC\b|\bTVR\b|PAN:|EXP:|\bAUT\.|OPER\.|ESER|A\.?I\.?I\.?C|CARTA|\bNOTE\b|TICKET|ACQUISTO|ESERC|CVM|MATRICOLA|FIRMA|NUMERO DI|SERIE|TASS[OE]|ARTICOL[OI]\/|REPARTO|RETTIFICA)/i;
+  const SKIP = /(^\s*I?NOTE\s*$|T\s?O\s?T\s?A\s?L\s?E|COMPLES|SMALTIMENTO|APPROVAT|C\.?\s?CREDI\s?TO|INCASSO\s*E-?COMM|RICHIAMATA|NESSUN METODO|ARTICOL[OI]|\bARTI\s?COLO|^\s*IUA\b|^\s*[IT]OTALE|TOTALE|SUBTOTALE|(?<![A-Z])IVA|RESTO|CONTANT|PAGAMENTO|PAGATO|IMPORTO|BANCOMAT|CARTA|SCONTO|VALORE|DOCUMENTO|RIEPILOGO|ARROTOND|DI CUI|RESO|ELETTRONICO|NON RISCOSSO|CASSA|OPERATORE|PREZZO\s*\(|DESCRIZ|DETTAGL|FORME DI|BUONI|OFFERTA|LIDL\s*PLUS|COUPON|SUBTOT|ARRIVEDERCI|GRAZIE|COPIA CLIENTE|VISA|MASTERCARD|MAESTRO|AMEX|EURO\s*\(|\*{4}|[IHM]{0,2}P[O0]RT[O0]\s*E|IMPORT[O0]|COD\.|FISCAL|LESSIVO|AUTH|RESP\.|DUMMY|(?:^|\s)(?<![-\/])\d{5}\s*-?\s*[A-Z]{4,}(?:\s*\(?[A-Z]{2}\)?)?\s*$|TRANSAZ|AUTORIZ|A\.?R\.?Q\.?C|\bTML\b|\bSTAN\b|C\.\s?ABI|\bAPPL\b|PAGO\s?BAN|RICEVUTA|\bPOS\b|ONLINE|CTLS|\bICC\b|CREDITO|VAL[OU]RE\s*SC|[IT]OTALE|TOT\.|\bIAD\b|\bATC\b|\bTCC\b|\bTVR\b|PAN:|EXP:|\bAUT\.|OPER\.|ESER|A\.?I\.?I\.?C|CARTA|\bNOTE\b|TICKET|ACQUISTO|ESERC|CVM|MATRICOLA|FIRMA|NUMERO DI|SERIE|TASS[OE]|ARTICOL[OI]\/|REPARTO|RETTIFICA)/i;
   const lineRe = new RegExp("^(.*?[A-Za-z]{2,}.*?)\\s+(?:\\d{1,2}\\s?%\\s+)?" + PRICE + "\\s*(?:€|EUR|[A-Z])?$");
   const onlyPrice = new RegExp("^(?:[A-Z]{0,2}\\s*)?(?:\\d{1,2}\\s?%\\s*)?(?:€|EUR)?\\s*" + PRICE + "\\s*(?:€|[A-Z])?$");
   const qtyRes = [
@@ -469,7 +471,7 @@ function parseReceipt(text){
       pending = ""; testoPrima = ""; continue;
     }
     // formato con codice a barre prima della descrizione (es. Bricoman): "8000061015069 €0,95" poi il nome
-    const ean = l.match(new RegExp("^\\d{8,14}(?:\\s+(?:€|EUR)\\s*" + PRICE + "|\\s+" + PRICE + "\\s*$)?"));
+    const ean = l.match(new RegExp("^\\d{8,14}(?:\\s+[)\\]|]?\\d{1,6})?(?:\\s+(?:€|EUR|e)\\s*" + PRICE + "|\\s+" + PRICE + "\\s*[A-Z]?\\s*$)?"));
     if(ean){
       prezzoEan = ean[1] ? num(ean[1]) : (onlyPrice.test(lines[i + 1] || "") ? num(lines[++i].match(onlyPrice)[1]) : null);
       continue;
@@ -594,7 +596,10 @@ function parseReceipt(text){
 }
 function nomeDaArticoli(art){
   if(!art.length) return "";
-  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || "") && !/[a-z][A-Z]\S*[a-z][A-Z]\S*[a-z][A-Z]/.test(a.descrizione || "") && !/SHOPPER|BORS[AE] RIUTIL|SACCH|BUSTA|TRANSAZ|AUTORIZ|[IT]OTALE|PAGOB|BANCOMAT|CARTE?\b|^ABI\b|ARTI\s?COLO|SMALTIM|^INOTE$|\bVIA\s|MINISTRATIV|\b[LI1]VA\s+AL\b|DESCR|\d{5}\s*-|^\W*\w{1,3}\W*$/i.test(a.descrizione || ""));
+  // parola "vera": con vocali, senza 4 consonanti di fila, senza lettere e numeri mescolati a caso
+  const parolaVera = w => /^[\d.,x*/%-]+$/i.test(w) || /^\d[\dx*.,]*[a-z]{0,3}$/i.test(w) || /^[a-z]{1,4}\d+[a-z]{0,2}$/i.test(w) || w.replace(/[^a-zà-ù]/gi, "").length < 4 || (/[aeiouàèéìòù]/i.test(w) && !/[^aeiouàèéìòù\W\d]{5,}/i.test(w) && !/[a-z]\d+[a-z]{2,}\d|\d[a-z]{2,}\d/i.test(w) && ((w.match(/[aeiouàèéìòù]/gi) || []).length / w.replace(/[^a-zà-ù]/gi, "").length) >= 0.2);
+  const sensata = d => { const ws = String(d || "").split(/\s+/).filter(w => /[a-zà-ù]/i.test(w)); return ws.length && ws.filter(parolaVera).length / ws.length >= 0.6; };
+  const buoni = art.filter(a => /[A-Za-zÀ-ù]{3,}/.test(a.descrizione || "") && sensata(a.descrizione) && !/^(TESTO|RICAMBI|NETWORKING|OFFERTA|D?FFERTA)\b/i.test(a.descrizione || "") && !/^(cad|pz|n\.)\b/i.test(a.descrizione || "") && !/[a-z][A-Z]\S*[a-z][A-Z]\S*[a-z][A-Z]/.test(a.descrizione || "") && !/SHOPPER|BORS[AE] RIUTIL|SACCH|BUSTA|TRANSAZ|AUTORIZ|[IT]OTALE|PAGOB|BANCOMAT|CARTE?\b|^ABI\b|ARTI\s?COLO|SMALTIM|^INOTE$|\bVIA\s|MINISTRATIV|\b[LI1]VA\s+AL\b|DESCR|\d{5}\s*-|^\W*\w{1,3}\W*$/i.test(a.descrizione || ""));
   if(!buoni.length) return "";
   return nomeBello([...buoni].sort((a, b) => (b.raee ? 1 : 0) - (a.raee ? 1 : 0) || (b.prezzo || 0) - (a.prezzo || 0))[0].descrizione);
 }
@@ -1019,8 +1024,13 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v4.6";
+const VERSIONE = "v4.7";
 const CRONOLOGIA = [
+  {v:"v4.7", d:"21/11/2026", n:[
+    "Date Lidl sbiadite lette meglio (es. 29-92-2026 → 20/02/2026, 38-97-2926 → 30/07/2026)",
+    "Bricoman/Tecnomat: riconosce gli articoli anche con codici sporchi (es. relè luci scale, valvole termostatiche)",
+    "Il nome non prende più scritte senza senso (es. \"Tota Le Comples Ivo\", \"22.0%euge\")"
+  ]},
   {v:"v4.6", d:"21/11/2026", n:[
     "Prova di lettura su tutto l'archivio (Impostazioni → Lettura scontrini)"
   ]},

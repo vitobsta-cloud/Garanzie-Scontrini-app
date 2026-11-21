@@ -1093,8 +1093,11 @@ $("#hDate").textContent = new Date().toLocaleDateString("it-IT", {day:"numeric",
 /* =========================================================
    HOME
    ========================================================= */
-const VERSIONE = "v5.10";
+const VERSIONE = "v5.11";
 const CRONOLOGIA = [
+  {v:"v5.11", d:"21/11/2026", n:[
+    "Recupera i dati dagli scontrini: con la chiave di Google incrocia lettura del telefono e online; se data o totale non coincidono quel dato non viene salvato"
+  ]},
   {v:"v5.10", d:"21/11/2026", n:[
     "Catalogo CSV: le colonne Cartella e File puntano al NAS (\\\\NAS\\Public\\…), il riferimento di tutto l'archivio"
   ]},
@@ -2102,7 +2105,7 @@ function renderImpLett(){
     ${puo("gestire") ? `<div class="card">
       <h2>📥 Recupera i dati dagli scontrini</h2>
       <p class="muted">Rilegge le foto e i PDF già salvati nell'archivio e <b>aggiunge solo i dati che mancano</b>: prezzo, data d'acquisto (se la cartella non ce l'ha), articoli, città, indirizzo, pagamento, numero scontrino. Non cambia mai il nome, il negozio o i dati che hai già scritto.</p>
-      <p class="muted">Prima fa un controllo <b>senza salvare niente</b> e ti mostra cosa aggiungerebbe; salvi solo se confermi. Ci vogliono circa 10–15 minuti: a casa sul Wi-Fi, app aperta e schermo acceso. Se lo interrompi, riprende da dove era arrivato.</p>
+      <p class="muted">Prima fa un controllo <b>senza salvare niente</b> e ti mostra cosa aggiungerebbe; salvi solo se confermi. ${s.geminiKey && s.incrocio !== false ? "Con la chiave di Google ogni scontrino viene letto <b>dal telefono e online</b> e i dati vengono incrociati: se data o totale non coincidono, quel dato non viene salvato e lo trovi tra quelli da controllare. Ci vogliono circa 20–25 minuti" : "Ci vogliono circa 10–15 minuti"}: a casa sul Wi-Fi, app aperta, schermo acceso e telefono in carica. Se lo interrompi, riprende da dove era arrivato.</p>
       <div class="btns"><button class="btn primary" id="rAvvia">🔍 Controlla (senza salvare)</button></div>
       <div id="rOut"></div>
     </div>` : ""}
@@ -2224,28 +2227,52 @@ async function recuperaDati(){
   const o = $("#rOut"), b = $("#rAvvia");
   if(!A || !A.ocr){ esito(o, false, "Disponibile solo nell'app sul telefono."); return; }
   if(!archivioPronto()){ esito(o, false, "Prima collega l'archivio (Destinazione file)."); return; }
+  const online = !!settings().geminiKey && settings().incrocio !== false, modo = online ? "incrocio" : "telefono";
   const docOk = f => /\.(jpe?g|png|webp|pdf)$/i.test(f.name);
   const tutti = (await allAcquisti()).filter(a => !a.daCaricare && (a.files || []).some(docOk));
-  const r = caricaRecupero(); r.fatti = r.fatti || {}; r.proposte = r.proposte || {}; r.dubbi = r.dubbi || {};
+  let r = caricaRecupero();
+  if(r.modo !== modo) r = {modo};            // un controllo fatto in un altro modo si rifà da capo
+  r.fatti = r.fatti || {}; r.proposte = r.proposte || {}; r.dubbi = r.dubbi || {};
   const daFare = tutti.filter(a => !r.fatti[a.id]);
   b.disabled = true;
+  let ultimaOnline = 0, onlineKo = 0;
   for(let i = 0; i < daFare.length; i++){
-    const a = daFare[i];
-    esito(o, null, `Leggo ${Object.keys(r.fatti).length + 1} di ${tutti.length}: ${a.negozio} – ${a.nome}… (non salvo niente)`);
+    const a = daFare[i], n = Object.keys(r.fatti).length + 1;
+    esito(o, null, `Leggo ${n} di ${tutti.length}${online ? " (telefono + online)" : ""}: ${a.negozio} – ${a.nome}… Non salvo niente.`);
     const docs = a.files.filter(docOk).sort((x, y) => (/scontrin|fattur|ricevut/i.test(y.name) ? 1 : 0) - (/scontrin|fattur|ricevut/i.test(x.name) ? 1 : 0));
     try{
-      const p = parseReceipt(await call("ocr", await call("nasRead", a.cartella + "/" + docs[0].name), mimeOf(docs[0].name)));
+      const data = await call("nasRead", a.cartella + "/" + docs[0].name), mime = mimeOf(docs[0].name);
+      let p = parseReceipt(await call("ocr", data, mime)), disaccordi = {};
+      if(online && onlineKo < 5){
+        // Google gratuito accetta circa 10 letture al minuto: aspetta il giusto e riprova se è occupato
+        for(let t = 0; t < 4; t++){
+          const attesa = 6500 - (Date.now() - ultimaOnline); if(attesa > 0) await new Promise(ok => setTimeout(ok, attesa));
+          ultimaOnline = Date.now();
+          try{ const on = await geminiRead([{name:docs[0].name, mime, data}]); const x = incrocia(p, on); p = x.r; disaccordi = x.dubbi; onlineKo = 0; break; }
+          catch(e){
+            if(/limite gratuito.*oggi/i.test(e.message)){ onlineKo = 99; break; }
+            esito(o, null, `Google è occupato, riprovo tra poco… (${n} di ${tutti.length})`);
+            await new Promise(ok => setTimeout(ok, 15000 * (t + 1)));
+            if(t === 3) onlineKo++;
+          }
+        }
+      }
       const nuovi = {};
-      for(const [k] of CAMPI_RECUPERO) if(vuoto(a[k]) && !vuoto(p[k])) nuovi[k] = p[k];
-      if(nuovi.prezzo !== undefined && !(nuovi.prezzo > 0 && nuovi.prezzo < 20000)) delete nuovi.prezzo;
-      let dubbio = "";
-      if(p.negozio && a.negozio && !stessoNegozio(p.negozio, a.negozio)) dubbio = `sul documento c'è scritto "${p.negozio}", non ${a.negozio}`;
-      if(dubbio) r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:dubbio};
-      else if(Object.keys(nuovi).length) r.proposte[a.id] = nuovi;
+      for(const [k] of CAMPI_RECUPERO) if(vuoto(a[k]) && !vuoto(p[k]) && disaccordi[k] === undefined) nuovi[k] = p[k];
+      if(nuovi.prezzo !== undefined && !(Number(nuovi.prezzo) > 0 && Number(nuovi.prezzo) < 20000)) delete nuovi.prezzo;
+      if(nuovi.prezzo !== undefined) nuovi.prezzo = Number(nuovi.prezzo);
+      if(Array.isArray(nuovi.articoli)) nuovi.articoli = nuovi.articoli.map(x => ({descrizione:String(x.descrizione || ""), quantita:Number(x.quantita) || 1, prezzo: typeof x.prezzo === "number" ? x.prezzo : (Number(x.prezzo) || "")}));
+      if(p.negozio && a.negozio && !stessoNegozio(p.negozio, a.negozio)) r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:`sul documento c'è scritto "${p.negozio}", non ${a.negozio}: non salvo niente`};
+      else{
+        if(Object.keys(nuovi).length) r.proposte[a.id] = nuovi;
+        const dis = Object.entries(disaccordi).filter(([k]) => vuoto(a[k]));
+        if(dis.length) r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:dis.map(([k, v]) => k === "prezzo" ? `totale: telefono ${euro(v)}, online ${euro(p.prezzo)}` : `data: telefono ${fmtDate(v)}, online ${fmtDate(p.dataAcquisto)}`).join(" · ") + " — questo dato non lo salvo, gli altri sì"};
+      }
     }catch(e){ r.dubbi[a.id] = {nome:a.nome, negozio:a.negozio, motivo:"non leggibile (" + String(e.message).split("\n")[0] + ")"}; }
     r.fatti[a.id] = 1; salvaRecupero(r);
   }
   b.disabled = false; mostraRecupero();
+  if(online && onlineKo >= 5) toast(onlineKo === 99 ? "Limite gratuito di Google finito per oggi: domani tocca di nuovo Controlla per rileggere online i rimanenti." : "Google non rispondeva: alcuni scontrini sono stati letti solo dal telefono.", true);
 }
 function mostraRecupero(){
   const r = caricaRecupero(), o = $("#rOut"); if(!o) return;
@@ -2255,7 +2282,7 @@ function mostraRecupero(){
     <table class="items" style="margin-top:8px">
       <tr><td><b>Acquisti da completare</b></td><td class="num"><b>${prop.length}</b></td></tr>
       ${CAMPI_RECUPERO.map(([k, t]) => conta(k) ? `<tr><td>${t[0].toUpperCase() + t.slice(1)} aggiunti</td><td class="num">${conta(k)}</td></tr>` : "").join("")}
-      <tr><td>Da controllare a mano (non salvati)</td><td class="num">${dub.length}</td></tr>
+      <tr><td>Da controllare a mano</td><td class="num">${dub.length}</td></tr>
     </table>
     ${prop.length ? `<div class="btns"><button class="btn primary" id="rSalva">✅ Salva i dati trovati (${prop.length} acquisti)</button></div>` : ""}
     <div class="btns"><button class="btn" id="rRicomincia">🔄 Ricomincia da capo</button></div>
